@@ -2,11 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+
 import { createClient } from '@/utils/supabase/server'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
+  // type-casting here for convenience
+  // in practice, you should validate your inputs
   const data = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
@@ -17,15 +20,17 @@ export async function login(formData: FormData) {
   if (error) {
     redirect('/error')
   }
-
-  // no need to revalidate home if we're not using it
+ // Invalidate cache + redirect to private page
   revalidatePath('/private', 'layout')
   redirect('/private')
+
 }
 
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
+  // type-casting here for convenience
+  // in practice, you should validate your inputs
   const data = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
@@ -37,7 +42,8 @@ export async function signup(formData: FormData) {
     redirect('/error')
   }
 
+   // 3️⃣ Revalidate + redirect
   revalidatePath('/private', 'layout')
   redirect('/private')
-}
 
+}

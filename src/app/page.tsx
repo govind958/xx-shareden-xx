@@ -1,30 +1,59 @@
+"use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/button";
+import { Card, CardContent, CardTitle, CardDescription } from "@/components/card";
 
 export default function HomePage() {
+  const [search, setSearch] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    alert(`You searched for: ${search}`);
+  };
+
   return (
     <main className="min-h-screen bg-light">
       {/* Navbar */}
-      <header className="flex items-center justify-between px-8 py-6 bg-light shadow-md">
-        <h1 className="text-2xl font-bold text-primary">Shareden</h1>
-        <nav className="space-x-6">
-          <a href="#" className="text-secondary transition">
-            Features
-          </a>
-          <a href="#" className="text-secondary transition">
-            Pricing
-          </a>
-          <a href="#" className="text-secondary transition">
-            About
-          </a>
-        </nav>
-       <Link href="/login">
-          <button className="px-4 py-2 bg-primary text-white rounded-lg font-semibold shadow-md">
-            Login
-          </button>
-        </Link>
+      <nav className="w-full border-b border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          {/* Left: Logo */}
+          <div className="flex items-center space-x-2">
+            
+            <span className="font-semibold text-gray-700">Shareden</span>
+          </div>
 
-      </header>
+          {/* Middle: Search bar */}
+          <form onSubmit={handleSubmit} className="flex-1 px-6">
+            <input
+              type="text"
+              placeholder="Search for help on specific topics"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-full border border-gray-300 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </form>
+
+          {/* Right: Links */}
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="sm">
+              Features
+            </Button>
+            <Button variant="ghost" size="sm">
+              Pricing
+            </Button>
+            <Button variant="ghost" size="sm">
+              About
+            </Button>
+            <Link href="/login">
+              <Button variant="outline" size="sm">
+                Log In
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
 
       {/* Hero Section */}
       <section className="flex flex-col items-center text-center mt-24 px-6">
@@ -36,35 +65,43 @@ export default function HomePage() {
           with ease. Built for communities that grow together.
         </p>
         <div className="flex space-x-4">
-          <button className="px-6 py-3 bg-accent text-light rounded-xl shadow-md font-semibold">
+          <Button variant="default" size="lg">
             Get Started
-          </button>
-          <button className="px-6 py-3 bg-light border border-secondary rounded-xl shadow font-semibold">
+          </Button>
+          <Button variant="outline" size="lg">
             Learn More
-          </button>
+          </Button>
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features Section using Card */}
       <section className="mt-32 px-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
-        <div className="bg-light p-6 rounded-2xl shadow text-center">
-          <h3 className="text-xl font-semibold text-primary">Founder Forms</h3>
-          <p className="mt-3 text-secondary">
-            Collect founder details quickly with a beautiful, simple form.
-          </p>
-        </div>
-        <div className="bg-light p-6 rounded-2xl shadow text-center">
-          <h3 className="text-xl font-semibold text-primary">Smart Dashboard</h3>
-          <p className="mt-3 text-secondary">
-            View, sort, and manage all submissions in one place.
-          </p>
-        </div>
-        <div className="bg-light p-6 rounded-2xl shadow text-center">
-          <h3 className="text-xl font-semibold text-primary">Community Insights</h3>
-          <p className="mt-3 text-secondary">
-            Understand friction points and trends across founders.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="text-center">
+            <CardTitle>Founder Forms</CardTitle>
+            <CardDescription>
+              Collect founder details quickly with a beautiful, simple form.
+            </CardDescription>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="text-center">
+            <CardTitle>Smart Dashboard</CardTitle>
+            <CardDescription>
+              View, sort, and manage all submissions in one place.
+            </CardDescription>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="text-center">
+            <CardTitle>Community Insights</CardTitle>
+            <CardDescription>
+              Understand friction points and trends across founders.
+            </CardDescription>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Footer */}

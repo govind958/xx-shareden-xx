@@ -6,31 +6,24 @@ import { logout } from "@/src/app/logout/actions"
 export default async function PrivatePanel() {
   const supabase = await createClient()
 
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data?.user) {
+  // 1️⃣ Get logged-in user
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData?.user) {
     redirect("/login")
   }
+  const user = authData.user
+  const userEmail = user.email || ""
 
-  const userEmail = data.user.email || ""
+  // 2️⃣ Fetch all forms from all users
+  // Using safe query to avoid join errors
+  const { data: forms, error: formsError } = await supabase
+    .from("forms")
+    .select("*") // fetch all forms without join
+    .order("created_at", { ascending: false })
 
-  // Example list of companies selling spare tools
-  const companies = [
-    {
-      name: "Acme Industries",
-      description: "High-quality drilling tools available.",
-      contact: "sales@acme.com",
-    },
-    {
-      name: "Bolt & Nut Co.",
-      description: "Spare nuts, bolts, and fastening tools.",
-      contact: "contact@boltandnut.com",
-    },
-    {
-      name: "MegaTools Ltd.",
-      description: "Large spare tool sets for factories.",
-      contact: "info@megatools.com",
-    },
-  ]
+  if (formsError) {
+    console.error("❌ Error fetching forms:", formsError.message)
+  }
 
   return (
     <div className="min-h-screen flex bg-light">
@@ -45,30 +38,16 @@ export default async function PrivatePanel() {
           </div>
 
           <nav className="flex flex-col gap-4">
-            <Link
-              href="/private"
-              className="text-muted hover:text-primary transition"
-            >
+            <Link href="/private" className="text-muted hover:text-primary transition">
               Dashboard
             </Link>
-            <Link
-              href="/private/settings"
-              className="text-muted hover:text-primary transition"
-            >
+            <Link href="/private/settings" className="text-muted hover:text-primary transition">
               Settings
             </Link>
-
-             <Link
-              href="/startuponbordingform"
-              className="text-muted hover:text-primary transition"
-            >
+            <Link href="/startuponbordingform" className="text-muted hover:text-primary transition">
               Form
             </Link>
-
-            <Link
-              href="/private/billing"
-              className="text-muted hover:text-primary transition"
-            >
+            <Link href="/private/billing" className="text-muted hover:text-primary transition">
               Billing
             </Link>
           </nav>
@@ -90,8 +69,7 @@ export default async function PrivatePanel() {
           Welcome, <span className="text-primary">{userEmail}</span> 🎉
         </h1>
         <p className="text-muted mb-8">
-          This is your SaaS panel. You can add modules here like analytics,
-          reports, settings, or billing features.
+          This is your SaaS panel. You can add modules here like analytics, reports, settings, or billing features.
         </p>
 
         {/* Module buttons */}
@@ -110,21 +88,33 @@ export default async function PrivatePanel() {
           </button>
         </div>
 
-        {/* Companies list */}
-        <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-          Available Tools from Companies
-        </h2>
+        {/* All Forms from All Users */}
+        <h2 className="text-2xl font-semibold text-gray-700 mb-4">All Submitted Forms</h2>
         <div className="space-y-4">
-          {companies.map((company, idx) => (
-            <div
-              key={idx}
-              className="p-6 rounded-lg bg-white shadow-sm border border-gray-200 hover:shadow-md transition"
-            >
-              <h3 className="text-lg font-bold text-primary">{company.name}</h3>
-              <p className="text-muted">{company.description}</p>
-              <p className="text-sm text-gray-400 mt-1">📧 {company.contact}</p>
-            </div>
-          ))}
+          {forms && forms.length > 0 ? (
+            forms.map((form) => (
+              <div
+                key={form.form_id}
+                className="p-6 rounded-lg bg-white shadow-sm border border-gray-200 hover:shadow-md transition"
+              >
+                <h3 className="text-lg font-bold text-primary">{form.title}</h3>
+                <p className="text-muted">{form.description}</p>
+                {form.image_url && (
+                  <img
+                    src={form.image_url}
+                    alt={form.title}
+                    className="mt-2 rounded w-full h-48 object-cover"
+                  />
+                )}
+                <p className="text-sm text-gray-400 mt-1">Label: {form.label}</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Submitted by: {form.user_id || "Unknown"}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-muted">No forms have been submitted yet.</p>
+          )}
         </div>
       </main>
     </div>
