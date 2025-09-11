@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { logout } from "@/src/app/logout/actions"
@@ -100,12 +101,15 @@ export default async function PrivatePanel() {
                 <h3 className="text-lg font-bold text-primary">Who & What:-- {form.title}</h3>
                 <p className="text-muted">Challenge & Success:-- {form.description}</p>
                 {form.image_url && (
-                  <img
-                    src={form.image_url}
-                    alt={form.title}
-                    className="mt-2 rounded w-full h-48 object-cover"
-                  />
-                )}
+  <div className="mt-2 relative w-full h-48">
+    <Image
+      src={form.image_url}
+      alt={form.title}
+      fill
+      className="rounded object-cover"
+    />
+  </div>
+)}
                 <p className="text-sm text-gray-400 mt-1">Shareable Resource:-- {form.label}</p>
                 <p className="text-sm text-gray-400 mt-1">
                   Submitted by: {form.user_id || "Unknown"}

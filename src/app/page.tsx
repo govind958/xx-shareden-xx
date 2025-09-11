@@ -6,12 +6,7 @@ import { Button } from "@/components/button";
 import Image from "next/image";
 
 export default function HomePage() {
-  const [search, setSearch] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert(`You searched for: ${search}`);
-  };
+  
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-100 text-foreground">

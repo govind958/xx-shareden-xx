@@ -19,9 +19,14 @@ export default function StartupOnboardingForm() {
       await insertForm(formData)
       toast.success('🚀 Form submitted successfully!')
       router.push('/private')
-    } catch (err: any) {
-      toast.error(err.message || '❌ Something went wrong')
-    } finally {
+    } catch (err: unknown) {
+  if (err instanceof Error) {
+    toast.error(err.message)
+  } else {
+    toast.error('❌ Something went wrong')
+  }
+}
+ finally {
       setLoading(false)
     }
   }
