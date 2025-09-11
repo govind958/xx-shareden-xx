@@ -97,8 +97,8 @@ export default async function PrivatePanel() {
                 key={form.form_id}
                 className="p-6 rounded-lg bg-white shadow-sm border border-gray-200 hover:shadow-md transition"
               >
-                <h3 className="text-lg font-bold text-primary">{form.title}</h3>
-                <p className="text-muted">{form.description}</p>
+                <h3 className="text-lg font-bold text-primary">Who & What:-- {form.title}</h3>
+                <p className="text-muted">Challenge & Success:-- {form.description}</p>
                 {form.image_url && (
                   <img
                     src={form.image_url}
@@ -106,7 +106,7 @@ export default async function PrivatePanel() {
                     className="mt-2 rounded w-full h-48 object-cover"
                   />
                 )}
-                <p className="text-sm text-gray-400 mt-1">Label: {form.label}</p>
+                <p className="text-sm text-gray-400 mt-1">Shareable Resource:-- {form.label}</p>
                 <p className="text-sm text-gray-400 mt-1">
                   Submitted by: {form.user_id || "Unknown"}
                 </p>

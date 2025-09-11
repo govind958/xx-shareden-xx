@@ -24,9 +24,9 @@ export async function insertForm(formData: FormData) {
   // 2️⃣ Extract form values
   const title = formData.get("title") as string
   const description = formData.get("description") as string
-  const imageUrl = formData.get("image_url") as string
+  // const imageUrl = formData.get("image_url") as string // ❌ Commented out
   const label = formData.get("label") as string
-  console.log("📝 Extracted values:", { title, description, imageUrl, label })
+  console.log("📝 Extracted values:", { title, description, label })
 
   // 3️⃣ Insert into Supabase `forms` table
   const { error } = await supabase.from("forms").insert([
@@ -34,7 +34,7 @@ export async function insertForm(formData: FormData) {
       user_id: user.id,   // ✅ linked to profile
       title,
       description,
-      image_url: imageUrl,
+      // image_url: imageUrl, // ❌ Commented out
       label,
     }
   ])
@@ -47,7 +47,6 @@ export async function insertForm(formData: FormData) {
   console.log("✅ Form successfully inserted into DB")
 
   // 4️⃣ Revalidate & redirect (optional)
-  await revalidatePath('/private/forms')
-  console.log("🔄 Revalidated /private/forms")
+  await revalidatePath('/private')
+  console.log("🔄 Revalidated /private")
 }
-

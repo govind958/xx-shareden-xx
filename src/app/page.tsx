@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/button";
-import { Card, CardContent, CardTitle, CardDescription } from "@/components/card";
+import Image from "next/image";
 
 export default function HomePage() {
   const [search, setSearch] = useState("");
@@ -14,99 +14,97 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-light">
-      {/* Navbar */}
-      <nav className="w-full border-b border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Left: Logo */}
-          <div className="flex items-center space-x-2">
-            
-            <span className="font-semibold text-gray-700">Shareden</span>
-          </div>
-
-          {/* Middle: Search bar */}
-          <form onSubmit={handleSubmit} className="flex-1 px-6">
-            <input
-              type="text"
-              placeholder="Search for help on specific topics"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-full border border-gray-300 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </form>
-
-          {/* Right: Links */}
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
-              Features
-            </Button>
-            <Button variant="ghost" size="sm">
-              Pricing
-            </Button>
-            <Button variant="ghost" size="sm">
-              About
-            </Button>
-            <Link href="/login">
-              <Button variant="outline" size="sm">
-                Log In
-              </Button>
-            </Link>
-          </div>
+    <main className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-100 text-foreground">
+      {/* Hero */}
+      <section className="relative flex flex-col items-center text-center pt-16 pb-20 sm:pt-24 sm:pb-32 px-4 sm:px-12">
+        {/* Brand Title */}
+        <div className="mb-4 sm:mb-6">
+          <span className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
+            ShareDen
+          </span>
         </div>
-      </nav>
 
-      {/* Hero Section */}
-      <section className="flex flex-col items-center text-center mt-24 px-6">
-        <h2 className="text-5xl font-extrabold text-primary mb-6">
-          Organize Founders. Save Time. 🚀
-        </h2>
-        <p className="text-lg text-secondary max-w-2xl mb-8">
-          Shareden helps you collect, organize, and track founder information
-          with ease. Built for communities that grow together.
+        {/* Main Heading */}
+        <h1 className="text-3xl sm:text-6xl font-extrabold mb-4 sm:mb-6 text-gray-900">
+          Your{" "}
+          <span className="bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
+            Startup
+          </span>{" "}
+          Growth Stack.
+        </h1>
+
+        <p className="text-sm sm:text-lg text-gray-600 max-w-xl sm:max-w-2xl mb-6 sm:mb-8">
+          ShareDen is the ecosystem where tools, people, and systems don’t just
+          coexist — they click. We make sure every moving part of your startup’s
+          growth stack works together seamlessly, so you can scale faster,
+          smarter, and with less friction.
         </p>
-        <div className="flex space-x-4">
-          <Button variant="default" size="lg">
-            Get Started
-          </Button>
-          <Button variant="outline" size="lg">
+
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto max-w-xs sm:max-w-none">
+          <Link href="/login" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700">
+              Log In
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto border-teal-500 text-teal-600 hover:bg-teal-50"
+          >
             Learn More
           </Button>
         </div>
       </section>
 
-      {/* Features Section using Card */}
-      <section className="mt-32 px-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
-        <Card>
-          <CardContent className="text-center">
-            <CardTitle>Founder Forms</CardTitle>
-            <CardDescription>
-              Collect founder details quickly with a beautiful, simple form.
-            </CardDescription>
-          </CardContent>
-        </Card>
+      {/* Expert Match Section */}
+      <section className="py-16 sm:py-20 px-4 sm:px-12 bg-gradient-to-r from-teal-500 to-teal-600 text-white">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 sm:gap-12 items-center">
+          {/* Text side */}
+          <div>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Stuck at vibe coding?
+            </h2>
+            <p className="mb-6 text-base sm:text-lg opacity-90">
+              Get matched with the right expert to turn your prototype into a
+              real, working product.
+            </p>
+            <Link href="/experts">
+              <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold hover:bg-gray-100">
+                Find an Expert
+              </Button>
+            </Link>
+          </div>
 
-        <Card>
-          <CardContent className="text-center">
-            <CardTitle>Smart Dashboard</CardTitle>
-            <CardDescription>
-              View, sort, and manage all submissions in one place.
-            </CardDescription>
-          </CardContent>
-        </Card>
+          {/* Image side */}
+          <div className="flex justify-center">
+            <Image
+              src="/alert.png"
+              alt="Stuck coding illustration"
+              width={500}
+              height={350}
+              className="rounded-2xl shadow-xl max-w-full h-auto"
+            />
+          </div>
+        </div>
+      </section>
 
-        <Card>
-          <CardContent className="text-center">
-            <CardTitle>Community Insights</CardTitle>
-            <CardDescription>
-              Understand friction points and trends across founders.
-            </CardDescription>
-          </CardContent>
-        </Card>
+      {/* CTA */}
+      <section className="py-16 sm:py-20 px-4 sm:px-12 text-center bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 text-white">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+          Ready to save time?
+        </h2>
+        <p className="mb-6 text-sm sm:text-base opacity-90">
+          Join founders already using ShareDen today.
+        </p>
+        <Link href="/login">
+          <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold hover:bg-gray-100">
+            Get Started
+          </Button>
+        </Link>
       </section>
 
       {/* Footer */}
-      <footer className="mt-32 py-8 bg-light border-t text-center text-secondary">
-        © {new Date().getFullYear()} Shareden. All rights reserved.
+      <footer className="bg-gray-900 text-gray-300 py-6 text-center text-sm sm:text-base">
+        © 2025 ShareDen. All rights reserved.
       </footer>
     </main>
   );
