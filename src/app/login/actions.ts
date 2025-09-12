@@ -5,11 +5,22 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/utils/supabase/server'
 
+// 🔑 Helper to generate correct URL
+function getURL() {
+  let url =
+    process?.env?.NEXT_PUBLIC_SITE_URL ??
+    process?.env?.NEXT_PUBLIC_VERCEL_URL ??
+    'http://localhost:3000/'
+
+  url = url.startsWith('http') ? url : `https://${url}`
+  url = url.endsWith('/') ? url : `${url}/`
+
+  return url
+}
+
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
   const data = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
@@ -20,30 +31,30 @@ export async function login(formData: FormData) {
   if (error) {
     redirect('/error')
   }
- // Invalidate cache + redirect to private page
+
   revalidatePath('/private', 'layout')
   redirect('/private')
-
 }
 
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
   const data = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  const { error } = await supabase.auth.signUp({
+    ...data,
+    options: {
+      emailRedirectTo: getURL(), // 👈 this is the important part
+    },
+  })
 
   if (error) {
     redirect('/error')
   }
 
-   // 3️⃣ Revalidate + redirect
   revalidatePath('/private', 'layout')
   redirect('/private')
-
 }

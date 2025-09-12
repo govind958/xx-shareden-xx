@@ -15,7 +15,7 @@ export default function HomePage() {
         {/* Brand Title */}
         <div className="mb-4 sm:mb-6">
           <span className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
-            ShareDen
+            ShareDen Connect
           </span>
         </div>
 
@@ -51,36 +51,51 @@ export default function HomePage() {
       </section>
 
       {/* Expert Match Section */}
-      <section className="py-16 sm:py-20 px-4 sm:px-12 bg-gradient-to-r from-teal-500 to-teal-600 text-white">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 sm:gap-12 items-center">
-          {/* Text side */}
-          <div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Stuck at vibe coding?
-            </h2>
-            <p className="mb-6 text-base sm:text-lg opacity-90">
-              Get matched with the right expert to turn your prototype into a
-              real, working product.
-            </p>
-            <Link href="/experts">
-              <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold hover:bg-gray-100">
-                Find an Expert
-              </Button>
-            </Link>
-          </div>
+     <section className="relative py-20 sm:py-28 px-6 sm:px-12 bg-gradient-to-r from-teal-500 via-teal-600 to-teal-700 text-white overflow-hidden">
+  {/* Decorative background */}
+  <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10"></div>
+  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
 
-          {/* Image side */}
-          <div className="flex justify-center">
-            <Image
-              src="/alert.png"
-              alt="Stuck coding illustration"
-              width={500}
-              height={350}
-              className="rounded-2xl shadow-xl max-w-full h-auto"
-            />
-          </div>
-        </div>
-      </section>
+  <div className="relative max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+    {/* Text side */}
+    <div className="text-center md:text-left space-y-6">
+      <h2 className="text-4xl sm:text-5xl font-extrabold leading-tight">
+        Stuck at{" "}
+        <span className="bg-gradient-to-r from-teal-300 via-teal-400 to-teal-600 bg-clip-text text-transparent">
+          vibe coding?
+        </span>
+      </h2>
+      <p className="text-lg sm:text-xl opacity-90 max-w-lg mx-auto md:mx-0">
+        Get matched with the right expert to transform your prototype into a
+        real, working product — faster than you think.
+      </p>
+      <Link href="/experts" className="block mt-8">
+        <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold">
+          Find an Expert
+        </Button>
+      </Link>
+    </div>
+
+    {/* Image side */}
+    <div className="flex justify-center relative">
+      <div className="absolute -top-6 -left-6 w-72 h-72 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-25"></div>
+      <div className="absolute -bottom-6 -right-6 w-72 h-72 bg-teal-600 rounded-full mix-blend-multiply filter blur-3xl opacity-25"></div>
+
+      <Image
+        src="/image 2.png"
+        alt="Stuck coding illustration"
+        width={300}
+        height={350}
+        className="max-w-full h-auto z-10"
+      />
+    </div>
+  </div>
+</section>
+
+
+
+
+
 
       {/* CTA */}
       <section className="py-16 sm:py-20 px-4 sm:px-12 text-center bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 text-white">
