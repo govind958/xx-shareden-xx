@@ -1,12 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/button";
 import Image from "next/image";
+import { Button } from "@/components/button";
+import mixpanel from "mixpanel-browser";
+
+// Initialize Mixpanel
+const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN || "";
+
+if (MIXPANEL_TOKEN) {
+  mixpanel.init(MIXPANEL_TOKEN, { autocapture: true });
+} else {
+  console.warn("Mixpanel token is missing! Check your .env file.");
+}
 
 export default function HomePage() {
-  
+  useEffect(() => {
+    // Track page view when user lands here
+    mixpanel.track("Home Page Viewed");
+  }, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-100 text-foreground">
@@ -36,7 +49,11 @@ export default function HomePage() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto max-w-xs sm:max-w-none">
-          <Link href="/login" className="w-full sm:w-auto">
+          <Link
+            href="/login"
+            className="w-full sm:w-auto"
+            onClick={() => mixpanel.track("Login CTA Clicked")}
+          >
             <Button className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700">
               Log In
             </Button>
@@ -44,6 +61,7 @@ export default function HomePage() {
           <Button
             variant="outline"
             className="w-full sm:w-auto border-teal-500 text-teal-600 hover:bg-teal-50"
+            onClick={() => mixpanel.track("Learn More Clicked")}
           >
             Learn More
           </Button>
@@ -51,51 +69,50 @@ export default function HomePage() {
       </section>
 
       {/* Expert Match Section */}
-     <section className="relative py-20 sm:py-28 px-6 sm:px-12 bg-gradient-to-r from-teal-500 via-teal-600 to-teal-700 text-white overflow-hidden">
-  {/* Decorative background */}
-  <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10"></div>
-  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+      <section className="relative py-20 sm:py-28 px-6 sm:px-12 bg-gradient-to-r from-teal-500 via-teal-600 to-teal-700 text-white overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
 
-  <div className="relative max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-    {/* Text side */}
-    <div className="text-center md:text-left space-y-6">
-      <h2 className="text-4xl sm:text-5xl font-extrabold leading-tight">
-        Stuck at{" "}
-        <span className="bg-gradient-to-r from-teal-300 via-teal-400 to-teal-600 bg-clip-text text-transparent">
-          vibe coding?
-        </span>
-      </h2>
-      <p className="text-lg sm:text-xl opacity-90 max-w-lg mx-auto md:mx-0">
-        Get matched with the right expert to transform your prototype into a
-        real, working product — faster than you think.
-      </p>
-      <Link href="/experts" className="block mt-8">
-        <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold">
-          Find an Expert
-        </Button>
-      </Link>
-    </div>
+        <div className="relative max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          {/* Text side */}
+          <div className="text-center md:text-left space-y-6">
+            <h2 className="text-4xl sm:text-5xl font-extrabold leading-tight">
+              Stuck at{" "}
+              <span className="bg-gradient-to-r from-teal-300 via-teal-400 to-teal-600 bg-clip-text text-transparent">
+                vibe coding?
+              </span>
+            </h2>
+            <p className="text-lg sm:text-xl opacity-90 max-w-lg mx-auto md:mx-0">
+              Get matched with the right expert to transform your prototype into
+              a real, working product — faster than you think.
+            </p>
+            <Link
+              href="/experts"
+              className="block mt-8"
+              onClick={() => mixpanel.track("Find Expert Clicked")}
+            >
+              <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold">
+                Find an Expert
+              </Button>
+            </Link>
+          </div>
 
-    {/* Image side */}
-    <div className="flex justify-center relative">
-      <div className="absolute -top-6 -left-6 w-72 h-72 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-25"></div>
-      <div className="absolute -bottom-6 -right-6 w-72 h-72 bg-teal-600 rounded-full mix-blend-multiply filter blur-3xl opacity-25"></div>
+          {/* Image side */}
+          <div className="flex justify-center relative">
+            <div className="absolute -top-6 -left-6 w-72 h-72 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-25"></div>
+            <div className="absolute -bottom-6 -right-6 w-72 h-72 bg-teal-600 rounded-full mix-blend-multiply filter blur-3xl opacity-25"></div>
 
-      <Image
-        src="/image 2.png"
-        alt="Stuck coding illustration"
-        width={300}
-        height={350}
-        className="max-w-full h-auto z-10"
-      />
-    </div>
-  </div>
-</section>
-
-
-
-
-
+            <Image
+              src="/image 2.png"
+              alt="Stuck coding illustration"
+              width={300}
+              height={350}
+              className="max-w-full h-auto z-10"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* CTA */}
       <section className="py-16 sm:py-20 px-4 sm:px-12 text-center bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 text-white">
@@ -105,7 +122,10 @@ export default function HomePage() {
         <p className="mb-6 text-sm sm:text-base opacity-90">
           Join founders already using ShareDen today.
         </p>
-        <Link href="/login">
+        <Link
+          href="/login"
+          onClick={() => mixpanel.track("Get Started CTA Clicked")}
+        >
           <Button className="w-full sm:w-auto bg-white text-teal-600 font-semibold hover:bg-gray-100">
             Get Started
           </Button>

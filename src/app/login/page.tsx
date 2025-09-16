@@ -1,8 +1,17 @@
-import { login, signup } from "./actions"
-import { Button } from "@/src/components/ui/button"
-import { Mail, Lock } from "lucide-react"
+"use client";
+
+import { useEffect } from "react";
+import { login, signup } from "./actions";
+import { Button } from "@/src/components/ui/button";
+import { Mail, Lock } from "lucide-react";
+import mixpanel from "@/src/lib/mixpanelClient";
 
 export default function LoginPage() {
+  // Track page view when user lands here
+  useEffect(() => {
+    mixpanel.track("Login Page Viewed");
+  }, []);
+
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-100 via-white to-teal-50 p-6 overflow-hidden">
       {/* Decorative background blobs */}
@@ -71,7 +80,7 @@ export default function LoginPage() {
         </div>
 
         {/* Social Login */}
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Button className="flex-1 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 shadow-sm">
             Continue with Google
           </Button>
@@ -81,5 +90,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
