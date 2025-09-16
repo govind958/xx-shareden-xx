@@ -2,7 +2,6 @@
 
 // --- React & Next.js Imports ---
 import React, { useEffect, useState, useRef } from "react"
-import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from 'next/navigation'
 import toast, { Toaster } from 'react-hot-toast'
@@ -47,10 +46,10 @@ function DashboardContent({ forms, isLoading, userEmail }: DashboardContentProps
       <h1 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">
         Welcome, <span className="text-teal-600">{userName}</span> 🎉
       </h1>
-      <p className="text-gray-500 mb-8 max-w-2xl">
-        This is your personal dashboard. It's a great place to manage and view all your submitted forms and other key information.
-      </p>
-
+     <p className="text-gray-500 mb-8 max-w-2xl">
+  It&apos;s a great place to manage and view all your submitted forms and other key information.
+</p>
+ 
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Submitted Forms</h2>
         {isLoading ? (
