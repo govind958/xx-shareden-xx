@@ -13,7 +13,8 @@ import { insertForm } from '@/src/app/startuponbordingform/actions'
 
 // --- UI Components & Icons ---
 import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle } from "lucide-react"
-import { Code, Paintbrush, Megaphone, Users } from "lucide-react"
+import { Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
 
@@ -41,7 +42,100 @@ interface FormContentProps {
   showFormCreation: boolean
 }
 
-// --- Components for each tab's content ---
+interface TimelineItem {
+  icon: React.ElementType;
+  label: string;
+}
+
+interface ProductCardProps {
+  title: string
+  subtitle: string
+  imageUrl?: string
+  features: { label: string; value: string }[]
+  price: string
+  lastBought?: string
+  timeline: TimelineItem[];
+}
+
+/**
+ * ## ProductCard Component
+ * A reusable component to display a product card with features and premium details,
+ * now including a horizontal timeline of core stacks.
+ */
+function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, timeline }: ProductCardProps) {
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col justify-between">
+      {/* Header and Credits */}
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center gap-4">
+          {imageUrl && <Image src={imageUrl} alt={title} width={48} height={48} className="rounded-lg" />}
+          <div className="flex flex-col">
+            <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+            <span className="text-sm text-gray-500">{subtitle}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-gray-500">
+          <span className="text-sm">Credits</span>
+          <Coins size={20} className="text-amber-500" />
+        </div>
+      </div>
+
+      {/* Features Grid */}
+      <div className="grid grid-cols-2 gap-y-4 mb-6">
+        {features.map((feature, index) => (
+          <div key={index}>
+            <p className="text-gray-500 text-sm mb-1">{feature.label}</p>
+            <p className="text-gray-800 font-semibold">{feature.value}</p>
+          </div>
+        ))}
+        <div className="col-span-2">
+          <a href="#" className="flex items-center text-teal-600 hover:underline transition-colors">
+            View all features <ChevronRight size={16} />
+          </a>
+        </div>
+      </div>
+
+      {/* Onboarding Timeline */}
+      <div className="border-t border-gray-200 pt-6 mt-4 mb-6">
+        <h4 className="font-semibold text-gray-800 mb-4">Core Onboarding Stacks</h4>
+        <div className="flex items-center justify-between overflow-x-auto gap-4">
+          {timeline.map((item, index) => (
+            <React.Fragment key={index}>
+              <div className="flex flex-col items-center flex-shrink-0 w-20 sm:w-24">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-teal-100 text-teal-600 mb-2">
+                  <item.icon size={24} />
+                </div>
+                <span className="text-center text-xs font-medium text-gray-700">{item.label}</span>
+              </div>
+              {index < timeline.length - 1 && (
+                <div className="flex-1 h-0.5 bg-gray-200" />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Last Bought Info */}
+      {lastBought && (
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+          <Clock size={16} />
+          <span>{lastBought}</span>
+        </div>
+      )}
+
+      {/* Footer with Price and Button */}
+      <div className="flex justify-between items-center border-t border-gray-200 pt-4 mt-auto">
+        <div>
+          <p className="text-sm text-gray-500">Starting at</p>
+          <p className="text-2xl font-bold text-teal-600">{price}</p>
+        </div>
+        <Button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
+          Get Started
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * ## DashboardContent
@@ -50,6 +144,26 @@ interface FormContentProps {
  */
 function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
   const userName = userEmail ? userEmail.split("@")[0] : "User"
+
+  // Product data for the new card
+  const productData = {
+    title: "Full Stack Onboarding",
+    subtitle: "End-to-end user onboarding for your startup.",
+    features: [
+      { label: "Onboarding Funnel", value: "Lead-Gen & Discovery" },
+      { label: "Actionable Insights", value: "Reporting & Analytics" },
+      { label: "Support & Maintenance", value: "Dedicated Fractional Team" },
+    ],
+    price: "100 Credits",
+    lastBought: "Last purchased 3 days ago",
+    timeline: [
+      { icon: Users, label: "User Identity" },
+      { icon: Layout, label: "UI/UX" },
+      { icon: Database, label: "Analytics" },
+      { icon: Mail, label: "Engagement" },
+      { icon: MessageSquare, label: "Support" },
+    ],
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-10">
@@ -60,7 +174,35 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
         This is your main dashboard. Use the navigation to manage your forms, view analytics, and update your settings.
       </p>
 
-      {/* Explore section - inspired by the image */}
+      {/* Quick Actions section */}
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 mb-10">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <button
+            className="bg-teal-50 rounded-xl p-5 border border-teal-100 flex items-start gap-4 text-left cursor-pointer hover:bg-teal-100 transition-colors"
+            onClick={() => onNavigate('form')}
+          >
+            <div className="p-3 bg-teal-100 rounded-full text-teal-600">
+              <FileText size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-teal-800">Create a New Form</h3>
+              <p className="text-sm text-teal-600">Start collecting information now.</p>
+            </div>
+          </button>
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 flex items-start gap-4">
+            <div className="p-3 bg-gray-100 rounded-full text-gray-600">
+              <BarChart size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">View Analytics</h3>
+              <p className="text-sm text-gray-600">See how your forms are performing.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Explore section with a new card */}
       <div className="mb-10">
         <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-6">
           Explore Startup Stacks
@@ -85,33 +227,29 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
         </div>
       </div>
 
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Changed this div to a button with an onClick handler */}
-          <button 
-            className="bg-teal-50 rounded-xl p-5 border border-teal-100 flex items-start gap-4 text-left cursor-pointer hover:bg-teal-100 transition-colors"
-            onClick={() => onNavigate('form')}
-          >
-            <div className="p-3 bg-teal-100 rounded-full text-teal-600">
-              <FileText size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-teal-800">Create a New Form</h3>
-              <p className="text-sm text-teal-600">Start collecting information now.</p>
-            </div>
-          </button>
-          <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 flex items-start gap-4">
-            <div className="p-3 bg-gray-100 rounded-full text-gray-600">
-              <BarChart size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">View Analytics</h3>
-              <p className="text-sm text-gray-600">See how your forms are performing.</p>
-            </div>
-          </div>
+      {/* New Product Card Section */}
+      <div className="mb-10">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-6">
+          Recommended for you
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+          <ProductCard {...productData} />
         </div>
+
+
+
       </div>
+
+
+
+
+
+
+
+
+
+
+
     </div>
   )
 }
@@ -265,7 +403,7 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
                   )}
                   <div className="p-5">
                     <h3 className="text-lg font-semibold text-teal-700">{form.title}</h3>
-                    <p className="text-gray-600 text-sm mt-1 line-clamp-2">{form.description}</p>
+                   <p className="text-gray-600 text-sm mt-1">{form.description}</p>
                     <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
                       <span>Resource: {form.label}</span>
                       <span className="flex items-center gap-1">
@@ -386,7 +524,7 @@ export default function PrivatePanel() {
     window.addEventListener("touchend", handleTouchEnd)
 
     return () => {
-      window.removeEventListener("touchstart", handleTouchStart)
+      window.removeEventListener("touchstart", handleTouchEnd)
       window.removeEventListener("touchend", handleTouchEnd)
     }
   }, [isSidebarOpen, isMobile])
@@ -512,10 +650,6 @@ export default function PrivatePanel() {
                 <link.icon size={18} />
                 <span className="text-sm">{link.label}</span>
                 {/* Tooltip */}
-                <span className="absolute left-full ml-4 w-auto p-2 bg-gray-800 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 pointer-events-none">
-                  <span className="absolute left-[-5px] top-1/2 -mt-1 w-0 h-0 border-t-[5px] border-b-[5px] border-r-[5px] border-solid border-t-transparent border-b-transparent border-r-gray-800"></span>
-                  {link.message}
-                </span>
               </button>
             ))}
           </nav>
