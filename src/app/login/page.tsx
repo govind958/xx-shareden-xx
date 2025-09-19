@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { login, signup } from "./actions";
+import { login, signup} from "./actions";
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
+import { loginWithGoogle } from "./loginWithGoogle"; // ✅ client-side
+
 
 export default function LoginPage() {
   // Track page view when user lands here
@@ -80,15 +82,23 @@ export default function LoginPage() {
         </div>
 
         {/* Social Login */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button className="flex-1 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 shadow-sm">
-            Continue with Google
-          </Button>
-          <Button className="flex-1 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 shadow-sm">
-            Continue with GitHub
-          </Button>
-        </div>
+      {/* Social Login */}
+
+
+
+<Button
+  onClick={loginWithGoogle} // must use onClick
+  className="flex-1 bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 shadow-sm"
+>
+  Continue with Google
+</Button>
+
+
+
+
+
       </div>
     </div>
   );
 }
+
