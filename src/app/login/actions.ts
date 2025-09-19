@@ -2,10 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-
 import { createClient } from '@/utils/supabase/server'
 
-// Helper to generate correct site URL
+// 🔑 Helper to generate correct URL
 function getURL() {
   let url =
     process?.env?.NEXT_PUBLIC_SITE_URL ??
@@ -18,6 +17,7 @@ function getURL() {
   return url
 }
 
+// ✅ Login (unchanged)
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
@@ -36,6 +36,7 @@ export async function login(formData: FormData) {
   redirect('/private')
 }
 
+// ✅ Signup (updated for email verification flow)
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
@@ -47,7 +48,7 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     ...data,
     options: {
-      emailRedirectTo: getURL(),
+      emailRedirectTo: getURL(), // where verification link will send user
     },
   })
 
@@ -55,46 +56,9 @@ export async function signup(formData: FormData) {
     redirect('/error')
   }
 
+  // Revalidate private cache (optional, safe to keep)
   revalidatePath('/private', 'layout')
-  redirect('/private')
+
+  // 👉 Instead of sending user to /private, send them to verify email page
+  redirect('/verify-email')
 }
-
-/* ---------- Google OAuth ---------- */
-
-
-
-export async function loginWithGoogle() {
-  console.log("[Google Login] Button clicked");
-
-  const supabase = await createClient();
-
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/auth/callback",
-      },
-    });
-
-    console.log("[Google Login] Supabase response:", data, error);
-
-    if (error) {
-      console.error("[Google Login] Error:", error.message);
-      alert("Login failed: " + error.message);
-      return;
-    }
-
-    if (data?.url) {
-      console.log("[Google Login] Redirecting browser to:", data.url);
-      window.location.href = data.url; // 👈 browser redirect to Google
-    } else {
-      console.warn("[Google Login] No URL returned from Supabase");
-    }
-  } catch (err) {
-    console.error("[Google Login] Unexpected error:", err);
-  }
-}
-
-
-
-

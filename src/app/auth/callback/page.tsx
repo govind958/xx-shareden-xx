@@ -9,26 +9,21 @@ export default function AuthCallback() {
   const supabase = createClient();
 
   useEffect(() => {
-    console.log("[Callback] Page loaded");
-
-    const checkSession = async () => {
+    const handleOAuth = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        console.log("[Callback] Supabase session:", session, error);
+        // Exchange the OAuth code for a session (for PKCE flow)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
 
         if (error) {
-          console.error("[Callback] Error fetching session:", error);
+          console.error("[Callback] Error exchanging code for session:", error.message);
+          router.push("/login");
+          return;
         }
 
-        if (session) {
-          console.log("[Callback] Session exists → redirecting to /private");
+        if (data?.session) {
+          // ✅ Directly redirect Google users to /private
           router.push("/private");
         } else {
-          console.log("[Callback] No session → redirecting to /login");
           router.push("/login");
         }
       } catch (err) {
@@ -37,7 +32,7 @@ export default function AuthCallback() {
       }
     };
 
-    checkSession();
+    handleOAuth();
   }, [router, supabase]);
 
   return (
