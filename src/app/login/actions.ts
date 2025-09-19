@@ -62,3 +62,29 @@ export async function signup(formData: FormData) {
   // 👉 Instead of sending user to /private, send them to verify email page
   redirect('/verify-email')
 }
+// ✅ Google Login/Signup
+// ✅ OAuth Factory
+const signInWith = (provider: 'google' | 'github' | 'facebook') => {
+  return async () => {
+    const supabase = await createClient()
+
+    const auth_callback_url = `${getURL()}auth/callback`
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: auth_callback_url,
+      },
+    })
+
+    if (error) {
+      redirect('/error')
+    }
+
+    // Supabase will redirect the user to provider → then back to callback URL
+    redirect(data?.url ?? '/error')
+  }
+}
+
+// 👉 Specific provider actions
+export const signInWithGoogle = signInWith('google')

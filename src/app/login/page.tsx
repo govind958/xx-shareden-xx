@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { login, signup } from "./actions";
+import { login, signInWithGoogle, signup } from "./actions";
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
@@ -85,7 +85,7 @@ export default function LoginPage() {
         {/* Social Login */}
         <div className="flex flex-col gap-3">
           <Button
-            onClick={loginWithGoogle} // must use onClick
+            onClick={signInWithGoogle} // must use onClick
             className="w-full bg-white border border-teal-200 text-teal-700 hover:bg-teal-50 shadow-sm"
           >
             Continue with Google
