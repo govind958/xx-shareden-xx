@@ -58,13 +58,15 @@ export default function HomePage() {
               Log In
             </Button>
           </Link>
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto border-teal-500 text-teal-600 hover:bg-teal-50"
-            onClick={() => mixpanel.track("Learn More Clicked")}
+           <Link
+            href="/"
+            className="w-full sm:w-auto"
+            onClick={() => mixpanel.track("dashboard CTA Clicked")}
           >
-            Learn More
-          </Button>
+            <Button className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700">
+              Dashboard
+            </Button>
+          </Link>
         </div>
       </section>
 
