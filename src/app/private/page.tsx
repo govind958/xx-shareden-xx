@@ -599,14 +599,15 @@ export default function PrivatePanel() {
     <div className="min-h-screen w-full bg-slate-50 font-sans text-gray-800 transition-all duration-300">
       <div className="flex min-h-screen">
         {/* Sidebar */}
-        <aside
-          className={cn(
-            "flex flex-col bg-white h-screen shadow-lg transition-transform duration-300 ease-in-out z-40",
-            "md:flex md:w-64 md:translate-x-0 md:static",
-            "fixed inset-y-0 left-0 w-64",
-            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-          )}
-        >
+       <aside
+  className={cn(
+    "flex flex-col bg-white shadow-lg transition-transform duration-300 ease-in-out z-40",
+    "md:flex md:w-64 md:translate-x-0 md:static",
+    "fixed inset-y-0 left-0 w-64 overflow-y-auto",
+    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+  )}
+>
+
           {/* User info and close button */}
           {/* Sidebar Header (Google Maps style) */}
           <div className="border-b border-gray-100">
