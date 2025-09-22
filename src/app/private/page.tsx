@@ -64,53 +64,53 @@ interface ProductCardProps {
  */
 function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, timeline }: ProductCardProps) {
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col justify-between">
+    // The main neumorphic container
+    <div className="bg-gray-200 rounded-3xl p-8 shadow-neumorphic-outer group transition-all duration-300">
       {/* Header and Credits */}
-      <div className="flex justify-between items-start mb-4">
+      <div className="relative flex justify-between items-start mb-6">
         <div className="flex items-center gap-4">
-          {imageUrl && <Image src={imageUrl} alt={title} width={48} height={48} className="rounded-lg" />}
+          {imageUrl && (
+            <div className="w-16 h-16 p-2 bg-gray-200 rounded-2xl shadow-neumorphic-inner flex items-center justify-center">
+              <Image src={imageUrl} alt={title} width={48} height={48} className="rounded-xl" />
+            </div>
+          )}
           <div className="flex flex-col">
-            <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{title}</h3>
             <span className="text-sm text-gray-500">{subtitle}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-gray-500">
-          <span className="text-sm">Credits</span>
-          <Coins size={20} className="text-amber-500" />
+        <div className="flex items-center gap-2 text-gray-500 text-sm">
+          <Coins size={18} className="text-amber-500" />
+          <span className="font-semibold">Credits</span>
         </div>
       </div>
 
       {/* Features Grid */}
-      <div className="grid grid-cols-2 gap-y-4 mb-6">
+      <div className="grid grid-cols-2 gap-y-5 mb-6">
         {features.map((feature, index) => (
-          <div key={index}>
-            <p className="text-gray-500 text-sm mb-1">{feature.label}</p>
+          <div key={index} className="flex flex-col">
+            <p className="text-gray-500 text-sm">{feature.label}</p>
             <p className="text-gray-800 font-semibold">{feature.value}</p>
           </div>
         ))}
-        <div className="col-span-2">
-          <a href="#" className="flex items-center text-teal-600 hover:underline transition-colors">
+        <div className="col-span-2 mt-2">
+          <a href="#" className="flex items-center text-teal-600 hover:text-teal-700 transition-colors font-medium">
             View all features <ChevronRight size={16} />
           </a>
         </div>
       </div>
 
       {/* Onboarding Timeline */}
-      <div className="border-t border-gray-200 pt-6 mt-4 mb-6">
-        <h4 className="font-semibold text-gray-800 mb-4">Core Onboarding Stacks</h4>
+      <div className="border-t border-gray-300 pt-6 mt-4 mb-6">
+        <h4 className="font-semibold text-gray-800 mb-4">Core Stacks</h4>
         <div className="flex items-center justify-between overflow-x-auto gap-4">
           {timeline.map((item, index) => (
-            <React.Fragment key={index}>
-              <div className="flex flex-col items-center flex-shrink-0 w-20 sm:w-24">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-teal-100 text-teal-600 mb-2">
-                  <item.icon size={24} />
-                </div>
-                <span className="text-center text-xs font-medium text-gray-700">{item.label}</span>
+            <div key={index} className="flex flex-col items-center flex-shrink-0 w-20 sm:w-24">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 text-teal-600 shadow-neumorphic-inner">
+                <item.icon size={24} />
               </div>
-              {index < timeline.length - 1 && (
-                <div className="flex-1 h-0.5 bg-gray-200" />
-              )}
-            </React.Fragment>
+              <span className="text-center text-xs font-medium text-gray-700 mt-2">{item.label}</span>
+            </div>
           ))}
         </div>
       </div>
@@ -124,12 +124,12 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
       )}
 
       {/* Footer with Price and Button */}
-      <div className="flex justify-between items-center border-t border-gray-200 pt-4 mt-auto">
+      <div className="flex justify-between items-center border-t border-gray-300 pt-4 mt-auto">
         <div>
           <p className="text-sm text-gray-500">Starting at</p>
-          <p className="text-2xl font-bold text-teal-600">{price}</p>
+          <p className="text-3xl font-bold text-teal-600">{price}</p>
         </div>
-        <Button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
+        <Button>
           Get Started
         </Button>
       </div>
@@ -235,20 +235,7 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
           <ProductCard {...productData} />
         </div>
-
-
-
       </div>
-
-
-
-
-
-
-
-
-
-
 
     </div>
   )
@@ -285,6 +272,24 @@ function WalletContent() {
     </div>
   )
 }
+
+/**
+ * ## StacksContent
+ * A placeholder component for the "Stacks" dashboard.
+ */
+function StacksContent() {
+  return (
+    <div className="p-6 md:p-10">
+      <h2 className="text-2xl font-bold text-gray-800 mb-4">Startup Stacks</h2>
+      <p className="text-gray-600">This section will showcase different startup stacks and resources.</p>
+      <div className="bg-white p-6 rounded-2xl shadow-xl mt-6">
+        <p className="text-gray-400">Stacks content will go here.</p>
+      </div>
+    </div>
+  )
+}
+
+
 
 /**
  * ## SettingsContent
@@ -533,9 +538,10 @@ export default function PrivatePanel() {
 
   const sidebarLinks = [
     { id: "dashboard", icon: Home, label: "Dashboard", message: "Your main dashboard" },
+    { id: "stacks", icon: Code, label: "Stacks", message: "Explore startup tools and resources" }, // <-- Add this line
+     { id: "form", icon: FileText, label: "Form", message: "Create and manage your forms" },
     { id: "analytics", icon: BarChart, label: "Analytics", message: "View your form funnels and data" },
     { id: "wallet", icon: Wallet, label: "Wallet", message: "Manage your credits and payments" },
-    { id: "form", icon: FileText, label: "Form", message: "Create and manage your forms" },
     { id: "settings", icon: Settings, label: "Settings", message: "Manage account and preferences" },
   ]
 
@@ -576,6 +582,8 @@ export default function PrivatePanel() {
         return <DashboardContent userEmail={userEmail} onNavigate={setActiveTab} />
       case "analytics":
         return <AnalyticsContent />
+         case "stacks":
+      return <StacksContent /> // <-- Add this line
       case "wallet":
         return <WalletContent />
       case "form":
