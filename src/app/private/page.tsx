@@ -20,7 +20,7 @@ import StacksPage from "../product_stacks/page"
 
 // --- Interfaces for data and props ---
 interface Form {
-  form_id: string
+  form_id: string 
   title: string
   description: string
   image_url?: string

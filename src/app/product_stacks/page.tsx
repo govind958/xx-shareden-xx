@@ -1,29 +1,61 @@
-import React from "react";
+"use client"
 
-// This is a simple functional component that returns a "coming soon" message.
-const StacksPage = () => {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6 md:p-10">
-      <div className="bg-white p-8 rounded-xl shadow-lg text-center max-w-lg w-full">
-        <h2 className="text-4xl font-extrabold text-gray-800 mb-4 tracking-tight">
-          Startup Stacks
-        </h2>
-        <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-          Our curated list of startup stacks is coming soon! We&apos;re hard at
-          work building the best resource for you.
-        </p>
-        <div className="relative inline-flex">
-          <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></div>
-          <a
-            href="#"
-            className="relative inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-          >
-            Stay Tuned!
-          </a>
-        </div>
+import React, { useEffect, useState } from "react"
+import { getStacks, Stack } from "./actions"
+import { Database } from "lucide-react"
+
+export default function StacksPage() {
+  const [stacks, setStacks] = useState<Stack[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStacks = async () => {
+      setIsLoading(true)
+      const data = await getStacks()
+      setStacks(data)
+      setIsLoading(false)
+    }
+
+    fetchStacks()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48">
+        <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500">Loading stacks...</p>
       </div>
-    </div>
-  );
-};
+    )
+  }
 
-export default StacksPage;
+  return (
+    <div className="max-w-6xl mx-auto p-6 md:p-10">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6">Startup Stacks</h2>
+
+      {stacks.length > 0 ? (
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {stacks.map((stack) => (
+            <div
+              key={stack.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition"
+            >
+              <h3 className="text-lg font-semibold text-teal-700">{stack.name}</h3>
+              <p className="text-gray-600 text-sm mt-2">{stack.description}</p>
+              <div className="mt-4 text-sm text-gray-500 flex justify-between items-center">
+                <span>Type: {stack.type || "General"}</span>
+                <span className="flex items-center gap-1">
+                  <Database size={16} /> {stack.base_price} credits
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-10 text-gray-500">
+          <p className="text-lg font-medium">No stacks available right now.</p>
+          <p className="mt-2 text-sm">Check back soon for new startup stacks!</p>
+        </div>
+      )}
+    </div>
+  )
+}
