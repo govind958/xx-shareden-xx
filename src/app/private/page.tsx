@@ -278,17 +278,7 @@ function WalletContent() {
  * ## StacksContent
  * A placeholder component for the "Stacks" dashboard.
  */
-function StacksContent() {
-  return (
-    <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Startup Stacks</h2>
-      <p className="text-gray-600">This section will showcase different startup stacks and resources.</p>
-      <div className="bg-white p-6 rounded-2xl shadow-xl mt-6">
-        <p className="text-gray-400">Stacks content will go here.</p>
-      </div>
-    </div>
-  )
-}
+
 
 
 
@@ -456,7 +446,6 @@ export default function PrivatePanel() {
   const [isMainContentLoaded, setIsMainContentLoaded] = useState<boolean>(false)
   const [isFormLoading, setIsFormLoading] = useState(false)
   const [showFormCreation, setShowFormCreation] = useState(true); // New state for toggling form view
-  const router = useRouter()
   const touchStartX = useRef<number | null>(null)
 
   // --- useEffect Hooks ---
@@ -558,7 +547,8 @@ export default function PrivatePanel() {
     const formElement = e.currentTarget;
 
     try {
-      const result = await insertForm(formData);
+     
+    await insertForm(formData);
 
       toast.success('🚀 Form submitted successfully!')
 
