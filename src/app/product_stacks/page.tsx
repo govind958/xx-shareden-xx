@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 // This is a simple functional component that returns a "coming soon" message.
 const StacksPage = () => {
@@ -9,7 +9,8 @@ const StacksPage = () => {
           Startup Stacks
         </h2>
         <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-          Our curated list of startup stacks is coming soon! We're hard at work building the best resource for you.
+          Our curated list of startup stacks is coming soon! We&apos;re hard at
+          work building the best resource for you.
         </p>
         <div className="relative inline-flex">
           <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></div>

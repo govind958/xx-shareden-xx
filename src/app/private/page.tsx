@@ -3,7 +3,6 @@
 // --- React & Next.js Imports ---
 import React, { useEffect, useState, useRef } from "react"
 import Image from "next/image"
-import { useRouter } from 'next/navigation'
 import toast, { Toaster } from 'react-hot-toast'
 
 // --- Supabase & Actions ---
