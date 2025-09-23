@@ -37,6 +37,37 @@ export default function LoginPage() {
           </p>
         </div>
 
+ <div className="flex flex-col gap-3">
+          <Button
+            onClick={signInWithGoogle}
+            className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
+          >
+            Continue with Google
+          </Button>
+
+          <Button
+            onClick={() => {}}
+            className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
+          >
+            Continue with GitHub
+          </Button>
+        </div>
+
+
+ {/* Divider */}
+        <div className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-teal-500/30"></div>
+          <span className="text-sm text-neutral-400">or</span>
+          <div className="h-px flex-1 bg-teal-500/30"></div>
+        </div>
+
+
+
+
+
+
+
+
         {/* Form */}
         <form className="space-y-6">
           {/* Email */}
@@ -82,44 +113,18 @@ export default function LoginPage() {
           </div>
         </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-4">
-          <div className="h-px flex-1 bg-teal-500/30"></div>
-          <span className="text-sm text-neutral-400">or</span>
-          <div className="h-px flex-1 bg-teal-500/30"></div>
-        </div>
+       
 
         {/* Social Login */}
-        <div className="flex flex-col gap-3">
-          <Button
-            onClick={signInWithGoogle}
-            className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
-          >
-            Continue with Google
-          </Button>
-
-          <Button
-            onClick={() => {}}
-            className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
-          >
-            Continue with GitHub
-          </Button>
-        </div>
-      </div>
-
-
-
-<div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
+       
+        <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
         By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
         and <a href="#">Privacy Policy</a>.
       </div>
-
-
+      </div>
 
       {/* Footer (same vibe as landing page) */}
-      <footer className="w-full py-6 text-center text-sm bg-black/20 text-neutral-400 relative z-10">
-        <p>&copy; 2025 ShareDen. All rights reserved.</p>
-      </footer>
+  
     </main>
   );
 }
