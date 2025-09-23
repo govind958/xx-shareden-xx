@@ -17,6 +17,7 @@ import { Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Databas
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
+import StacksPage from "../product_stacks/page"
 
 // --- Interfaces for data and props ---
 interface Form {
@@ -583,7 +584,7 @@ export default function PrivatePanel() {
       case "analytics":
         return <AnalyticsContent />
          case "stacks":
-      return <StacksContent /> // <-- Add this line
+      return <StacksPage /> // <-- Add this line
       case "wallet":
         return <WalletContent />
       case "form":
