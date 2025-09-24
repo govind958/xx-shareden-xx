@@ -1,7 +1,7 @@
 "use client"
 
 // --- React & Next.js Imports ---
-import React, { useEffect, useState, useRef, FC } from "react"
+import React, { useEffect, useState, useRef, } from "react"
 import Image from "next/image"
 import toast, { Toaster } from 'react-hot-toast'
 
