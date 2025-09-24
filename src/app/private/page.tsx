@@ -1,7 +1,7 @@
 "use client"
 
 // --- React & Next.js Imports ---
-import React, { useEffect, useState, useRef } from "react"
+import React, { useEffect, useState, useRef, FC } from "react"
 import Image from "next/image"
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -11,9 +11,7 @@ import { logout } from "@/src/app/logout/actions"
 import { insertForm } from '@/src/app/startuponbordingform/actions'
 
 // --- UI Components & Icons ---
-import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle } from "lucide-react"
-import { Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare } from "lucide-react"
-
+import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
 import StacksPage from "../product_stacks/page"
@@ -57,29 +55,35 @@ interface ProductCardProps {
   timeline: TimelineItem[];
 }
 
+// A helper class string for glassmorphism style
+const glassmorphismClass = "bg-teal-500/10 backdrop-blur-md rounded-2xl shadow-lg border border-teal-200/20";
+const innerGlassmorphismClass = "bg-teal-500/5 backdrop-blur-md rounded-xl shadow-lg border border-teal-200/10";
+const buttonGradientClass = "bg-gradient-to-r from-teal-400 to-teal-600 text-white font-bold hover:from-teal-500 hover:to-teal-700 transition-colors rounded-full";
+
+
 /**
  * ## ProductCard Component
  * A reusable component to display a product card with features and premium details,
- * now including a horizontal timeline of core stacks.
+ * now including a horizontal timeline of core stacks, restyled with glassmorphism.
  */
 function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, timeline }: ProductCardProps) {
   return (
-    // The main neumorphic container
-    <div className="bg-gray-200 rounded-3xl p-8 shadow-neumorphic-outer group transition-all duration-300">
+    // The main glassmorphic container
+    <div className={`p-8 ${glassmorphismClass} transition-all duration-300`}>
       {/* Header and Credits */}
       <div className="relative flex justify-between items-start mb-6">
         <div className="flex items-center gap-4">
           {imageUrl && (
-            <div className="w-16 h-16 p-2 bg-gray-200 rounded-2xl shadow-neumorphic-inner flex items-center justify-center">
+            <div className={`w-16 h-16 p-2 ${innerGlassmorphismClass} flex items-center justify-center`}>
               <Image src={imageUrl} alt={title} width={48} height={48} className="rounded-xl" />
             </div>
           )}
           <div className="flex flex-col">
-            <h3 className="text-2xl font-bold text-gray-800">{title}</h3>
-            <span className="text-sm text-gray-500">{subtitle}</span>
+            <h3 className="text-2xl font-bold text-neutral-50">{title}</h3>
+            <span className="text-sm text-neutral-400">{subtitle}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-gray-500 text-sm">
+        <div className="flex items-center gap-2 text-neutral-400 text-sm">
           <Coins size={18} className="text-amber-500" />
           <span className="font-semibold">Credits</span>
         </div>
@@ -89,27 +93,27 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
       <div className="grid grid-cols-2 gap-y-5 mb-6">
         {features.map((feature, index) => (
           <div key={index} className="flex flex-col">
-            <p className="text-gray-500 text-sm">{feature.label}</p>
-            <p className="text-gray-800 font-semibold">{feature.value}</p>
+            <p className="text-neutral-400 text-sm">{feature.label}</p>
+            <p className="text-neutral-50 font-semibold">{feature.value}</p>
           </div>
         ))}
         <div className="col-span-2 mt-2">
-          <a href="#" className="flex items-center text-teal-600 hover:text-teal-700 transition-colors font-medium">
+          <a href="#" className="flex items-center text-teal-400 hover:text-teal-300 transition-colors font-medium">
             View all features <ChevronRight size={16} />
           </a>
         </div>
       </div>
 
       {/* Onboarding Timeline */}
-      <div className="border-t border-gray-300 pt-6 mt-4 mb-6">
-        <h4 className="font-semibold text-gray-800 mb-4">Core Stacks</h4>
+      <div className="border-t border-teal-200/20 pt-6 mt-4 mb-6">
+        <h4 className="font-semibold text-neutral-50 mb-4">Core Stacks</h4>
         <div className="flex items-center justify-between overflow-x-auto gap-4">
           {timeline.map((item, index) => (
             <div key={index} className="flex flex-col items-center flex-shrink-0 w-20 sm:w-24">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 text-teal-600 shadow-neumorphic-inner">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full text-teal-400 ${innerGlassmorphismClass}`}>
                 <item.icon size={24} />
               </div>
-              <span className="text-center text-xs font-medium text-gray-700 mt-2">{item.label}</span>
+              <span className="text-center text-xs font-medium text-neutral-300 mt-2">{item.label}</span>
             </div>
           ))}
         </div>
@@ -117,19 +121,19 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
 
       {/* Last Bought Info */}
       {lastBought && (
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+        <div className="flex items-center gap-2 text-sm text-neutral-400 mb-4">
           <Clock size={16} />
           <span>{lastBought}</span>
         </div>
       )}
 
       {/* Footer with Price and Button */}
-      <div className="flex justify-between items-center border-t border-gray-300 pt-4 mt-auto">
+      <div className="flex justify-between items-center border-t border-teal-200/20 pt-4 mt-auto">
         <div>
-          <p className="text-sm text-gray-500">Starting at</p>
-          <p className="text-3xl font-bold text-teal-600">{price}</p>
+          <p className="text-sm text-neutral-400">Starting at</p>
+          <p className="text-3xl font-bold text-teal-400">{price}</p>
         </div>
-        <Button>
+        <Button className={buttonGradientClass}>
           Get Started
         </Button>
       </div>
@@ -139,13 +143,12 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
 
 /**
  * ## DashboardContent
- * This component displays the user's dashboard with a welcome message.
- * It now includes an `onNavigate` prop to handle tab changes.
+ * This component displays the user's dashboard with a welcome message,
+ * now styled with the dark, glassmorphic theme.
  */
 function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
   const userName = userEmail ? userEmail.split("@")[0] : "User"
 
-  // Product data for the new card
   const productData = {
     title: "Full Stack Onboarding",
     subtitle: "End-to-end user onboarding for your startup.",
@@ -167,36 +170,36 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
 
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-10">
-      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">
-        Welcome, <span className="text-teal-600">{userName}</span> 🎉
+      <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-50 mb-2">
+        Welcome, <span className="text-teal-400">{userName}</span> 🎉
       </h1>
-      <p className="text-gray-500 mb-8 max-w-2xl">
+      <p className="text-neutral-400 mb-8 max-w-2xl">
         This is your main dashboard. Use the navigation to manage your forms, view analytics, and update your settings.
       </p>
 
       {/* Quick Actions section */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 mb-10">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+      <div className={`p-6 md:p-8 ${glassmorphismClass} mb-10`}>
+        <h2 className="text-2xl font-bold text-neutral-50 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <button
-            className="bg-teal-50 rounded-xl p-5 border border-teal-100 flex items-start gap-4 text-left cursor-pointer hover:bg-teal-100 transition-colors"
+            className={`rounded-xl p-5 border border-teal-200/10 flex items-start gap-4 text-left cursor-pointer transition-colors ${innerGlassmorphismClass}`}
             onClick={() => onNavigate('form')}
           >
-            <div className="p-3 bg-teal-100 rounded-full text-teal-600">
+            <div className={`p-3 rounded-full text-teal-400 ${innerGlassmorphismClass}`}>
               <FileText size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-teal-800">Create a New Form</h3>
-              <p className="text-sm text-teal-600">Start collecting information now.</p>
+              <h3 className="text-lg font-semibold text-teal-400">Create a New Form</h3>
+              <p className="text-sm text-teal-300/80">Start collecting information now.</p>
             </div>
           </button>
-          <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 flex items-start gap-4">
-            <div className="p-3 bg-gray-100 rounded-full text-gray-600">
+          <div className={`rounded-xl p-5 border border-neutral-700/50 flex items-start gap-4 ${innerGlassmorphismClass}`}>
+            <div className={`p-3 rounded-full text-neutral-400 ${innerGlassmorphismClass}`}>
               <BarChart size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">View Analytics</h3>
-              <p className="text-sm text-gray-600">See how your forms are performing.</p>
+              <h3 className="text-lg font-semibold text-neutral-50">View Analytics</h3>
+              <p className="text-sm text-neutral-400/80">See how your forms are performing.</p>
             </div>
           </div>
         </div>
@@ -204,32 +207,32 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
 
       {/* Explore section with a new card */}
       <div className="mb-10">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-6">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-neutral-50 mb-6">
           Explore Startup Stacks
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer">
-            <Code size={36} className="text-teal-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700 text-center">Development & IT</span>
+          <div className="flex flex-col items-center justify-center p-4 border border-teal-200/20 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer text-teal-400">
+            <Code size={36} className="mb-2" />
+            <span className="text-sm font-semibold text-neutral-300 text-center">Development & IT</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-4 border border-teal-500 rounded-xl shadow-md cursor-pointer">
-            <Paintbrush size={36} className="text-teal-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700 text-center">Design & Creative</span>
+          <div className="flex flex-col items-center justify-center p-4 border border-teal-500/50 rounded-xl shadow-md cursor-pointer text-teal-400">
+            <Paintbrush size={36} className="mb-2" />
+            <span className="text-sm font-semibold text-neutral-300 text-center">Design & Creative</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer">
-            <Megaphone size={36} className="text-teal-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700 text-center">Sales & Marketing</span>
+          <div className="flex flex-col items-center justify-center p-4 border border-teal-200/20 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer text-teal-400">
+            <Megaphone size={36} className="mb-2" />
+            <span className="text-sm font-semibold text-neutral-300 text-center">Sales & Marketing</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer">
-            <Users size={36} className="text-teal-600 mb-2" />
-            <span className="text-sm font-semibold text-gray-700 text-center">HR & Training</span>
+          <div className="flex flex-col items-center justify-center p-4 border border-teal-200/20 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer text-teal-400">
+            <Users size={36} className="mb-2" />
+            <span className="text-sm font-semibold text-neutral-300 text-center">HR & Training</span>
           </div>
         </div>
       </div>
 
       {/* New Product Card Section */}
       <div className="mb-10">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800 mb-6">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-neutral-50 mb-6">
           Recommended for you
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
@@ -248,10 +251,10 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
 function AnalyticsContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Analytics</h2>
-      <p className="text-gray-600">This is where your analytics will be displayed.</p>
-      <div className="bg-white p-6 rounded-2xl shadow-xl mt-6">
-        <p className="text-gray-400">Analytics dashboard content will go here.</p>
+      <h2 className="text-2xl font-bold text-neutral-50 mb-4">Analytics</h2>
+      <p className="text-neutral-400">This is where your analytics will be displayed.</p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6`}>
+        <p className="text-neutral-500">Analytics dashboard content will go here.</p>
       </div>
     </div>
   )
@@ -264,22 +267,14 @@ function AnalyticsContent() {
 function WalletContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Wallet</h2>
-      <p className="text-gray-600">Manage your credits and payment methods here.</p>
-      <div className="bg-white p-6 rounded-2xl shadow-xl mt-6">
-        <p className="text-gray-400">Wallet content will go here.</p>
+      <h2 className="text-2xl font-bold text-neutral-50 mb-4">Wallet</h2>
+      <p className="text-neutral-400">Manage your credits and payment methods here.</p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6`}>
+        <p className="text-neutral-500">Wallet content will go here.</p>
       </div>
     </div>
   )
 }
-
-/**
- * ## StacksContent
- * A placeholder component for the "Stacks" dashboard.
- */
-
-
-
 
 /**
  * ## SettingsContent
@@ -288,10 +283,10 @@ function WalletContent() {
 function SettingsContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Settings</h2>
-      <p className="text-gray-600">Update your account settings and preferences.</p>
-      <div className="bg-white p-6 rounded-2xl shadow-xl mt-6">
-        <p className="text-gray-400">Settings page content will go here.</p>
+      <h2 className="text-2xl font-bold text-neutral-50 mb-4">Settings</h2>
+      <p className="text-neutral-400">Update your account settings and preferences.</p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6`}>
+        <p className="text-neutral-500">Settings page content will go here.</p>
       </div>
     </div>
   )
@@ -300,17 +295,17 @@ function SettingsContent() {
 /**
  * ## FormContent
  * This component contains the form for creating a new submission and also
- * displays a list of previously submitted forms.
+ * displays a list of previously submitted forms, now styled for a dark theme.
  */
 function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggleFormView, showFormCreation }: FormContentProps) {
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-10">
       <Toaster position="top-right" />
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Your Forms</h2>
+        <h2 className="text-2xl font-bold text-neutral-50">Your Forms</h2>
         <Button
           onClick={toggleFormView}
-          className="bg-teal-600 hover:bg-teal-700 text-white font-semibold"
+          className={`bg-teal-600 hover:bg-teal-700 text-white font-semibold`}
         >
           {showFormCreation ? (
             'View Submitted Forms'
@@ -325,12 +320,12 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
 
       {showFormCreation ? (
         // Form Creation UI
-        <div className="bg-white p-6 md:p-10 rounded-2xl shadow-xl border border-gray-100">
-          <h3 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">Create a New Form</h3>
-          <p className="text-gray-500 mb-6">Start creating a new form to collect information from your users.</p>
+        <div className={`p-6 md:p-10 ${glassmorphismClass}`}>
+          <h3 className="text-xl md:text-2xl font-bold text-neutral-50 mb-2">Create a New Form</h3>
+          <p className="text-neutral-400 mb-6">Start creating a new form to collect information from your users.</p>
           <form onSubmit={handleFormSubmit} className="space-y-6">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="title" className="block text-sm font-medium text-neutral-400 mb-1">
                 🤔 Who are you & what are you building? <span className="text-red-500">*</span>
               </label>
               <input
@@ -338,12 +333,12 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
                 id="title"
                 name="title"
                 placeholder="e.g., Onboarding Form for New Users"
-                className="border border-gray-300 focus:border-teal-500 focus:ring focus:ring-teal-200 p-3 w-full rounded-lg transition"
+                className="bg-neutral-800 border border-neutral-700 focus:border-teal-500 focus:ring focus:ring-teal-200/50 text-neutral-50 p-3 w-full rounded-lg transition"
                 required
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="description" className="block text-sm font-medium text-neutral-400 mb-1">
                 Share one challenge ⚡ and one success 🌟 from your startup.
               </label>
               <textarea
@@ -351,11 +346,11 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
                 name="description"
                 placeholder="e.g., Struggling with hiring ⚡ but nailed our first launch 🌟"
                 rows={3}
-                className="border border-gray-300 focus:border-teal-500 focus:ring focus:ring-teal-200 p-3 w-full rounded-lg transition resize-none"
+                className="bg-neutral-800 border border-neutral-700 focus:border-teal-500 focus:ring focus:ring-teal-200/50 text-neutral-50 p-3 w-full rounded-lg transition resize-none"
               />
             </div>
             <div>
-              <label htmlFor="label" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="label" className="block text-sm font-medium text-neutral-400 mb-1">
                 One extra thing in your startup you can share with other founders 🤝✨
               </label>
               <input
@@ -363,13 +358,13 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
                 id="label"
                 name="label"
                 placeholder="Type something you can share with other founders"
-                className="border border-gray-300 focus:border-teal-500 focus:ring focus:ring-teal-200 p-3 w-full rounded-lg transition"
+                className="bg-neutral-800 border border-neutral-700 focus:border-teal-500 focus:ring focus:ring-teal-200/50 text-neutral-50 p-3 w-full rounded-lg transition"
               />
             </div>
             <Button
               type="submit"
               disabled={isFormLoading}
-              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 rounded-lg shadow-md transition"
+              className={`w-full ${buttonGradientClass}`}
             >
               {isFormLoading ? 'Submitting...' : '🚀 Save Form'}
             </Button>
@@ -377,19 +372,19 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
         </div>
       ) : (
         // Submitted Forms List UI
-        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
-          <h3 className="text-2xl font-bold text-gray-800 mb-6">Submitted Forms</h3>
+        <div className={`p-6 md:p-8 ${glassmorphismClass}`}>
+          <h3 className="text-2xl font-bold text-neutral-50 mb-6">Submitted Forms</h3>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-48">
               <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-gray-500">Loading your forms...</p>
+              <p className="text-neutral-500">Loading your forms...</p>
             </div>
           ) : forms.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
               {forms.map((form) => (
                 <div
                   key={form.form_id}
-                  className="bg-gray-50 rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transform transition-all duration-300"
+                  className={`rounded-xl border border-teal-200/10 overflow-hidden hover:shadow-lg transform transition-all duration-300 ${innerGlassmorphismClass}`}
                 >
                   {form.image_url && (
                     <div className="relative w-full h-40">
@@ -397,9 +392,9 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
                     </div>
                   )}
                   <div className="p-5">
-                    <h3 className="text-lg font-semibold text-teal-700">{form.title}</h3>
-                   <p className="text-gray-600 text-sm mt-1">{form.description}</p>
-                    <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+                    <h3 className="text-lg font-semibold text-teal-400">{form.title}</h3>
+                   <p className="text-neutral-400 text-sm mt-1">{form.description}</p>
+                    <div className="mt-4 flex items-center justify-between text-xs text-neutral-500">
                       <span>Resource: {form.label}</span>
                       <span className="flex items-center gap-1">
                         <User size={14} />
@@ -411,11 +406,11 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
               ))}
             </div>
           ) : (
-            <div className="text-center py-10 text-gray-500">
-              <FileText size={48} className="mx-auto text-gray-300 mb-4" />
+            <div className="text-center py-10 text-neutral-500">
+              <FileText size={48} className="mx-auto text-neutral-700 mb-4" />
               <p className="text-lg font-medium">No forms have been submitted yet.</p>
               <p className="mt-2 text-sm">Submit a form to see it appear here.</p>
-              <Button onClick={toggleFormView} className="mt-4 bg-teal-600 hover:bg-teal-700">
+              <Button onClick={toggleFormView} className={`mt-4 ${buttonGradientClass}`}>
                 Create a Form
               </Button>
             </div>
@@ -430,9 +425,8 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
 
 /**
  * ## PrivatePanel
- * This is the main component for the user's private dashboard. It handles
- * authentication, data fetching, state management for tabs and sidebar,
- * and renders the appropriate content based on the active tab.
+ * This is the main component for the user's private dashboard,
+ * now with a dark glassmorphic design.
  */
 export default function PrivatePanel() {
   // --- State Hooks ---
@@ -444,12 +438,10 @@ export default function PrivatePanel() {
   const [activeTab, setActiveTab] = useState<string>("dashboard")
   const [isMainContentLoaded, setIsMainContentLoaded] = useState<boolean>(false)
   const [isFormLoading, setIsFormLoading] = useState(false)
-  const [showFormCreation, setShowFormCreation] = useState(true); // New state for toggling form view
+  const [showFormCreation, setShowFormCreation] = useState(true);
   const touchStartX = useRef<number | null>(null)
 
   // --- useEffect Hooks ---
-
-  // Handle window resizing to determine mobile view
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768)
@@ -459,14 +451,12 @@ export default function PrivatePanel() {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Close sidebar on desktop resize
   useEffect(() => {
     if (!isMobile) {
       setIsSidebarOpen(false)
     }
   }, [isMobile])
 
-  // Fetch user data and forms on component mount
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
@@ -489,22 +479,17 @@ export default function PrivatePanel() {
       setIsLoading(false)
       setIsMainContentLoaded(true)
     }
-
     fetchData()
   }, [])
 
-  // Handle swipe gestures for mobile sidebar
   useEffect(() => {
     if (!isMobile) return
-
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX.current = e.touches[0].clientX
     }
-
     const handleTouchEnd = (e: TouchEvent) => {
       if (touchStartX.current === null) return
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
-
       if (touchStartX.current < 40 && deltaX > 50) {
         setIsSidebarOpen(true)
       }
@@ -513,10 +498,8 @@ export default function PrivatePanel() {
       }
       touchStartX.current = null
     }
-
     window.addEventListener("touchstart", handleTouchStart)
     window.addEventListener("touchend", handleTouchEnd)
-
     return () => {
       window.removeEventListener("touchstart", handleTouchEnd)
       window.removeEventListener("touchend", handleTouchEnd)
@@ -524,11 +507,10 @@ export default function PrivatePanel() {
   }, [isSidebarOpen, isMobile])
 
   // --- Data and Logic ---
-
   const sidebarLinks = [
     { id: "dashboard", icon: Home, label: "Dashboard", message: "Your main dashboard" },
-    { id: "stacks", icon: Code, label: "Stacks", message: "Explore startup tools and resources" }, // <-- Add this line
-     { id: "form", icon: FileText, label: "Form", message: "Create and manage your forms" },
+    { id: "stacks", icon: Code, label: "Stacks", message: "Explore startup tools and resources" },
+    { id: "form", icon: FileText, label: "Form", message: "Create and manage your forms" },
     { id: "analytics", icon: BarChart, label: "Analytics", message: "View your form funnels and data" },
     { id: "wallet", icon: Wallet, label: "Wallet", message: "Manage your credits and payments" },
     { id: "settings", icon: Settings, label: "Settings", message: "Manage account and preferences" },
@@ -536,24 +518,16 @@ export default function PrivatePanel() {
 
   const userInitial: string = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
-
-  // Handle form submission
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsFormLoading(true)
     const formData = new FormData(e.currentTarget)
-
     const formElement = e.currentTarget;
-
     try {
-     
-    await insertForm(formData);
-
+      await insertForm(formData);
       toast.success('🚀 Form submitted successfully!')
-
       formElement.reset();
       setShowFormCreation(false);
-
     } catch (err: unknown) {
       if (err instanceof Error) {
         toast.error(err.message)
@@ -565,15 +539,14 @@ export default function PrivatePanel() {
     }
   }
 
-  // A function to render the appropriate content component based on the active tab
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
         return <DashboardContent userEmail={userEmail} onNavigate={setActiveTab} />
       case "analytics":
         return <AnalyticsContent />
-         case "stacks":
-      return <StacksPage /> // <-- Add this line
+      case "stacks":
+        return <StacksPage />
       case "wallet":
         return <WalletContent />
       case "form":
@@ -594,37 +567,38 @@ export default function PrivatePanel() {
 
   // --- JSX Rendering ---
   return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans text-gray-800 transition-all duration-300">
-      <div className="flex min-h-screen">
+    <div className="min-h-screen w-full font-sans text-neutral-50 transition-all duration-300 relative overflow-hidden">
+      {/* Background gradient effect */}
+      <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
+        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-teal-300 rounded-full mix-blend-screen opacity-10 blur-3xl animate-blob"></div>
+        <div className="absolute -bottom-1/4 right-0 w-1/2 h-1/2 bg-teal-500 rounded-full mix-blend-screen opacity-10 blur-3xl animate-blob animation-delay-2000"></div>
+      </div>
+      
+      <div className="flex min-h-screen z-10 relative bg-neutral-950">
         {/* Sidebar */}
-       <aside
-  className={cn(
-    "flex flex-col bg-white shadow-lg transition-transform duration-300 ease-in-out z-40",
-    "md:flex md:w-64 md:translate-x-0 md:static",
-    "fixed inset-y-0 left-0 w-64 overflow-y-auto",
-    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-  )}
->
-
-          {/* User info and close button */}
+        <aside
+          className={cn(
+            "flex flex-col bg-neutral-950/20 backdrop-blur-md shadow-lg transition-transform duration-300 ease-in-out z-40 border-r border-teal-200/20",
+            "md:flex md:w-64 md:translate-x-0 md:static",
+            "fixed inset-y-0 left-0 w-64 overflow-y-auto",
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
           {/* Sidebar Header (Google Maps style) */}
-          <div className="border-b border-gray-100">
-            {/* Row 1: Title + Close button */}
+          <div className="border-b border-teal-200/20">
             <div className="flex items-center justify-between p-4">
               <span className="text-lg font-bold bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
                 ShareDen
               </span>
               <button
-                className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+                className="md:hidden p-2 rounded-lg hover:bg-teal-500/10 text-neutral-50"
                 onClick={() => setIsSidebarOpen(false)}
               >
                 <X size={20} />
               </button>
             </div>
-
-            {/* Row 2: Avatar + Email */}
             <div className="flex items-center gap-3 px-4 pb-4">
-              <div className="truncate text-sm font-medium text-gray-800">
+              <div className="truncate text-sm font-medium text-neutral-50">
                 {userEmail}
               </div>
             </div>
@@ -642,23 +616,26 @@ export default function PrivatePanel() {
                 className={cn(
                   "flex items-center gap-4 w-full px-3 py-2 rounded-lg transition-colors duration-200 group relative",
                   activeTab === link.id
-                    ? "bg-teal-50 text-teal-600 font-semibold shadow-sm"
-                    : "text-gray-600 hover:bg-teal-50 hover:text-teal-600"
+                    ? "bg-teal-500/10 text-teal-400 font-semibold shadow-sm"
+                    : "text-neutral-400 hover:bg-teal-500/10 hover:text-teal-400"
                 )}
               >
                 <link.icon size={18} />
                 <span className="text-sm">{link.label}</span>
-                {/* Tooltip */}
               </button>
             ))}
           </nav>
 
           {/* Logout button */}
-          <div className="p-4 border-t border-gray-100">
+          <div className="p-4 border-t border-teal-200/20">
             <form action={logout}>
-              <Button type="submit" variant="outline" className="w-full text-gray-700 hover:bg-gray-50 border-gray-300">
-                Log out
-              </Button>
+            <Button
+  type="submit"
+  variant="outline"
+  className="w-full text-white bg-neutral-600 border-neutral-600 hover:bg-neutral-700 hover:border-neutral-700 transition"
+>
+  Log out
+</Button>
             </form>
           </div>
         </aside>
@@ -674,18 +651,18 @@ export default function PrivatePanel() {
         {/* Main content wrapper */}
         <div
           className={cn(
-            "flex-1 min-h-screen flex flex-col",
+            "flex-1 min-h-screen flex flex-col bg-neutral-950",
             isMainContentLoaded ? "opacity-100" : "opacity-0"
           )}
         >
           {/* Mobile Header */}
-          <header className="sticky top-0 z-20 bg-white shadow-sm md:hidden">
+          <header className="sticky top-0 z-20 bg-neutral-950/20 backdrop-blur-md shadow-sm md:hidden border-b border-teal-200/20">
             <div className="max-w-[1200px] mx-auto px-4 py-3 flex items-center justify-between">
               {/* Left: Hamburger */}
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 aria-label="Toggle sidebar"
-                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                className="p-2 rounded-md hover:bg-teal-500/10 text-neutral-400"
               >
                 <Menu size={20} />
               </button>
@@ -709,7 +686,7 @@ export default function PrivatePanel() {
                     {userInitial}
                   </div>
                 ) : (
-                  <button className="text-sm font-semibold text-gray-700 hover:text-teal-600">
+                  <button className="text-sm font-semibold text-neutral-400 hover:text-teal-400">
                     Join
                   </button>
                 )}

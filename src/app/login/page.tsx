@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { login, signInWithGoogle, signup } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock,GithubIcon,RectangleGogglesIcon } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
 
 // Glassmorphism style
@@ -38,19 +38,25 @@ export default function LoginPage() {
         </div>
 
  <div className="flex flex-col gap-3">
-          <Button
-            onClick={signInWithGoogle}
-            className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
-          >
-            Continue with Google
-          </Button>
+         <Button
+  onClick={signInWithGoogle}
+  className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
+>
+  <div className="flex items-center justify-center space-x-2">
+    <RectangleGogglesIcon size={24} />
+    <span>Continue with Google</span>
+  </div>
+</Button>
 
-          <Button
-            onClick={() => {}}
-            className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
-          >
-            Continue with GitHub
-          </Button>
+<Button
+onClick={() => {}}
+className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-white hover:bg-white/20 hover:shadow-lg hover:shadow-teal-500/30 transition rounded-xl"
+>
+<div className="flex items-center justify-center space-x-2">
+    <GithubIcon size={24} />
+    <span>Continue with Google</span>
+  </div>
+</Button>
         </div>
 
 

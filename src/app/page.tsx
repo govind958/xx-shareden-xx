@@ -119,32 +119,24 @@ const App: FC = () => {
       {/* Hero Section */}
       <section className="flex-grow container mx-auto px-4 md:px-8 lg:px-12 py-16 md:py-24 grid md:grid-cols-2 gap-8 md:gap-16 items-center z-10 relative">
         {/* Left side: Text and buttons */}
-        <div className="flex flex-col items-center md:items-start text-center md:text-left animate-fade-in-up">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 md:mb-8 max-w-xl">
-            Grow Your Startup with{" "}
-            <span className="bg-gradient-to-r from-teal-400 to-teal-600 bg-clip-text text-transparent">
-              Stacks
-            </span>
-          </h1>
-          <p className="text-lg md:text-xl text-neutral-300 mb-8 max-w-xl">
-            Discover and share the technology stacks that power the world&apos;s
-            most successful startups. Find inspiration for your next big project.
-          </p>
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-teal-400 to-teal-600 text-white font-bold hover:from-teal-500 hover:to-teal-700 transition-colors shadow-xl shadow-teal-500/20"
-            >
-              <a href="/login">Login</a>
-            </Button>
-            <Button
-              size="lg"
-              className="bg-transparent border-2 border-white text-white font-bold hover:bg-white hover:text-neutral-950 transition-colors"
-            >
-              <a href="/discover">Get started</a>
-            </Button>
-          </div>
-        </div>
+       <div className="flex flex-col items-center md:items-start text-center md:text-left animate-fade-in-up">
+  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-snug mb-6 max-w-2xl">
+    Rent the <span className="text-white underline decoration-teal-500">Stack</span>{" "}
+    Your Startup Needs
+  </h1>
+  <p className="text-base md:text-lg text-neutral-400 mb-8 max-w-2xl">
+    ShareDen gives you <b>skills + systems + processes</b> by the hour. Scale on-demand.
+  </p>
+  <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+    <Button size="lg" className="bg-white text-neutral-900 font-semibold hover:bg-neutral-200 transition">
+      <a href="/discover">Discover Stacks</a>
+    </Button>
+    <Button size="lg" className="border border-neutral-500 text-neutral-200 hover:border-white hover:text-white transition">
+      <a href="/login">Login</a>
+    </Button>
+  </div>
+</div>
+
 
         {/* Right side: Illustration */}
         <div className="flex justify-center p-0 md:p-8 animate-fade-in-right">
