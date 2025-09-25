@@ -125,7 +125,7 @@ const App: FC = () => {
     Your Startup Needs
   </h1>
   <p className="text-base md:text-lg text-neutral-400 mb-8 max-w-2xl">
-    ShareDen gives you <b>skills + systems + processes</b> by the hour. Scale on-demand.
+    ShareDen gives you <b>network + skills + systems + processes</b> by the hour. Scale on-demand.
   </p>
   <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
     <Button size="lg" className="bg-white text-neutral-900 font-semibold hover:bg-neutral-200 transition">

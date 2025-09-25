@@ -11,7 +11,7 @@ import { logout } from "@/src/app/logout/actions"
 import { insertForm } from '@/src/app/startuponbordingform/actions'
 
 // --- UI Components & Icons ---
-import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare } from "lucide-react"
+import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
 import StacksPage from "../product_stacks/page"
@@ -251,14 +251,21 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
 function AnalyticsContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-neutral-50 mb-4">Analytics</h2>
-      <p className="text-neutral-400">This is where your analytics will be displayed.</p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6`}>
-        <p className="text-neutral-500">Analytics dashboard content will go here.</p>
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+        Analytics
+      </h2>
+      <p className="text-neutral-400 text-lg">
+        Your analytics dashboard will be available here soon.
+      </p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
+        <p className="text-neutral-200 text-lg">
+          Stay tuned for upcoming insights.
+        </p>
       </div>
     </div>
-  )
+  );
 }
+
 
 /**
  * ## WalletContent
@@ -267,13 +274,42 @@ function AnalyticsContent() {
 function WalletContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-neutral-50 mb-4">Wallet</h2>
-      <p className="text-neutral-400">Manage your credits and payment methods here.</p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6`}>
-        <p className="text-neutral-500">Wallet content will go here.</p>
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+        Wallet
+      </h2>
+      <p className="text-neutral-400 text-lg">
+        Manage your credits and payment methods here.
+      </p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
+        <p className="text-neutral-200 text-lg">
+          Your wallet dashboard will be available soon.
+        </p>
       </div>
     </div>
-  )
+  );
+}
+
+
+/**
+ * ## Subscription
+ * A placeholder component for the user's Subscription.
+ */
+function SubscriptionContent() {
+  return (
+    <div className="p-6 md:p-10">
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+        Subscription
+      </h2>
+      <p className="text-neutral-400 text-lg">
+        Manage your subscription plans and payment methods here.
+      </p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
+        <p className="text-neutral-200 text-lg">
+          Your subscription dashboard will be available soon.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -283,14 +319,21 @@ function WalletContent() {
 function SettingsContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl font-bold text-neutral-50 mb-4">Settings</h2>
-      <p className="text-neutral-400">Update your account settings and preferences.</p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6`}>
-        <p className="text-neutral-500">Settings page content will go here.</p>
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+        Settings
+      </h2>
+      <p className="text-neutral-400 text-lg">
+        Update your account settings and preferences.
+      </p>
+      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
+        <p className="text-neutral-200 text-lg">
+          The settings dashboard will be available soon.
+        </p>
       </div>
     </div>
-  )
+  );
 }
+
 
 /**
  * ## FormContent
@@ -511,6 +554,7 @@ export default function PrivatePanel() {
     { id: "dashboard", icon: Home, label: "Dashboard", message: "Your main dashboard" },
     { id: "stacks", icon: Code, label: "Stacks", message: "Explore startup tools and resources" },
     { id: "form", icon: FileText, label: "Form", message: "Create and manage your forms" },
+     { id: "subscription", icon: CreditCardIcon, label: "Subscription", message: "Create and manage your forms" },
     { id: "analytics", icon: BarChart, label: "Analytics", message: "View your form funnels and data" },
     { id: "wallet", icon: Wallet, label: "Wallet", message: "Manage your credits and payments" },
     { id: "settings", icon: Settings, label: "Settings", message: "Manage account and preferences" },
@@ -549,6 +593,8 @@ export default function PrivatePanel() {
         return <StacksPage />
       case "wallet":
         return <WalletContent />
+         case "subscription":
+        return <SubscriptionContent />
       case "form":
         return <FormContent
           forms={forms}
