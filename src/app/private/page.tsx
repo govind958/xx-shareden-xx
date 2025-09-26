@@ -196,8 +196,9 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
             Welcome back, <span className="text-teal-400">{userName}</span>
           </h1>
           <p className="text-neutral-400 max-w-3xl">
-            Here's a snapshot of your forms, stacks, and recent activity. Let's grow your startup!
-          </p>
+  Here&apos;s a snapshot of your forms, stacks, and recent activity. Let&apos;s grow your startup!
+</p>
+
         </div>
         <Button
             className={`mt-4 md:mt-0 px-6 py-3 text-lg whitespace-nowrap ${buttonGradientClass}`}
@@ -317,9 +318,10 @@ function AnalyticsContent() {
         <p className="text-neutral-200 text-lg font-semibold">
           Data Visualization Coming Soon!
         </p>
-        <p className="text-neutral-400 text-sm mt-1">
-            We're building powerful, actionable insights just for you.
-        </p>
+       <p className="text-neutral-400 text-sm mt-1">
+  We&apos;re building powerful, actionable insights just for you.
+</p>
+
       </div>
     </div>
   );
