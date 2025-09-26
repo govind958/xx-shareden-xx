@@ -11,7 +11,7 @@ import { logout } from "@/src/app/logout/actions"
 import { insertForm } from '@/src/app/startuponbordingform/actions'
 
 // --- UI Components & Icons ---
-import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon } from "lucide-react"
+import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon, TrendingUp, Activity, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
 import StacksPage from "../product_stacks/page"
@@ -58,7 +58,7 @@ interface ProductCardProps {
 // A helper class string for glassmorphism style
 const glassmorphismClass = "bg-teal-500/10 backdrop-blur-md rounded-2xl shadow-lg border border-teal-200/20";
 const innerGlassmorphismClass = "bg-teal-500/5 backdrop-blur-md rounded-xl shadow-lg border border-teal-200/10";
-const buttonGradientClass = "bg-gradient-to-r from-teal-400 to-teal-600 text-white font-bold hover:from-teal-500 hover:to-teal-700 transition-colors rounded-full";
+const buttonGradientClass = "bg-gradient-to-r from-teal-400 to-teal-600 text-neutral-950 font-bold hover:from-teal-500 hover:to-teal-700 transition-colors rounded-full shadow-lg shadow-teal-500/50";
 
 
 /**
@@ -83,9 +83,10 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
             <span className="text-sm text-neutral-400">{subtitle}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-neutral-400 text-sm">
-          <Coins size={18} className="text-amber-500" />
-          <span className="font-semibold">Credits</span>
+        {/* Placeholder for Credits/Tier badge */}
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-sm font-semibold border border-amber-500/30">
+          <Coins size={16} />
+          <span>Premium Stack</span>
         </div>
       </div>
 
@@ -94,11 +95,14 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
         {features.map((feature, index) => (
           <div key={index} className="flex flex-col">
             <p className="text-neutral-400 text-sm">{feature.label}</p>
-            <p className="text-neutral-50 font-semibold">{feature.value}</p>
+            <div className="flex items-center gap-1">
+                 <Zap size={14} className="text-teal-400"/>
+                 <p className="text-neutral-50 font-semibold">{feature.value}</p>
+            </div>
           </div>
         ))}
         <div className="col-span-2 mt-2">
-          <a href="#" className="flex items-center text-teal-400 hover:text-teal-300 transition-colors font-medium">
+          <a href="#" className="flex items-center text-teal-400 hover:text-teal-300 transition-colors font-medium text-sm">
             View all features <ChevronRight size={16} />
           </a>
         </div>
@@ -109,9 +113,9 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
         <h4 className="font-semibold text-neutral-50 mb-4">Core Stacks</h4>
         <div className="flex items-center justify-between overflow-x-auto gap-4">
           {timeline.map((item, index) => (
-            <div key={index} className="flex flex-col items-center flex-shrink-0 w-20 sm:w-24">
-              <div className={`flex items-center justify-center w-12 h-12 rounded-full text-teal-400 ${innerGlassmorphismClass}`}>
-                <item.icon size={24} />
+            <div key={index} className="flex flex-col items-center flex-shrink-0 w-16 sm:w-20">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-full text-teal-400 ${innerGlassmorphismClass} border-teal-400/30`}>
+                <item.icon size={20} />
               </div>
               <span className="text-center text-xs font-medium text-neutral-300 mt-2">{item.label}</span>
             </div>
@@ -121,20 +125,20 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
 
       {/* Last Bought Info */}
       {lastBought && (
-        <div className="flex items-center gap-2 text-sm text-neutral-400 mb-4">
-          <Clock size={16} />
+        <div className="flex items-center gap-2 text-sm text-neutral-400 mb-4 border-t border-teal-200/20 pt-4">
+          <Clock size={16} className="text-teal-400" />
           <span>{lastBought}</span>
         </div>
       )}
 
       {/* Footer with Price and Button */}
-      <div className="flex justify-between items-center border-t border-teal-200/20 pt-4 mt-auto">
+      <div className="flex justify-between items-center pt-4 mt-auto">
         <div>
-          <p className="text-sm text-neutral-400">Starting at</p>
+          <p className="text-sm text-neutral-400">Stack Price</p>
           <p className="text-3xl font-bold text-teal-400">{price}</p>
         </div>
         <Button className={buttonGradientClass}>
-          Get Started
+          View Stack
         </Button>
       </div>
     </div>
@@ -147,7 +151,7 @@ function ProductCard({ title, subtitle, imageUrl, features, price, lastBought, t
  * now styled with the dark, glassmorphic theme.
  */
 function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
-  const userName = userEmail ? userEmail.split("@")[0] : "User"
+  const userName = userEmail ? userEmail.split("@")[0] : "User";
 
   const productData = {
     title: "Full Stack Onboarding",
@@ -160,83 +164,134 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
     price: "100 Credits",
     lastBought: "Last purchased 3 days ago",
     timeline: [
-      { icon: Users, label: "User Identity" },
+      { icon: Users, label: "Identity" },
       { icon: Layout, label: "UI/UX" },
-      { icon: Database, label: "Analytics" },
-      { icon: Mail, label: "Engagement" },
+      { icon: Database, label: "Data" },
+      { icon: Mail, label: "Engage" },
       { icon: MessageSquare, label: "Support" },
     ],
   };
+  
+  // New: Placeholder for user's key metrics
+  const keyMetrics = [
+      { label: "Submissions", value: "45", trend: "+12%", icon: FileText, color: "text-teal-400" },
+      { label: "Conversion Rate", value: "18.5%", trend: "-0.5%", icon: TrendingUp, color: "text-amber-400" },
+      { label: "Monthly Credits", value: "98", trend: "2 Used", icon: Wallet, color: "text-purple-400" },
+  ];
+
+  // New: Placeholder for recent activity
+  const recentActivity = [
+      { id: 1, type: "Form", title: "New Submission on 'Beta Waitlist'", time: "10 minutes ago" },
+      { id: 2, type: "Action", title: "Form 'Contact Us' published", time: "2 hours ago" },
+      { id: 3, type: "System", title: "Monthly credits auto-refilled", time: "Yesterday" },
+  ];
 
   return (
-    <div className="max-w-6xl mx-auto p-6 md:p-10">
-      <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-50 mb-2">
-        Welcome, <span className="text-teal-400">{userName}</span> 🎉
-      </h1>
-      <p className="text-neutral-400 mb-8 max-w-2xl">
-        This is your main dashboard. Use the navigation to manage your forms, view analytics, and update your settings.
-      </p>
-
-      {/* Quick Actions section */}
-      <div className={`p-6 md:p-8 ${glassmorphismClass} mb-10`}>
-        <h2 className="text-2xl font-bold text-neutral-50 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <button
-            className={`rounded-xl p-5 border border-teal-200/10 flex items-start gap-4 text-left cursor-pointer transition-colors ${innerGlassmorphismClass}`}
+    <div className="max-w-7xl mx-auto p-6 md:p-10">
+      
+      {/* HEADER SECTION - More prominent welcome and primary CTA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 pb-6 border-b border-neutral-800">
+        <div>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-neutral-50 mb-2">
+            Welcome back, <span className="text-teal-400">{userName}</span>
+          </h1>
+          <p className="text-neutral-400 max-w-3xl">
+            Here's a snapshot of your forms, stacks, and recent activity. Let's grow your startup!
+          </p>
+        </div>
+        <Button
+            className={`mt-4 md:mt-0 px-6 py-3 text-lg whitespace-nowrap ${buttonGradientClass}`}
             onClick={() => onNavigate('form')}
-          >
-            <div className={`p-3 rounded-full text-teal-400 ${innerGlassmorphismClass}`}>
-              <FileText size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-teal-400">Create a New Form</h3>
-              <p className="text-sm text-teal-300/80">Start collecting information now.</p>
-            </div>
-          </button>
-          <div className={`rounded-xl p-5 border border-neutral-700/50 flex items-start gap-4 ${innerGlassmorphismClass}`}>
-            <div className={`p-3 rounded-full text-neutral-400 ${innerGlassmorphismClass}`}>
-              <BarChart size={20} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-50">View Analytics</h3>
-              <p className="text-sm text-neutral-400/80">See how your forms are performing.</p>
-            </div>
-          </div>
+        >
+            <PlusCircle size={20} className="mr-2" />
+            Create New Form
+        </Button>
+      </div>
+
+      {/* KEY METRICS SECTION - Essential for SaaS dashboard professionalism */}
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold text-neutral-50 mb-4">Performance Snapshot</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {keyMetrics.map((metric) => (
+                <div key={metric.label} className={`p-6 ${glassmorphismClass} border-l-4 border-teal-500/50`}>
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-neutral-400">{metric.label}</p>
+                        <metric.icon size={20} className={metric.color} />
+                    </div>
+                    <p className="text-3xl font-extrabold text-neutral-50 mt-1 mb-2">{metric.value}</p>
+                    <span className={`text-xs font-semibold ${metric.trend.includes('+') ? 'text-green-400' : 'text-neutral-400'}`}>
+                        {metric.trend}
+                    </span>
+                    <span className="text-xs text-neutral-500 ml-1">last 7 days</span>
+                </div>
+            ))}
         </div>
       </div>
 
-      {/* Explore section with a new card */}
+      {/* MAIN CONTENT GRID - Product Card, Quick Actions, and Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        
+        {/* Recommended Product Card (Col 1/2 span on large screens) */}
+        <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold text-neutral-50 mb-4">Recommended for You</h2>
+            <ProductCard {...productData} />
+        </div>
+
+        {/* Recent Activity (Col 3 on large screens) */}
+        <div className="lg:col-span-1">
+            <h2 className="text-2xl font-bold text-neutral-50 mb-4">Recent Activity</h2>
+            <div className={`p-6 ${glassmorphismClass} h-full`}>
+                <ul className="space-y-4">
+                    {recentActivity.map((activity) => (
+                        <li key={activity.id} className="flex items-start border-b border-neutral-700/50 pb-4 last:border-b-0 last:pb-0">
+                            <Activity size={16} className="text-teal-500 mt-1 mr-3 flex-shrink-0" />
+                            <div>
+                                <p className="text-neutral-50 font-medium text-sm">
+                                    <span className="text-teal-400 font-semibold mr-1">[{activity.type}]</span>
+                                    {activity.title}
+                                </p>
+                                <p className="text-xs text-neutral-500 mt-0.5">{activity.time}</p>
+                            </div>
+                        </li>
+                    ))}
+                    <li className="text-sm text-center pt-2 text-teal-400 hover:text-teal-300 cursor-pointer font-medium"
+                        onClick={() => onNavigate('analytics')}
+                    >
+                        View Full Activity Log
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+      </div>
+
+      {/* Explore section - Renamed to 'Stack Ecosystem' and made more visually appealing */}
       <div className="mb-10">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-neutral-50 mb-6">
-          Explore Startup Stacks
+        <h2 className="text-2xl font-bold text-neutral-50 mb-4">
+          Explore the Stack Ecosystem
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div className="flex flex-col items-center justify-center p-4 border border-teal-200/20 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer text-teal-400">
-            <Code size={36} className="mb-2" />
+          {/* Using innerGlassmorphismClass for hover effect on the explore tiles */}
+          <div className={`flex flex-col items-center justify-center p-4 rounded-xl border border-teal-200/20 hover:border-teal-400 transition-all duration-200 cursor-pointer ${innerGlassmorphismClass}`}>
+            <Code size={36} className="mb-2 text-teal-400" />
             <span className="text-sm font-semibold text-neutral-300 text-center">Development & IT</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-4 border border-teal-500/50 rounded-xl shadow-md cursor-pointer text-teal-400">
-            <Paintbrush size={36} className="mb-2" />
+          <div className={`flex flex-col items-center justify-center p-4 rounded-xl border border-teal-200/20 hover:border-teal-400 transition-all duration-200 cursor-pointer ${innerGlassmorphismClass}`}>
+            <Paintbrush size={36} className="mb-2 text-teal-400" />
             <span className="text-sm font-semibold text-neutral-300 text-center">Design & Creative</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-4 border border-teal-200/20 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer text-teal-400">
-            <Megaphone size={36} className="mb-2" />
+          <div className={`flex flex-col items-center justify-center p-4 rounded-xl border border-teal-200/20 hover:border-teal-400 transition-all duration-200 cursor-pointer ${innerGlassmorphismClass}`}>
+            <Megaphone size={36} className="mb-2 text-teal-400" />
             <span className="text-sm font-semibold text-neutral-300 text-center">Sales & Marketing</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-4 border border-teal-200/20 rounded-xl hover:border-teal-500 hover:shadow-md transition-all duration-200 cursor-pointer text-teal-400">
-            <Users size={36} className="mb-2" />
+          <div className={`flex flex-col items-center justify-center p-4 rounded-xl border border-teal-200/20 hover:border-teal-400 transition-all duration-200 cursor-pointer ${innerGlassmorphismClass}`}>
+            <Users size={36} className="mb-2 text-teal-400" />
             <span className="text-sm font-semibold text-neutral-300 text-center">HR & Training</span>
           </div>
-        </div>
-      </div>
-
-      {/* New Product Card Section */}
-      <div className="mb-10">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-neutral-50 mb-6">
-          Recommended for you
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-          <ProductCard {...productData} />
+           <div className={`flex flex-col items-center justify-center p-4 rounded-xl border border-teal-200/20 hover:border-teal-400 transition-all duration-200 cursor-pointer ${innerGlassmorphismClass}`}>
+            <Coins size={36} className="mb-2 text-teal-400" />
+            <span className="text-sm font-semibold text-neutral-300 text-center">Finance & Legal</span>
+          </div>
         </div>
       </div>
 
@@ -251,15 +306,19 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
 function AnalyticsContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-        Analytics
+      <h2 className="text-3xl md:text-4xl font-bold text-teal-400 mb-6">
+        Analytics Dashboard
       </h2>
-      <p className="text-neutral-400 text-lg">
-        Your analytics dashboard will be available here soon.
+      <p className="text-neutral-400 text-lg max-w-xl">
+        Dive deep into your form performance, conversion funnels, and user data.
       </p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
-        <p className="text-neutral-200 text-lg">
-          Stay tuned for upcoming insights.
+      <div className={`p-8 rounded-2xl ${glassmorphismClass} mt-8 text-center border-l-4 border-teal-500`}>
+        <BarChart size={32} className="mx-auto mb-3 text-teal-500" />
+        <p className="text-neutral-200 text-lg font-semibold">
+          Data Visualization Coming Soon!
+        </p>
+        <p className="text-neutral-400 text-sm mt-1">
+            We're building powerful, actionable insights just for you.
         </p>
       </div>
     </div>
@@ -274,15 +333,19 @@ function AnalyticsContent() {
 function WalletContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-        Wallet
+      <h2 className="text-3xl md:text-4xl font-bold text-teal-400 mb-6">
+        Wallet & Credits
       </h2>
-      <p className="text-neutral-400 text-lg">
-        Manage your credits and payment methods here.
+      <p className="text-neutral-400 text-lg max-w-xl">
+        Manage your credits, view purchase history, and top-up your balance.
       </p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
-        <p className="text-neutral-200 text-lg">
-          Your wallet dashboard will be available soon.
+      <div className={`p-8 rounded-2xl ${glassmorphismClass} mt-8 text-center border-l-4 border-amber-500`}>
+        <Wallet size={32} className="mx-auto mb-3 text-amber-500" />
+        <p className="text-neutral-200 text-lg font-semibold">
+          Credit Management Tools
+        </p>
+        <p className="text-neutral-400 text-sm mt-1">
+            Easily track your consumption and billing cycles.
         </p>
       </div>
     </div>
@@ -297,15 +360,19 @@ function WalletContent() {
 function SubscriptionContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-        Subscription
+      <h2 className="text-3xl md:text-4xl font-bold text-teal-400 mb-6">
+        Subscription & Billing
       </h2>
-      <p className="text-neutral-400 text-lg">
-        Manage your subscription plans and payment methods here.
+      <p className="text-neutral-400 text-lg max-w-xl">
+        Review your current plan, upgrade your tier, and update payment details.
       </p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
-        <p className="text-neutral-200 text-lg">
-          Your subscription dashboard will be available soon.
+      <div className={`p-8 rounded-2xl ${glassmorphismClass} mt-8 text-center border-l-4 border-purple-500`}>
+        <CreditCardIcon size={32} className="mx-auto mb-3 text-purple-500" />
+        <p className="text-neutral-200 text-lg font-semibold">
+          Manage Your Plan
+        </p>
+        <p className="text-neutral-400 text-sm mt-1">
+            Find the perfect plan for your growing startup needs.
         </p>
       </div>
     </div>
@@ -319,15 +386,19 @@ function SubscriptionContent() {
 function SettingsContent() {
   return (
     <div className="p-6 md:p-10">
-      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-        Settings
+      <h2 className="text-3xl md:text-4xl font-bold text-teal-400 mb-6">
+        Account Settings
       </h2>
-      <p className="text-neutral-400 text-lg">
-        Update your account settings and preferences.
+      <p className="text-neutral-400 text-lg max-w-xl">
+        Update your profile, security settings, and global preferences.
       </p>
-      <div className={`p-6 rounded-2xl ${glassmorphismClass} mt-6 text-center`}>
-        <p className="text-neutral-200 text-lg">
-          The settings dashboard will be available soon.
+      <div className={`p-8 rounded-2xl ${glassmorphismClass} mt-8 text-center border-l-4 border-neutral-500`}>
+        <Settings size={32} className="mx-auto mb-3 text-neutral-500" />
+        <p className="text-neutral-200 text-lg font-semibold">
+          Configuration Center
+        </p>
+        <p className="text-neutral-400 text-sm mt-1">
+            Full control over your SaaS experience.
         </p>
       </div>
     </div>
@@ -344,18 +415,18 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-10">
       <Toaster position="top-right" />
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-neutral-50">Your Forms</h2>
+      <div className="flex justify-between items-center mb-6 border-b border-neutral-800 pb-4">
+        <h2 className="text-3xl font-bold text-neutral-50">Form Management</h2>
         <Button
           onClick={toggleFormView}
-          className={`bg-teal-600 hover:bg-teal-700 text-white font-semibold`}
+          className={`bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-full px-5 py-2 transition-colors`}
         >
           {showFormCreation ? (
-            'View Submitted Forms'
+            'View Forms'
           ) : (
             <div className="flex items-center gap-2">
               <PlusCircle size={18} />
-              <span>Create New Form</span>
+              <span>New Form</span>
             </div>
           )}
         </Button>
@@ -363,9 +434,9 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
 
       {showFormCreation ? (
         // Form Creation UI
-        <div className={`p-6 md:p-10 ${glassmorphismClass}`}>
-          <h3 className="text-xl md:text-2xl font-bold text-neutral-50 mb-2">Create a New Form</h3>
-          <p className="text-neutral-400 mb-6">Start creating a new form to collect information from your users.</p>
+        <div className={`p-6 md:p-10 ${glassmorphismClass} border-l-4 border-teal-500/50`}>
+          <h3 className="text-2xl font-bold text-teal-400 mb-2">Create a New Form</h3>
+          <p className="text-neutral-400 mb-8 max-w-xl">Start creating a new form to collect information and share your startup journey.</p>
           <form onSubmit={handleFormSubmit} className="space-y-6">
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-neutral-400 mb-1">
@@ -407,16 +478,16 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
             <Button
               type="submit"
               disabled={isFormLoading}
-              className={`w-full ${buttonGradientClass}`}
+              className={`w-full text-lg ${buttonGradientClass}`}
             >
-              {isFormLoading ? 'Submitting...' : '🚀 Save Form'}
+              {isFormLoading ? 'Submitting...' : '🚀 Save & Publish Form'}
             </Button>
           </form>
         </div>
       ) : (
         // Submitted Forms List UI
         <div className={`p-6 md:p-8 ${glassmorphismClass}`}>
-          <h3 className="text-2xl font-bold text-neutral-50 mb-6">Submitted Forms</h3>
+          <h3 className="text-2xl font-bold text-neutral-50 mb-6">Your Submitted Forms</h3>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-48">
               <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -427,23 +498,25 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
               {forms.map((form) => (
                 <div
                   key={form.form_id}
-                  className={`rounded-xl border border-teal-200/10 overflow-hidden hover:shadow-lg transform transition-all duration-300 ${innerGlassmorphismClass}`}
+                  className={`rounded-xl border border-teal-200/10 overflow-hidden hover:shadow-xl transform transition-all duration-300 ${innerGlassmorphismClass}`}
                 >
-                  {form.image_url && (
-                    <div className="relative w-full h-40">
-                      <Image src={form.image_url} alt={form.title} fill className="object-cover" />
-                    </div>
-                  )}
                   <div className="p-5">
-                    <h3 className="text-lg font-semibold text-teal-400">{form.title}</h3>
-                   <p className="text-neutral-400 text-sm mt-1">{form.description}</p>
-                    <div className="mt-4 flex items-center justify-between text-xs text-neutral-500">
-                      <span>Resource: {form.label}</span>
-                      <span className="flex items-center gap-1">
-                        <User size={14} />
-                        {form.user_id || "Unknown"}
-                      </span>
+                    <h3 className="text-xl font-semibold text-teal-400 mb-2">{form.title}</h3>
+                    <p className="text-neutral-400 text-sm italic border-l-2 border-teal-600 pl-3">{form.description}</p>
+                    <div className="mt-4 flex flex-col gap-1 text-xs text-neutral-500 border-t border-neutral-700 pt-3">
+                      <div className="flex items-center justify-between">
+                         <span className='font-medium text-neutral-300'>Shared Resource:</span>
+                         <span className="text-teal-400 font-semibold">{form.label}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                         <span className='font-medium text-neutral-300'>Author ID:</span>
+                         <span className="flex items-center gap-1 text-neutral-500">
+                           <User size={14} />
+                           {form.user_id ? `${form.user_id.substring(0, 8)}...` : "Unknown"}
+                         </span>
+                      </div>
                     </div>
+                    <Button variant="link" className="text-teal-400 p-0 h-auto mt-3">View Details</Button>
                   </div>
                 </div>
               ))}
@@ -452,7 +525,7 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
             <div className="text-center py-10 text-neutral-500">
               <FileText size={48} className="mx-auto text-neutral-700 mb-4" />
               <p className="text-lg font-medium">No forms have been submitted yet.</p>
-              <p className="mt-2 text-sm">Submit a form to see it appear here.</p>
+              <p className="mt-2 text-sm">Submit your first form to join the founder ecosystem.</p>
               <Button onClick={toggleFormView} className={`mt-4 ${buttonGradientClass}`}>
                 Create a Form
               </Button>
@@ -553,8 +626,8 @@ export default function PrivatePanel() {
   const sidebarLinks = [
     { id: "dashboard", icon: Home, label: "Dashboard", message: "Your main dashboard" },
     { id: "stacks", icon: Code, label: "Stacks", message: "Explore startup tools and resources" },
-    { id: "form", icon: FileText, label: "Form", message: "Create and manage your forms" },
-     { id: "subscription", icon: CreditCardIcon, label: "Subscription", message: "Create and manage your forms" },
+    { id: "form", icon: FileText, label: "Forms", message: "Create and manage your forms" },
+     { id: "subscription", icon: CreditCardIcon, label: "Subscription", message: "Manage your plans" },
     { id: "analytics", icon: BarChart, label: "Analytics", message: "View your form funnels and data" },
     { id: "wallet", icon: Wallet, label: "Wallet", message: "Manage your credits and payments" },
     { id: "settings", icon: Settings, label: "Settings", message: "Manage account and preferences" },
@@ -570,6 +643,16 @@ export default function PrivatePanel() {
     try {
       await insertForm(formData);
       toast.success('🚀 Form submitted successfully!')
+      // Fetch latest forms to update the list
+      const supabase = createClient()
+      const { data: formsData, error: formsError } = await supabase
+        .from("forms")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (!formsError) {
+        setForms(formsData as Form[] || [])
+      }
       formElement.reset();
       setShowFormCreation(false);
     } catch (err: unknown) {
@@ -590,7 +673,8 @@ export default function PrivatePanel() {
       case "analytics":
         return <AnalyticsContent />
       case "stacks":
-        return <StacksPage />
+        // Assuming StacksPage is robust and handles its own layout/data
+        return <StacksPage /> 
       case "wallet":
         return <WalletContent />
          case "subscription":
@@ -614,36 +698,39 @@ export default function PrivatePanel() {
   // --- JSX Rendering ---
   return (
     <div className="min-h-screen w-full font-sans text-neutral-50 transition-all duration-300 relative overflow-hidden">
-      {/* Background gradient effect */}
+      {/* Background gradient effect - Subtle, dark SaaS feel */}
       <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
-        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-teal-300 rounded-full mix-blend-screen opacity-10 blur-3xl animate-blob"></div>
-        <div className="absolute -bottom-1/4 right-0 w-1/2 h-1/2 bg-teal-500 rounded-full mix-blend-screen opacity-10 blur-3xl animate-blob animation-delay-2000"></div>
+        <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-teal-300 rounded-full mix-blend-screen opacity-5 blur-3xl"></div>
+        <div className="absolute -bottom-1/4 right-0 w-1/2 h-1/2 bg-teal-500 rounded-full mix-blend-screen opacity-5 blur-3xl animation-delay-2000"></div>
       </div>
       
       <div className="flex min-h-screen z-10 relative bg-neutral-950">
         {/* Sidebar */}
         <aside
           className={cn(
-            "flex flex-col bg-neutral-950/20 backdrop-blur-md shadow-lg transition-transform duration-300 ease-in-out z-40 border-r border-teal-200/20",
+            "flex flex-col bg-neutral-950/20 backdrop-blur-xl shadow-2xl transition-transform duration-300 ease-in-out z-40 border-r border-teal-500/10",
             "md:flex md:w-64 md:translate-x-0 md:static",
             "fixed inset-y-0 left-0 w-64 overflow-y-auto",
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          {/* Sidebar Header (Google Maps style) */}
-          <div className="border-b border-teal-200/20">
+          {/* Sidebar Header (App Logo/Name) */}
+          <div className="border-b border-teal-500/10">
             <div className="flex items-center justify-between p-4">
-              <span className="text-lg font-bold bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
+              <span className="text-2xl font-bold bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
                 ShareDen
               </span>
               <button
-                className="md:hidden p-2 rounded-lg hover:bg-teal-500/10 text-neutral-50"
+                className="md:hidden p-2 rounded-lg hover:bg-teal-500/20 text-neutral-50"
                 onClick={() => setIsSidebarOpen(false)}
               >
                 <X size={20} />
               </button>
             </div>
             <div className="flex items-center gap-3 px-4 pb-4">
+              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-teal-600 text-white text-sm font-bold">
+                 {userInitial}
+              </div>
               <div className="truncate text-sm font-medium text-neutral-50">
                 {userEmail}
               </div>
@@ -662,7 +749,7 @@ export default function PrivatePanel() {
                 className={cn(
                   "flex items-center gap-4 w-full px-3 py-2 rounded-lg transition-colors duration-200 group relative",
                   activeTab === link.id
-                    ? "bg-teal-500/10 text-teal-400 font-semibold shadow-sm"
+                    ? "bg-teal-500/15 text-teal-400 font-semibold shadow-inner shadow-teal-500/10 border border-teal-500/30"
                     : "text-neutral-400 hover:bg-teal-500/10 hover:text-teal-400"
                 )}
               >
@@ -673,15 +760,15 @@ export default function PrivatePanel() {
           </nav>
 
           {/* Logout button */}
-          <div className="p-4 border-t border-teal-200/20">
+          <div className="p-4 border-t border-teal-500/10">
             <form action={logout}>
             <Button
-  type="submit"
-  variant="outline"
-  className="w-full text-white bg-neutral-600 border-neutral-600 hover:bg-neutral-700 hover:border-neutral-700 transition"
->
-  Log out
-</Button>
+              type="submit"
+              variant="outline"
+              className="w-full text-white bg-neutral-800 border-neutral-700 hover:bg-neutral-700 hover:border-neutral-600 transition font-semibold"
+            >
+              Log out
+            </Button>
             </form>
           </div>
         </aside>
@@ -689,7 +776,7 @@ export default function PrivatePanel() {
         {/* Mobile overlay */}
         {isSidebarOpen && isMobile && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-40 z-30 md:hidden"
+            className="fixed inset-0 bg-black bg-opacity-60 z-30 md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
@@ -701,41 +788,26 @@ export default function PrivatePanel() {
             isMainContentLoaded ? "opacity-100" : "opacity-0"
           )}
         >
-          {/* Mobile Header */}
-          <header className="sticky top-0 z-20 bg-neutral-950/20 backdrop-blur-md shadow-sm md:hidden border-b border-teal-200/20">
+          {/* Mobile Header (Sticky and Minimal) */}
+          <header className="sticky top-0 z-20 bg-neutral-950/50 backdrop-blur-lg shadow-sm md:hidden border-b border-teal-500/10">
             <div className="max-w-[1200px] mx-auto px-4 py-3 flex items-center justify-between">
               {/* Left: Hamburger */}
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 aria-label="Toggle sidebar"
-                className="p-2 rounded-md hover:bg-teal-500/10 text-neutral-400"
+                className="p-2 rounded-md hover:bg-teal-500/20 text-neutral-400"
               >
                 <Menu size={20} />
               </button>
 
-              {/* Center: ShareDen gradient text */}
-              <div className="absolute left-1/2 transform -translate-x-1/2">
-                <span className="text-lg sm:text-xl font-extrabold tracking-tight">
-                  <span className="bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
-                    Share
-                  </span>
-                  <span className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 bg-clip-text text-transparent">
-                    Den
-                  </span>
-                </span>
-              </div>
+              {/* Center: App Logo */}
+              <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-teal-600 bg-clip-text text-transparent">
+                    ShareDen
+              </span>
 
-              {/* Right: User Avatar or Join */}
-              <div className="flex items-center gap-2">
-                {userEmail ? (
-                  <div className="w-8 h-8 flex items-center justify-center rounded-full bg-teal-500 text-white text-sm">
+              {/* Right: User Avatar */}
+              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-teal-600 text-white text-sm font-bold">
                     {userInitial}
-                  </div>
-                ) : (
-                  <button className="text-sm font-semibold text-neutral-400 hover:text-teal-400">
-                    Join
-                  </button>
-                )}
               </div>
             </div>
           </header>
