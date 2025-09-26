@@ -1,3 +1,6 @@
+
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { Database, Sparkles, Users,  Rocket, CheckCircle, ArrowRight } from "lucide-react";
 import { cn } from "@/src/lib/utils"; // Assuming a utility function exists
