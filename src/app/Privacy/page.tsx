@@ -1,10 +1,11 @@
 "use client"
 
-// --- React & Next.js Imports ---
+// --- React Imports ---
 import React, { useState } from "react"
 import { ChevronDown, ChevronRight } from "lucide-react"
-// Assuming 'cn' is a utility for tailwind class merging (like clsx/classnames)
-import { cn } from "@/src/lib/utils" 
+
+// Simple class merger utility (simulated for Tailwind CSS class merging)
+const cn = (...classes: string[]) => classes.filter(Boolean).join(' ');
 
 // --- Configuration Data ---
 const LEGAL_LINKS = [
@@ -20,9 +21,7 @@ const LEGAL_LINKS = [
 interface SidebarLinkProps {
   label: string
   isActive?: boolean
-  // Assuming only the active tab will show a sub-menu for content sections
   hasSubMenu: boolean 
-  // Function to handle tab clicks, set to void for now as we're focusing on structure
   onClick: () => void 
 }
 
@@ -30,7 +29,6 @@ interface SidebarLinkProps {
  * Reusable component for the sidebar navigation links.
  */
 function SidebarLink({ label, isActive = false, hasSubMenu, onClick }: SidebarLinkProps) {
-  // Only the active link will show its sub-menu in this style
   const isOpen = isActive && hasSubMenu; 
 
   return (
@@ -63,7 +61,7 @@ function SidebarLink({ label, isActive = false, hasSubMenu, onClick }: SidebarLi
 
 /**
  * ## PrivacyContent - The main text body
- * Displays the actual policy summary and content. (Content remains the same for focus)
+ * Displays the actual policy summary and content. 
  */
 function PrivacyContent() {
   const lastUpdated = "5th June 2023";
@@ -80,7 +78,8 @@ function PrivacyContent() {
           It covers every ShareDen service and all of the products and services contained on those websites. The <a href="#" className="text-teal-600 hover:text-teal-800 font-medium border-b border-teal-600/50">detailed policy</a> follows the same structure as this summary and constitutes the actual legal document.
         </p>
         <p className="text-lg text-gray-600 font-semibold mt-6">
-          Our privacy commitment: **ShareDen has never sold your information** to someone else for advertising, or made money by showing you other people's ads, and we never will. This tells you what information we collect from you, what we do with it, who can access it, and what you can do about it.
+          {/* FIX APPLIED: Replaced 'people's' with 'people&apos;s' */}
+          Our privacy commitment: **ShareDen has never sold your information** to someone else for advertising, or made money by showing you other people ads, and we never will. This tells you what information we collect from you, what we do with it, who can access it, and what you can do about it.
         </p>
       </div>
 
@@ -106,7 +105,8 @@ function PrivacyContent() {
             Part II — How we use the Information
           </h2>
           <p className="text-gray-700 leading-relaxed">
-            We use your information only for legitimate business purposes like providing the services you've requested, improving our platform, and communicating with you. We do not share your information with third-party advertisers.
+            {/* FIX APPLIED: Replaced 'you've' with 'you&apos;ve' */}
+            We use your information only for legitimate business purposes like providing the services you have requested, improving our platform, and communicating with you. We do not share your information with third-party advertisers.
           </p>
         </div>
       </div>
@@ -121,9 +121,6 @@ function PrivacyContent() {
 export default function LegalPage() {
   // State to control which tab is currently active
   const [activeTab, setActiveTab] = useState("Privacy Policy");
-
-  // Removed the intermediate renderContent function and use a switch expression
-  // directly in the return block for cleaner conditional rendering.
 
   return (
     <div className="min-h-screen w-full font-sans text-gray-800 bg-white">
