@@ -11,10 +11,11 @@ import { logout } from "@/src/app/logout/actions"
 import { insertForm } from '@/src/app/startuponbordingform/actions'
 
 // --- UI Components & Icons ---
-import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon, TrendingUp, Activity, Zap } from "lucide-react"
+import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon, TrendingUp, Activity, Zap, LucideShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
 import StacksPage from "../product_stacks/page"
+import StacksCartPage from "../Stacks_Cart/page"
 
 // --- Interfaces for data and props ---
 interface Form {
@@ -629,7 +630,8 @@ export default function PrivatePanel() {
     { id: "dashboard", icon: Home, label: "Dashboard", message: "Your main dashboard" },
     { id: "stacks", icon: Code, label: "Stacks", message: "Explore startup tools and resources" },
     { id: "form", icon: FileText, label: "Forms", message: "Create and manage your forms" },
-     { id: "subscription", icon: CreditCardIcon, label: "Subscription", message: "Manage your plans" },
+    { id: "stacks_cart", icon: LucideShoppingCart, label: "Stacks Cart", message: "Create and manage your forms" }, // ✅ Corrected to match the case
+    { id: "subscription", icon: CreditCardIcon, label: "Subscription", message: "Manage your plans" },
     { id: "analytics", icon: BarChart, label: "Analytics", message: "View your form funnels and data" },
     { id: "wallet", icon: Wallet, label: "Wallet", message: "Manage your credits and payments" },
     { id: "settings", icon: Settings, label: "Settings", message: "Manage account and preferences" },
@@ -677,6 +679,9 @@ export default function PrivatePanel() {
       case "stacks":
         // Assuming StacksPage is robust and handles its own layout/data
         return <StacksPage /> 
+         // Assuming StacksPage is robust and handles its own layout/data
+         case "stacks_cart":
+        return <StacksCartPage /> 
       case "wallet":
         return <WalletContent />
          case "subscription":

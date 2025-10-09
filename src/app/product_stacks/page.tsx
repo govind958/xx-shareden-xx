@@ -8,11 +8,21 @@ import {
   Rocket,
   CheckCircle,
   ArrowRight,
-  Zap, // New icon for the offer
+  Zap,
 } from "lucide-react";
-import { cn } from "@/src/lib/utils"; // Assuming cn is a utility function for Tailwind CSS
+// FIX: Replacing 'next/link' with a standard 'a' tag (anchor) to avoid dependency resolution errors 
+// in environments that do not support Next.js routing, while maintaining the href logic.
 
-// Types (Unchanged)
+// Mock implementation of cn (classnames utility) since the actual one is external
+const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
+
+// --- Types ---
+interface HrSubStack {
+  id: string;
+  name: string;
+  price: number;
+}
+
 interface Stack {
   id: string;
   name: string;
@@ -27,13 +37,7 @@ interface Stack {
   hrSubStacks?: HrSubStack[];
 }
 
-interface HrSubStack {
-  id: string;
-  name: string;
-  price: number;
-}
-
-// Utility: dynamic icons (Unchanged)
+// --- Utility: dynamic icons ---
 const getIconForStack = (type: string) => {
   switch (type.toLowerCase()) {
     case "hr":
@@ -43,7 +47,7 @@ const getIconForStack = (type: string) => {
   }
 };
 
-// Dummy HR Sub Stacks (Unchanged)
+// --- Dummy HR Sub Stacks ---
 const hrSubStacksData: HrSubStack[] = [
   { id: "jd-budget", name: "Write JD & Budget", price: 10 },
   { id: "post-source", name: "Post & Source Candidates", price: 15 },
@@ -58,7 +62,7 @@ const hrSubStacksData: HrSubStack[] = [
   { id: "learn-improve", name: "Learn & Improve", price: 10 },
 ];
 
-// Dummy Stacks (Unchanged)
+// --- Dummy Stacks ---
 const stacksData: Stack[] = [
   {
     id: "hr-stack-01",
@@ -77,11 +81,11 @@ const stacksData: Stack[] = [
 
 // 🚀 Irresistible Founder Offer Configuration
 const founderOffer = {
-  stackId: "hr-stack-01", // Apply offer only to this stack
-  salePrice: 99, // New discounted base price (was $180)
-  valueAdd: "First 3 Sub-Stacks FREE", // Extra value
-  freeSubStackCount: 3, // Number of sub-stacks that are free
-  expiresInDays: 7, // For visual urgency
+  stackId: "hr-stack-01",
+  salePrice: 99,
+  valueAdd: "First 3 Sub-Stacks FREE",
+  freeSubStackCount: 3,
+  expiresInDays: 7,
 };
 // ----------------------------------------------------
 
@@ -100,17 +104,29 @@ export default function StacksGrid() {
   useEffect(() => {
     const fetchStacks = async () => {
       setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1200)); // simulate loading
+      // Simulate loading delay
+      await new Promise((resolve) => setTimeout(resolve, 1200)); 
+      
       setStacks(stacksData);
+      // Initialize all sub-stacks as selected by default, or only the first few if on offer
+      const initialSelection: { [key: string]: boolean } = {};
+      stacksData.forEach(stack => {
+        if (stack.hrSubStacks) {
+            stack.hrSubStacks.forEach(sub => {
+                // Initialize to selected for a better UX, or customize based on business logic
+                initialSelection[sub.id] = true;
+            });
+        }
+      });
+      setSelectedSubStacks(initialSelection);
       setIsLoading(false);
     };
 
     fetchStacks();
   }, []);
 
-  // 💰 Updated calculation logic to apply the sale and free sub-stacks
+  // 💰 Calculation logic to apply the sale and free sub-stacks
   const calculateTotalPrice = (stack: Stack) => {
-    // Determine the base price: sale price or regular price
     let basePrice = stack.base_price;
     const isOfferActive = stack.id === founderOffer.stackId;
 
@@ -118,19 +134,22 @@ export default function StacksGrid() {
       basePrice = founderOffer.salePrice;
     }
 
-    // Calculate sub-stacks total
     let subStacksTotal = 0;
     if (stack.hrSubStacks) {
       const selectedSubStackIds = Object.keys(selectedSubStacks).filter(
         (id) => selectedSubStacks[id]
       );
 
+      // Identify which sub-stacks are actually selected in the current stack
+      const currentStackSelectedSubs = stack.hrSubStacks
+          .filter(sub => selectedSubStackIds.includes(sub.id));
+
       // Apply free sub-stacks if the offer is active
       const freeCount = isOfferActive ? founderOffer.freeSubStackCount : 0;
-      const chargeableSubStacks = selectedSubStackIds.slice(freeCount);
+      // Get the sub-stacks that will be charged (skipping the first 'freeCount' selected ones)
+      const chargeableSubStacks = currentStackSelectedSubs.slice(freeCount);
 
-      subStacksTotal = stack.hrSubStacks
-        .filter((sub) => chargeableSubStacks.includes(sub.id))
+      subStacksTotal = chargeableSubStacks
         .reduce((sum, sub) => sum + sub.price, 0);
     }
     
@@ -144,10 +163,17 @@ export default function StacksGrid() {
     }));
   };
 
+  // Memoize the list of selected sub-stack IDs to pass to the cart URL
+  const selectedSubStackIds = useMemo(() => {
+    // Only return IDs that exist in the current stack being rendered if we had multiple stacks
+    // Since we only have one stack, we just return the global selected IDs.
+    return Object.keys(selectedSubStacks).filter(id => selectedSubStacks[id]);
+  }, [selectedSubStacks]);
+
   // Memoize the selected sub-stack count for the pricing display
   const selectedSubStackCount = useMemo(() => {
-    return Object.values(selectedSubStacks).filter(Boolean).length;
-  }, [selectedSubStacks]);
+    return selectedSubStackIds.length;
+  }, [selectedSubStackIds]);
 
 
   if (isLoading) {
@@ -191,6 +217,9 @@ export default function StacksGrid() {
           const freeCount = isOfferActive ? founderOffer.freeSubStackCount : 0;
           const isSubStackFree = (index: number) => index < freeCount;
           
+          // Construct the URL string for the cart page including query params
+          const cartUrl = `/stacks-cart-page?stackId=${stack.id}&subStacks=${selectedSubStackIds.join(',')}`;
+
           return (
             <div
               key={stack.id}
@@ -198,7 +227,7 @@ export default function StacksGrid() {
                 "relative p-8 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl",
                 glassmorphismCard,
                 stack.special ? "ring-2 ring-cyan-500/60" : "",
-                isOfferActive && "ring-4 ring-orange-500/80 shadow-orange-500/20" // Stronger glow for offer
+                isOfferActive && "ring-4 ring-orange-500/80 shadow-orange-500/20"
               )}
             >
               {/* Limited-Time Offer Banner */}
@@ -218,7 +247,7 @@ export default function StacksGrid() {
               )}
 
               {/* Header */}
-              <div className="flex items-center justify-between mb-4 mt-8"> {/* Added mt-8 to offset the offer banner */}
+              <div className="flex items-center justify-between mb-4 mt-8">
                 <div className={`p-3 rounded-xl ${innerGlassmorphism}`}>
                   {getIconForStack(stack.type || "")}
                 </div>
@@ -235,7 +264,7 @@ export default function StacksGrid() {
                 {stack.description}
               </p>
 
-              {/* Sub Stacks */}
+              {/* Sub Stacks Selection */}
               {stack.hrSubStacks && (
                 <div className="p-4 mb-6 rounded-lg bg-neutral-800/20">
                   <h4 className="text-sm font-semibold text-neutral-300 mb-2 flex items-center justify-between">
@@ -248,6 +277,7 @@ export default function StacksGrid() {
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {stack.hrSubStacks.map((sub, index) => {
+                        // The index is used to determine which selected sub-stacks are free
                         const isFree = isOfferActive && isSubStackFree(index);
                         const isSelected = selectedSubStacks[sub.id];
 
@@ -260,13 +290,13 @@ export default function StacksGrid() {
                                     isSelected
                                         ? "bg-gradient-to-r from-teal-500/20 to-cyan-500/20 border-cyan-500 text-white"
                                         : "bg-transparent border-neutral-700 text-neutral-400 hover:border-neutral-500",
-                                    isFree && isSelected && "ring-2 ring-orange-500" // Highlight selected free items
+                                    isFree && isSelected && "ring-2 ring-orange-500"
                                 )}
                             >
                                 <span className="truncate">
                                     {sub.name}{" "}
                                     <span className={cn("ml-1", isFree ? "line-through text-red-400/70" : "text-neutral-500")}>
-                                      (${sub.price})
+                                      (${sub.price.toFixed(2)})
                                     </span>
                                     {isFree && isSelected && <span className="ml-1 text-orange-400 font-semibold">FREE</span>}
                                 </span>
@@ -294,16 +324,16 @@ export default function StacksGrid() {
                     {/* Display original price struck out for sale */}
                     {isOfferActive && (
                         <span className="text-2xl font-bold line-through text-neutral-600 mr-2">
-                            ${stack.base_price}
+                            ${stack.base_price.toFixed(2)}
                         </span>
                     )}
                     <span className={cn(
                         "text-4xl font-bold bg-clip-text text-transparent",
                         isOfferActive 
-                            ? "bg-gradient-to-r from-orange-400 to-red-500" // Sale price gradient
-                            : "bg-gradient-to-r from-teal-400 to-cyan-500" // Regular price gradient
+                            ? "bg-gradient-to-r from-orange-400 to-red-500"
+                            : "bg-gradient-to-r from-teal-400 to-cyan-500"
                     )}>
-                      ${calculateTotalPrice(stack)}
+                      ${calculateTotalPrice(stack).toFixed(2)}
                     </span>
                     <span className="text-sm text-neutral-500">/mo</span>
                   </div>
@@ -316,8 +346,10 @@ export default function StacksGrid() {
                     Save ~20 hrs/month
                   </p>
                 </div>
+                
+                {/* 🌟 FIX: Using standard 'a' tag for navigation 🌟 */}
                 <a
-                  href="#"
+                  href={cartUrl}
                   className="px-6 py-3 text-sm font-bold text-neutral-950 text-center rounded-full shadow-lg w-full sm:w-auto transition-all duration-300 flex items-center justify-center gap-2
                     bg-gradient-to-r from-cyan-400 to-teal-600 hover:from-cyan-500 hover:to-teal-700 hover:scale-105"
                 >
