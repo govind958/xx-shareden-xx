@@ -58,34 +58,131 @@ const selectedStacks: Stack[] = [
   },
 ];
 
+const discountAmount = 20.00; // Fixed discount
+
+// --- New Shimmer Card Component for Cart Items ---
+const CartShimmerCard = ({ glassmorphism, innerGlass }: { glassmorphism: string, innerGlass: string }) => {
+  const shimmer = "animate-pulse bg-neutral-800/50 rounded-lg";
+  
+  return (
+    <div className={cn("p-6", glassmorphism)}>
+      <div className="flex items-start justify-between mb-4">
+        {/* Icon and Text Placeholder */}
+        <div className="flex items-center gap-3">
+          <div className={`p-3 rounded-xl ${innerGlass}`}>
+            <div className={cn("w-6 h-6", shimmer)} /> {/* Icon Placeholder */}
+          </div>
+          <div>
+            <div className={cn("w-64 h-5 mb-1", shimmer)} />
+            <div className={cn("w-96 h-3", shimmer)} />
+          </div>
+        </div>
+        {/* Price Placeholder */}
+        <div className={cn("w-16 h-5", shimmer)} />
+      </div>
+
+      {/* Modules Placeholder */}
+      <div className="mt-4">
+        <div className={cn("w-32 h-4 mb-3", shimmer)} />
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {[1, 2, 3].map((i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5 text-sm"
+            >
+              <div className={cn("w-40 h-3", shimmer)} />
+              <div className={cn("w-12 h-3", shimmer)} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
+// --- End Shimmer Card Component ---
+
+
 // --- Stacks Cart Page Component ---
 export default function StacksCartPage() {
   const [cartStacks, setCartStacks] = useState<Stack[]>([]);
+  const [isLoading, setIsLoading] = useState(true); // New loading state
 
   const glassmorphism = "bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10";
   const innerGlass = "bg-white/5 backdrop-blur-sm rounded-xl border border-white/10";
   
-  const discountAmount = 20.00; // Fixed discount
-
   useEffect(() => {
-    // Simulate fetching selected stacks
-    setCartStacks(selectedStacks);
+    // Simulate fetching selected stacks with a delay
+    const timer = setTimeout(() => {
+        setCartStacks(selectedStacks);
+        setIsLoading(false);
+    }, 1200); // 1.2 second delay for shimmer effect
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Calculation function (now correctly defined inside the component)
-  const calculateTotal = () => {
-    return cartStacks.reduce((sum, stack) => {
+  const calculateTotal = (stacks: Stack[]) => {
+    return stacks.reduce((sum, stack) => {
       const subTotal =
         stack.hrSubStacks?.reduce((s, sub) => s + sub.price, 0) ?? 0;
       return sum + stack.base_price + subTotal;
     }, 0);
   };
   
-  const subtotalCost = calculateTotal();
+  // Calculate costs only when data is loaded
+  const subtotalCost = calculateTotal(cartStacks);
   const finalTotalCost = subtotalCost - discountAmount;
 
-  // --- Empty Cart State ---
-  if (cartStacks.length === 0) {
+
+  // --- Shimmer Loading State ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
+        {/* Header - Back button removed, title centered */}
+        <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
+          <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
+            Your Stacks Cart
+          </h1>
+        </header>
+
+        {/* Main Content Grid with Shimmer */}
+        <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {/* Left: Shimmer list */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <CartShimmerCard glassmorphism={glassmorphism} innerGlass={innerGlass} />
+          </div>
+
+          {/* Right: Pricing summary Shimmer */}
+          <aside className={cn("p-6 sticky top-10 h-fit animate-pulse", glassmorphism)}>
+            <div className={cn("w-40 h-7 mb-4 bg-neutral-800/50 rounded-lg")} /> {/* Title */}
+            <div className="space-y-3 text-sm mb-6">
+              <div className="flex justify-between">
+                <div className={cn("w-1/3 h-4 bg-neutral-800/50 rounded-lg")} />
+                <div className={cn("w-1/4 h-4 bg-neutral-800/50 rounded-lg")} />
+              </div>
+              <div className="flex justify-between">
+                <div className={cn("w-1/4 h-4 bg-neutral-800/50 rounded-lg")} />
+                <div className={cn("w-1/5 h-4 bg-neutral-800/50 rounded-lg")} />
+              </div>
+              <div className="flex justify-between font-bold text-white text-base border-t border-white/10 pt-3">
+                <div className={cn("w-1/2 h-5 bg-neutral-800/50 rounded-lg")} />
+                <div className={cn("w-1/4 h-5 bg-neutral-800/50 rounded-lg")} />
+              </div>
+            </div>
+            <div className={cn("w-full h-12 rounded-full bg-neutral-800/50")} /> {/* Button */}
+          </aside>
+        </main>
+
+        <footer className="max-w-7xl mx-auto text-center py-10 text-neutral-500 text-sm border-t border-white/10 mt-10">
+            Loading your cart items...
+        </footer>
+      </div>
+    );
+  }
+
+
+  // --- Empty Cart State (after loading) ---
+  if (!isLoading && cartStacks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
         <Rocket className="text-cyan-400 mb-6" size={48} />
@@ -108,19 +205,11 @@ export default function StacksCartPage() {
   // --- Cart With Items State ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-      {/* Header */}
-      <header className="max-w-7xl mx-auto flex items-center justify-between mb-10">
-        <Link
-          href="/stacks"
-          className="flex items-center gap-2 text-neutral-400 hover:text-cyan-400 transition"
-        >
-          <ArrowLeft size={18} />
-          Back to Stacks
-        </Link>
-        <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center w-full">
+      {/* Header - Back to Stacks removed, title centered */}
+      <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
+        <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
           Your Stacks Cart
         </h1>
-        <div className="w-[80px]" /> {/* Spacer */}
       </header>
       
       {/* Main Content Grid */}
