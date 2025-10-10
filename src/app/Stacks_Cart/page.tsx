@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Rocket, CheckCircle, Sparkles } from "lucide-react";
+import {  ArrowRight, Rocket, CheckCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 // Mock implementation of cn (for production, this would be imported from a utility file)

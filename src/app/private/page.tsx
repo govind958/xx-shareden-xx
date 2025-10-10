@@ -11,7 +11,7 @@ import { logout } from "@/src/app/logout/actions"
 import { insertForm } from '@/src/app/startuponbordingform/actions'
 
 // --- UI Components & Icons ---
-import { Home, Settings, FileText, Menu, X, User, BarChart, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon, TrendingUp, Activity, Zap, LucideShoppingCart,CircuitBoardIcon } from "lucide-react"
+import { Home, Settings, FileText, Menu, X, User, Wallet, PlusCircle, Code, Paintbrush, Megaphone, Users, Coins, ChevronRight, Clock, Database, Layout, Mail, MessageSquare ,CreditCardIcon, TrendingUp, Activity, Zap, LucideShoppingCart,CircuitBoardIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/src/lib/utils"
 import StacksPage from "../product_stacks/page"
@@ -303,61 +303,6 @@ function DashboardContent({ userEmail, onNavigate }: DashboardContentProps) {
 }
 
 /**
- * ## AnalyticsContent
- * A placeholder component for the analytics dashboard.
- */
-function AnalyticsContent() {
-  return (
-    <div className="p-6 md:p-10">
-      <h2 className="text-3xl md:text-4xl font-bold text-teal-400 mb-6">
-        Analytics Dashboard
-      </h2>
-      <p className="text-neutral-400 text-lg max-w-xl">
-        Dive deep into your form performance, conversion funnels, and user data.
-      </p>
-      <div className={`p-8 rounded-2xl ${glassmorphismClass} mt-8 text-center border-l-4 border-teal-500`}>
-        <BarChart size={32} className="mx-auto mb-3 text-teal-500" />
-        <p className="text-neutral-200 text-lg font-semibold">
-          Data Visualization Coming Soon!
-        </p>
-       <p className="text-neutral-400 text-sm mt-1">
-  We&apos;re building powerful, actionable insights just for you.
-</p>
-
-      </div>
-    </div>
-  );
-}
-
-
-/**
- * ## WalletContent
- * A placeholder component for the user's wallet.
- */
-function WalletContent() {
-  return (
-    <div className="p-6 md:p-10">
-      <h2 className="text-3xl md:text-4xl font-bold text-teal-400 mb-6">
-        Wallet & Credits
-      </h2>
-      <p className="text-neutral-400 text-lg max-w-xl">
-        Manage your credits, view purchase history, and top-up your balance.
-      </p>
-      <div className={`p-8 rounded-2xl ${glassmorphismClass} mt-8 text-center border-l-4 border-amber-500`}>
-        <Wallet size={32} className="mx-auto mb-3 text-amber-500" />
-        <p className="text-neutral-200 text-lg font-semibold">
-          Credit Management Tools
-        </p>
-        <p className="text-neutral-400 text-sm mt-1">
-            Easily track your consumption and billing cycles.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-
-/**
  * ## Subscription
  * A placeholder component for the user's Subscription.
  */
@@ -634,8 +579,6 @@ export default function PrivatePanel() {
     { id: "stacks_cart", icon: LucideShoppingCart, label: "Stacks Cart", message: "Create and manage your forms" }, // ✅ Corrected to match the case
     { id: "stackboard", icon: CircuitBoardIcon, label: "Stack board", message: "Create and manage your orders" }, // ✅ Corrected to match the case
     { id: "subscription", icon: CreditCardIcon, label: "Subscription", message: "Manage your plans" },
-    { id: "analytics", icon: BarChart, label: "Analytics", message: "View your form funnels and data" },
-    { id: "wallet", icon: Wallet, label: "Wallet", message: "Manage your credits and payments" },
     { id: "settings", icon: Settings, label: "Settings", message: "Manage account and preferences" },
   ]
 
@@ -676,8 +619,6 @@ export default function PrivatePanel() {
     switch (activeTab) {
       case "dashboard":
         return <DashboardContent userEmail={userEmail} onNavigate={setActiveTab} />
-      case "analytics":
-        return <AnalyticsContent />
       case "stacks":
         // Assuming StacksPage is robust and handles its own layout/data
         return <StacksPage /> 
@@ -687,8 +628,6 @@ export default function PrivatePanel() {
         // Assuming StacksPage is robust and handles its own layout/data
          case "stackboard":
         return <StackboardPage /> 
-      case "wallet":
-        return <WalletContent />
          case "subscription":
         return <SubscriptionContent />
       case "form":
