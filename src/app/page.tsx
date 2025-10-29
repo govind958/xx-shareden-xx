@@ -105,7 +105,7 @@ const App: FC = () => {
                     href="/stacks"
                     className="text-neutral-50 hover:text-teal-400 transition-colors"
                   >
-                    List your Stacks
+                    List  Stacks
                   </a>
                 </NavigationMenuItem>
               </NavigationMenuList>
