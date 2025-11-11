@@ -9,9 +9,8 @@ import {
   CheckCircle,
   ArrowRight,
   Zap,
+  Code
 } from "lucide-react";
-// FIX: Replacing 'next/link' with a standard 'a' tag (anchor) to avoid dependency resolution errors 
-// in environments that do not support Next.js routing, while maintaining the href logic.
 
 // Mock implementation of cn (classnames utility) since the actual one is external
 const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
@@ -48,6 +47,8 @@ const getIconForStack = (type: string) => {
   switch (type.toLowerCase()) {
     case "hr":
       return <Users size={28} className="text-cyan-400" />;
+    case "devops": // Added icon for the new DevOps stack
+      return <Code size={28} className="text-pink-400" />;
     default:
       return <Sparkles size={28} className="text-teal-400" />;
   }
@@ -68,7 +69,20 @@ const hrSubStacksData: HrSubStack[] = [
   { id: "learn-improve", name: "Learn & Improve", price: 10 },
 ];
 
-// --- Dummy Stacks ---
+// --- Dummy DevOps Sub Stacks (New) ---
+const devOpsSubStacksData: HrSubStack[] = [
+  { id: "plan-arch", name: "Plan Architecture", price: 20 },
+  { id: "setup-repo", name: "Set Up Repo & CI/CD", price: 15 },
+  { id: "ui-ux", name: "UI/UX Wireframes", price: 10 },
+  { id: "develop-mvp", name: "Develop MVP Core", price: 25 },
+  { id: "qa-testing", name: "QA & Testing", price: 10 },
+  { id: "deploy-cloud", name: "Deploy to Cloud", price: 20 },
+  { id: "monitor-maintain", name: "Monitor & Maintain", price: 15 },
+  { id: "scale-optimize", name: "Scale & Optimize", price: 25 },
+];
+
+
+// --- Dummy Stacks (REVISED: HR Stack and New DevOps Stack) ---
 const stacksData: Stack[] = [
   {
     id: "hr-stack-01",
@@ -83,32 +97,10 @@ const stacksData: Stack[] = [
     special: true,
     hrSubStacks: hrSubStacksData,
   },
-  // Adding a second mock stack to demonstrate the grid layout and shimmer better
-  {
-    id: "growth-stack-02",
-    name: "Growth & Marketing Stack",
-    type: "Marketing",
-    description:
-      "Automate lead generation, run personalized campaigns, and track funnel performance without a dedicated marketing team.",
-    base_price: 150,
-    active: true,
-    image_id: "img-growth-02",
-    owner_id: "usr-41b2c",
-  },
-  {
-    id: "ops-stack-03",
-    name: "Operations Automation Stack",
-    type: "Ops",
-    description:
-      "Sync tools, automate reporting, and build custom internal workflows to eliminate administrative overhead.",
-    base_price: 120,
-    active: true,
-    image_id: "img-ops-03",
-    owner_id: "usr-41b2c",
-  },
+  
 ];
 
-// 🚀 Irresistible Founder Offer Configuration
+// 🚀 Irresistible Founder Offer Configuration (Only applies to HR Stack)
 const founderOffer = {
   stackId: "hr-stack-01",
   salePrice: 99,
@@ -124,7 +116,8 @@ const StackShimmerCard = ({ glassmorphism, innerGlassmorphism }: { glassmorphism
   const shimmer = "animate-pulse bg-neutral-800/50 rounded-lg";
   
   return (
-    <div className={cn("relative p-8 h-[480px] flex flex-col", glassmorphism)}>
+    // FIX: Removed max-w-xl here too
+    <div className={cn("relative p-8 h-[500px] flex flex-col w-full", glassmorphism)}> 
       {/* Header Placeholder */}
       <div className="flex items-center justify-between mb-4 mt-8">
         <div className={`p-3 rounded-xl ${innerGlassmorphism}`}>
@@ -148,13 +141,18 @@ const StackShimmerCard = ({ glassmorphism, innerGlassmorphism }: { glassmorphism
         </div>
       </div>
 
-      {/* Price & CTA Placeholder */}
-      <div className="mt-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center sm:justify-between gap-4">
-        <div className="flex-grow">
-          <div className={cn("w-20 h-4 mb-1", shimmer)} />
+      {/* Price & CTA Placeholder (UPDATED for vertical stacking) */}
+      <div className="mt-auto pt-4 border-t border-white/10 flex flex-col gap-3">
+        <div className="flex flex-col items-center sm:items-start gap-3 w-full">
+          {/* Price placeholders */}
+          <div className={cn("w-20 h-4", shimmer)} />
           <div className={cn("w-32 h-6", shimmer)} />
+          {/* Savings placeholder */}
+          <div className={cn("w-28 h-3", shimmer)} /> 
+          
+          {/* CTA placeholder moved */}
+          <div className={cn("w-full sm:w-48 h-12 rounded-full mt-3", shimmer)} />
         </div>
-        <div className={cn("w-full sm:w-36 h-12 rounded-full", shimmer)} />
       </div>
     </div>
   );
@@ -182,15 +180,16 @@ export default function StacksGrid() {
       
       setStacks(stacksData);
       
-      // Initialize all sub-stacks as selected by default for the first stack only
+      // Initialize all sub-stacks as selected by default for ALL stacks
       const initialSelection: { [key: string]: boolean } = {};
-      const targetStack = stacksData.find(s => s.id === founderOffer.stackId);
-      if (targetStack && targetStack.hrSubStacks) {
-          targetStack.hrSubStacks.forEach(sub => {
-              // Initialize to selected
-              initialSelection[sub.id] = true;
-          });
-      }
+      stacksData.forEach(stack => {
+          if (stack.hrSubStacks) {
+              stack.hrSubStacks.forEach(sub => {
+                  // Initialize to selected
+                  initialSelection[sub.id] = true;
+              });
+          }
+      });
       setSelectedSubStacks(initialSelection);
       setIsLoading(false);
     };
@@ -262,22 +261,21 @@ export default function StacksGrid() {
         </div>
       </header>
 
-      {/* Cards Grid */}
-      <main className="max-w-7xl mx-auto grid gap-8 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 px-4 sm:px-0">
+      {/* Cards Grid: FIX - Switch to 2 columns on medium screens and remove max-w from card */}
+      <main className="max-w-7xl mx-auto grid gap-8 grid-cols-1 md:grid-cols-2 justify-items-center px-4 sm:px-0">
         
         {/* Shimmer Loading State */}
         {isLoading ? (
-            <>
+            // FIX: Removed max-w-xl from shimmer container
+            <div className="w-full max-w-xl md:max-w-none">
                 <StackShimmerCard glassmorphism={glassmorphismCard} innerGlassmorphism={innerGlassmorphism} />
-                <StackShimmerCard glassmorphism={glassmorphismCard} innerGlassmorphism={innerGlassmorphism} />
-                <StackShimmerCard glassmorphism={glassmorphismCard} innerGlassmorphism={innerGlassmorphism} />
-            </>
+            </div>
         ) : stacks.length === 0 ? (
           
           /* Empty State */
-          <div className="lg:col-span-3 flex flex-col items-center justify-center min-h-[50vh] text-center p-8">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8">
             <Rocket className="text-cyan-400 mb-6" size={48} />
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+            <h2 className="2xl md:text-3xl font-bold text-white mb-2">
               No active stacks found
             </h2>
             <p className="text-neutral-500 mb-6">
@@ -296,11 +294,15 @@ export default function StacksGrid() {
             // Construct the URL string for the cart page including query params
             const cartUrl = `/stacks-cart-page?stackId=${stack.id}&subStacks=${selectedSubStackIds.join(',')}`;
 
+            // Determine if a footer message is needed for the current stack
+            const isDevOpsStack = stack.type.toLowerCase() === 'devops';
+
             return (
               <div
                 key={stack.id}
                 className={cn(
-                  "relative p-8 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl",
+                  // FIX: Removed max-w-xl so card fills its column in md:grid-cols-2
+                  "relative p-8 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl w-full",
                   glassmorphismCard,
                   stack.special ? "ring-2 ring-cyan-500/60" : "",
                   isOfferActive && "ring-4 ring-orange-500/80 shadow-orange-500/20"
@@ -389,9 +391,12 @@ export default function StacksGrid() {
                   </div>
                 )}
 
-                {/* Price & CTA */}
-                <div className="mt-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center sm:justify-between gap-4">
-                  <div className="text-center sm:text-left flex-grow">
+                {/* Price & CTA (UPDATED: Button is now stacked vertically below the savings line) */}
+                {/* Removed sm:flex-row alignment since all elements are now in the inner div */}
+                <div className="mt-auto pt-4 border-t border-white/10 flex flex-col gap-3">
+                  
+                  {/* Price Block: Now a flex-col to stack all pricing/savings/CTA elements */}
+                  <div className="text-center sm:text-left flex flex-col items-center sm:items-start gap-2 w-full"> 
                     <span className="text-sm font-medium text-neutral-400">
                       {isOfferActive ? 'Limited-Time Price' : 'Starting at'}
                     </span>
@@ -407,30 +412,32 @@ export default function StacksGrid() {
                           "text-4xl font-bold bg-clip-text text-transparent",
                           isOfferActive 
                               ? "bg-gradient-to-r from-orange-400 to-red-500"
-                              : "bg-gradient-to-r from-teal-400 to-cyan-500"
+                              : isDevOpsStack
+                                ? "bg-gradient-to-r from-pink-400 to-fuchsia-500" // New color gradient for DevOps
+                                : "bg-gradient-to-r from-teal-400 to-cyan-500"
                       )}>
                         ${calculateTotalPrice(stack).toFixed(2)}
                       </span>
                       <span className="text-sm text-neutral-500">/mo</span>
                     </div>
                     {isOfferActive && selectedSubStackCount > 0 && (
-                        <p className="text-xs text-orange-400 mt-1">
+                        <p className="text-xs text-orange-400"> {/* Removed mt-1 */}
                             (Includes {Math.min(selectedSubStackCount, freeCount)} FREE sub-stack{Math.min(selectedSubStackCount, freeCount) > 1 ? 's' : ''})
                         </p>
                     )}
-                    <p className="text-xs text-neutral-500 mt-1">
-                      Save ~20 hrs/month
+                    <p className="text-xs text-neutral-500"> {/* Removed mt-1 */}
+                      Save {isDevOpsStack ? '~30' : '~20'} hrs/month
                     </p>
+                    
+                    {/* MOVED BUTTON HERE: Now below the savings line */}
+                    <a
+                        href={cartUrl}
+                        className="px-6 py-3 text-sm font-bold text-neutral-950 text-center rounded-full shadow-lg w-full sm:w-48 transition-all duration-300 flex items-center justify-center gap-2 mt-3
+                        bg-gradient-to-r from-cyan-400 to-teal-600 hover:from-cyan-500 hover:to-teal-700 hover:scale-105 flex-shrink-0"
+                    >
+                        Activate Stack <ArrowRight size={16} />
+                    </a>
                   </div>
-                  
-                  {/* 🌟 FIX: Using standard 'a' tag for navigation 🌟 */}
-                  <a
-                    href={cartUrl}
-                    className="px-6 py-3 text-sm font-bold text-neutral-950 text-center rounded-full shadow-lg w-full sm:w-auto transition-all duration-300 flex items-center justify-center gap-2
-                      bg-gradient-to-r from-cyan-400 to-teal-600 hover:from-cyan-500 hover:to-teal-700 hover:scale-105"
-                  >
-                    Activate Stack <ArrowRight size={16} />
-                  </a>
                 </div>
               </div>
             );
