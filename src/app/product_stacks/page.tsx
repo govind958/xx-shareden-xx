@@ -9,6 +9,17 @@ import Link from "next/link"
 const cn = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(" ")
 
+// --- types ---
+interface Stack {
+  id: string
+  name: string
+  type?: string
+  description?: string
+  base_price?: number
+  active?: boolean
+  created_at?: string
+}
+
 // --- shimmer card ---
 const StackShimmerCard = ({
   glassmorphism,
@@ -43,7 +54,7 @@ const StackShimmerCard = ({
 
 // --- main page ---
 export default function ProductStacksPage() {
-  const [stacks, setStacks] = useState<any[]>([])
+  const [stacks, setStacks] = useState<Stack[]>([])
   const [loading, setLoading] = useState(true)
 
   const glassmorphism =
@@ -59,13 +70,17 @@ export default function ProductStacksPage() {
         .select("*")
         .eq("active", true)
         .order("created_at", { ascending: false })
-      if (!error) setStacks(data || [])
+
+      if (!error && data) {
+        setStacks(data as Stack[])
+      }
       setLoading(false)
     }
+
     fetchStacks()
   }, [])
 
-  const getIcon = (type: string) => {
+  const getIcon = (type?: string) => {
     switch (type?.toLowerCase()) {
       case "hr":
         return <Rocket size={22} className="text-cyan-400" />
@@ -87,8 +102,14 @@ export default function ProductStacksPage() {
       <main className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
         {loading ? (
           <>
-            <StackShimmerCard glassmorphism={glassmorphism} innerGlass={innerGlass} />
-            <StackShimmerCard glassmorphism={glassmorphism} innerGlass={innerGlass} />
+            <StackShimmerCard
+              glassmorphism={glassmorphism}
+              innerGlass={innerGlass}
+            />
+            <StackShimmerCard
+              glassmorphism={glassmorphism}
+              innerGlass={innerGlass}
+            />
           </>
         ) : stacks.length === 0 ? (
           <div className="col-span-full text-center text-neutral-400 py-20">
@@ -119,14 +140,18 @@ export default function ProductStacksPage() {
                     </p>
                   </div>
                 </div>
-                <span className="text-lg font-semibold text-teal-400">
-                  ₹{stack.base_price?.toFixed(2)}
-                </span>
+                {stack.base_price !== undefined && (
+                  <span className="text-lg font-semibold text-teal-400">
+                    ₹{stack.base_price.toFixed(2)}
+                  </span>
+                )}
               </div>
 
-              <p className="text-neutral-300 text-sm leading-relaxed mb-6">
-                {stack.description}
-              </p>
+              {stack.description && (
+                <p className="text-neutral-300 text-sm leading-relaxed mb-6">
+                  {stack.description}
+                </p>
+              )}
 
               <Link
                 href={`/cart?stackId=${stack.id}`}
