@@ -53,7 +53,7 @@ export default function ProductStacksPage() {
   const [selectedSubs, setSelectedSubs] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
-  const router = useRouter() // ✅ Only here
+  const router = useRouter()
 
   // --- load stacks ---
   useEffect(() => {
@@ -98,7 +98,7 @@ export default function ProductStacksPage() {
       setSaving(stack.id)
       const supabase = createClient()
 
-      // ✅ check logged in user
+      // check logged in user
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -112,7 +112,7 @@ export default function ProductStacksPage() {
       const selected = selectedSubs[stack.id] || []
       const total = getTotal(stack)
 
-      // ✅ insert into cart_stacks
+      // insert into cart_stacks
       const { error } = await supabase.from('cart_stacks').insert([
         {
           user_id: user.id,
@@ -126,9 +126,13 @@ export default function ProductStacksPage() {
       if (error) throw error
 
       alert('✅ Stack added to cart!')
-     router.push('/Stacks_Cart')
-    } catch (e: any) {
-      console.error('Error adding to cart:', e.message)
+      router.push('/Stacks_Cart')
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.error('Error adding to cart:', e.message)
+      } else {
+        console.error('Unknown error adding to cart:', e)
+      }
       alert('Something went wrong! Try again.')
     } finally {
       setSaving(null)
