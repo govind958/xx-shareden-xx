@@ -2,7 +2,54 @@
 
 import { createClient } from "@/utils/supabase/server";
 
-export async function getCartStacks(userId: string) {
+// -------------------------
+// TYPES
+// -------------------------
+export interface CartStackRow {
+  id: string;
+  user_id: string;
+  stack_id: string;
+  sub_stack_ids: string[] | null;
+  total_price: number;
+  status: string;
+  created_at: string;
+}
+
+export interface StackRow {
+  id: string;
+  name: string;
+  type: string;
+  description: string | null;
+  base_price: number;
+  active: boolean;
+  image_url: string | null;
+}
+
+export interface SubStackRow {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface FinalCartItem {
+  cart_id: string;
+  stack_id: string;
+  name: string | undefined;
+  type: string | undefined;
+  description: string | null | undefined;
+  base_price: number | undefined;
+  active: boolean | undefined;
+  image_url: string | null | undefined;
+  sub_stacks: SubStackRow[];
+  total_price: number;
+  status: string;
+  created_at: string;
+}
+
+// -------------------------
+// MAIN FUNCTION
+// -------------------------
+export async function getCartStacks(userId: string): Promise<FinalCartItem[]> {
   const supabase = await createClient();
 
   // 1️⃣ Fetch cart items
@@ -19,48 +66,55 @@ export async function getCartStacks(userId: string) {
 
   if (!cartData || cartData.length === 0) return [];
 
-  // 2️⃣ Collect stack_ids in one array
-  const stackIds = [...new Set(cartData.map((c: any) => c.stack_id))];
+  const typedCartData = cartData as CartStackRow[];
 
-  // 3️⃣ Fetch all stacks in 1 query
+  // 2️⃣ Extract stack IDs uniquely
+  const stackIds = [...new Set(typedCartData.map((c) => c.stack_id))];
+
+  // 3️⃣ Fetch stacks
   const { data: stacks, error: stackErr } = await supabase
     .from("stacks")
     .select("id, name, type, description, base_price, active, image_url")
     .in("id", stackIds);
 
-  if (stackErr) {
+  if (stackErr || !stacks) {
     console.error("Error fetching stacks:", stackErr);
     return [];
   }
 
-  // 4️⃣ Collect all sub_stack_ids
-  const subIds = cartData.flatMap((c: any) => c.sub_stack_ids || []);
-  const uniqueSubIds = [...new Set(subIds)];
+  const typedStacks = stacks as StackRow[];
 
-  // 5️⃣ Fetch sub_stacks in 1 query
+  // 4️⃣ Collect all sub stack IDs
+  const allSubIds = typedCartData.flatMap((c) => c.sub_stack_ids || []);
+  const uniqueSubIds = [...new Set(allSubIds)];
+
+  // 5️⃣ Fetch sub stacks
   const { data: subStacks, error: subErr } = await supabase
     .from("sub_stacks")
     .select("id, name, price")
     .in("id", uniqueSubIds);
 
-  if (subErr) {
+  if (subErr || !subStacks) {
     console.error("Error fetching sub_stacks:", subErr);
     return [];
   }
 
-  // 6️⃣ Create dictionary for faster mapping
-  const subDict: Record<string, any> = {};
-  subStacks?.forEach((s) => {
+  const typedSubStacks = subStacks as SubStackRow[];
+
+  // 6️⃣ Create dictionary
+  const subDict: Record<string, SubStackRow> = {};
+  typedSubStacks.forEach((s) => {
     subDict[s.id] = s;
   });
 
-  // 7️⃣ Merge data → final output
-  const final = cartData.map((item: any) => {
-    const stack = stacks.find((s) => s.id === item.stack_id);
+  // 7️⃣ Final merged output
+  const final: FinalCartItem[] = typedCartData.map((item) => {
+    const stack = typedStacks.find((s) => s.id === item.stack_id);
 
     return {
-      cart_id: item.id, // cart row id
+      cart_id: item.id,
       stack_id: item.stack_id,
+
       name: stack?.name,
       type: stack?.type,
       description: stack?.description,
@@ -68,8 +122,7 @@ export async function getCartStacks(userId: string) {
       active: stack?.active,
       image_url: stack?.image_url,
 
-      sub_stacks:
-        item.sub_stack_ids?.map((sid: string) => subDict[sid]) || [],
+      sub_stacks: item.sub_stack_ids?.map((sid) => subDict[sid]) || [],
 
       total_price: item.total_price,
       status: item.status,
