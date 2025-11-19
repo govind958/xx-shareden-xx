@@ -33,6 +33,7 @@ const navSections = [
             { label: "Documentation", href: "/docs" },
             { label: "API Reference", href: "/api" },
             { label: "Community", href: "/community" },
+             { label: "Event", href: "/Event" },
             { label: "Help Center", href: "/help" },
         ]
     },

@@ -77,6 +77,13 @@ const App: FC = () => {
     window.location.href = href;
   };
 
+  const menuItems = [
+      { name: "Explore Stacks", href: "/stacks" },
+      { name: "Pricing", href: "/pricing" },
+      { name: "Events", href: "/Event" }, // NEW ITEM
+      { name: "Login", href: "/login" },
+  ];
+
   return (
     <main className="flex flex-col min-h-screen bg-[#050505] text-neutral-50 font-sans selection:bg-teal-500/30">
 
@@ -107,6 +114,11 @@ const App: FC = () => {
             <a href="/pricing" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
               Pricing
             </a>
+            {/* ADDED EVENTS LINK */}
+            <a href="/Event" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+              Events
+            </a>
+            {/* END ADDED EVENTS LINK */}
             <div className="h-4 w-px bg-white/10"></div>
             <a href="/login" className="text-sm font-medium text-white hover:text-teal-400 transition-colors" onClick={() => handleCTAClick("Login Nav", "/login")}>
               Login
@@ -143,16 +155,34 @@ const App: FC = () => {
                 </SheetHeader>
 
                 <div className="flex flex-col gap-6">
-                    {['Explore Stacks', 'Pricing', 'Login'].map((item) => (
+                    {/* Updated to map the array for all navigation items */}
+                    {menuItems.slice(0, 3).map((item) => ( // Show Explore, Pricing, Events
                         <a 
-                          key={item} 
-                          href="#" 
+                          key={item.name} 
+                          href={item.href} 
                           className="text-lg font-medium text-neutral-400 hover:text-teal-400 hover:pl-2 transition-all"
-                          onClick={() => setIsSheetOpen(false)}
+                          onClick={() => {
+                            // Track the click and close the sheet
+                            handleCTAClick(`${item.name} Mobile Nav`, item.href);
+                            setIsSheetOpen(false);
+                          }}
                         >
-                          {item}
+                          {item.name}
                         </a>
                     ))}
+                    {/* Separate Login link using handleCTAClick */}
+                    <a 
+                      key="Login" 
+                      href={menuItems.find(i => i.name === 'Login')?.href || "#"} 
+                      className="text-lg font-medium text-neutral-400 hover:text-teal-400 hover:pl-2 transition-all"
+                      onClick={() => {
+                        handleCTAClick("Login Mobile Nav", "/login");
+                        setIsSheetOpen(false);
+                      }}
+                    >
+                      Login
+                    </a>
+
                     <Button 
                       className="bg-teal-500 hover:bg-teal-400 text-neutral-950 w-full mt-4 font-bold"
                       onClick={() => handleCTAClick("Get Started Mobile", "/register")}
