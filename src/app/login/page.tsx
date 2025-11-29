@@ -54,7 +54,7 @@ className="w-full bg-white/10 backdrop-blur-sm border border-teal-500/30 text-wh
 >
 <div className="flex items-center justify-center space-x-2">
     <GithubIcon size={24} />
-    <span>Continue with Google</span>
+    <span>Continue with GitHub</span>
   </div>
 </Button>
         </div>
