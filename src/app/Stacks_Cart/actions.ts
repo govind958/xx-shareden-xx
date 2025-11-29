@@ -74,9 +74,9 @@ export async function getCartStacks(userId: string): Promise<FinalCartItem[]> {
   // 3️⃣ Fetch stacks
   const { data: stacks, error: stackErr } = await supabase
     .from("stacks")
-    .select("id, name, type, description, base_price, active, image_url")
+    .select("id, name, type, description, base_price, active")
     .in("id", stackIds);
-
+   console.log("data",stacks)
   if (stackErr || !stacks) {
     console.error("Error fetching stacks:", stackErr);
     return [];
@@ -131,4 +131,100 @@ export async function getCartStacks(userId: string): Promise<FinalCartItem[]> {
   });
 
   return final;
+}
+
+// -------------------------
+// ORDER CREATION
+// -------------------------
+export interface CreateOrderResult {
+  success: boolean;
+  orderId?: string;
+  error?: string;
+}
+
+export async function createOrderFromCart(
+  userId: string,
+  discountAmount: number = 0
+): Promise<CreateOrderResult> {
+  const supabase = await createClient();
+
+  try {
+    // 1️⃣ Load cart items
+    const cartItems = await getCartStacks(userId);
+
+    if (!cartItems || cartItems.length === 0) {
+      return {
+        success: false,
+        error: "Your cart is empty. Please add items before checking out.",
+      };
+    }
+
+    // 2️⃣ Calculate totals
+    const subtotal = cartItems.reduce((sum, item) => sum + item.total_price, 0);
+    const totalAmount = Math.max(subtotal - discountAmount, 0);
+
+    // 3️⃣ Create order record
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        user_id: userId,
+        total_amount: totalAmount,
+      })
+      .select("id")
+      .single();
+
+    if (orderError || !order) {
+      console.error("Error creating order:", orderError);
+      return {
+        success: false,
+        error: "Unable to create order right now. Please try again.",
+      };
+    }
+
+    // 4️⃣ Create order items
+    const orderItemsPayload = cartItems.map((item) => ({
+      order_id: order.id,
+      user_id: userId,
+      stack_id: item.stack_id,
+      sub_stack_ids: item.sub_stacks.map((sub) => sub.id),
+      status: "initiated",
+      step: 1,
+      progress_percent: 0,
+    }));
+
+    const { error: orderItemsError } = await supabase
+      .from("order_items")
+      .insert(orderItemsPayload);
+
+    if (orderItemsError) {
+      console.error("Error creating order items:", orderItemsError);
+      // rollback order
+      await supabase.from("orders").delete().eq("id", order.id);
+      return {
+        success: false,
+        error: "Unable to add items to the order. Please try again.",
+      };
+    }
+
+    // 5️⃣ Empty cart
+    const { error: clearError } = await supabase
+      .from("cart_stacks")
+      .delete()
+      .eq("user_id", userId);
+
+    if (clearError) {
+      console.warn("Order created but failed to clear cart:", clearError);
+    }
+
+    return {
+      success: true,
+      orderId: order.id,
+    };
+  } catch (error) {
+    console.error("Unexpected error creating order:", error);
+    return {
+      success: false,
+      error: "Unexpected error while creating order.",
+    };
+  }
 }

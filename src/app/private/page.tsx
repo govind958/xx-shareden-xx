@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useRef, } from "react"
 import Image from "next/image"
 import toast, { Toaster } from 'react-hot-toast'
+import { useSearchParams } from 'next/navigation'
 
 // --- Supabase & Actions ---
 import { createClient } from "@/utils/supabase/client"
@@ -495,6 +496,7 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
  */
 export default function PrivatePanel() {
   // --- State Hooks ---
+  const searchParams = useSearchParams()
   const [userEmail, setUserEmail] = useState<string>("")
   const [forms, setForms] = useState<Form[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false)
@@ -504,6 +506,7 @@ export default function PrivatePanel() {
   const [isMainContentLoaded, setIsMainContentLoaded] = useState<boolean>(false)
   const [isFormLoading, setIsFormLoading] = useState(false)
   const [showFormCreation, setShowFormCreation] = useState(true);
+  const [cartRefreshKey, setCartRefreshKey] = useState(0)
   const touchStartX = useRef<number | null>(null)
 
   // --- useEffect Hooks ---
@@ -521,6 +524,18 @@ export default function PrivatePanel() {
       setIsSidebarOpen(false)
     }
   }, [isMobile])
+
+  // Handle URL parameter for tab navigation
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam) {
+      setActiveTab(tabParam)
+      // Refresh cart when switching to cart tab via URL
+      if (tabParam === 'stacks_cart') {
+        setCartRefreshKey(prev => prev + 1)
+      }
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -621,10 +636,13 @@ export default function PrivatePanel() {
         return <DashboardContent userEmail={userEmail} onNavigate={setActiveTab} />
       case "stacks":
         // Assuming StacksPage is robust and handles its own layout/data
-        return <StacksPage /> 
+        return <StacksPage onAddToCart={() => {
+          setActiveTab('stacks_cart')
+          setCartRefreshKey(prev => prev + 1) // Trigger cart refresh
+        }} /> 
          // Assuming StacksPage is robust and handles its own layout/data
          case "stacks_cart":
-        return <StacksCartPage /> 
+        return <StacksCartPage key={`cart-${cartRefreshKey}`} /> 
         // Assuming StacksPage is robust and handles its own layout/data
          case "stackboard":
         return <StackboardPage /> 
