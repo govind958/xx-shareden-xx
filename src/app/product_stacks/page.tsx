@@ -48,11 +48,7 @@ interface Stack {
 }
 
 // --- main ---
-interface ProductStacksPageProps {
-  onAddToCart?: () => void
-}
-
-export default function ProductStacksPage({ onAddToCart }: ProductStacksPageProps = {}) {
+export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([])
   const [selectedSubs, setSelectedSubs] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
@@ -131,15 +127,9 @@ export default function ProductStacksPage({ onAddToCart }: ProductStacksPageProp
 
       alert('✅ Stack added to cart!')
       
-      // Switch to cart tab if callback is provided (when used in private page)
-      if (onAddToCart) {
-        onAddToCart()
-        // Update URL without full page navigation
-        window.history.replaceState({}, '', '/private?tab=stacks_cart')
-      } else {
-        // Fallback: navigate if used as standalone page
-        router.push('/private?tab=stacks_cart')
-      }
+      // Dispatch custom event for parent components to listen to
+      window.dispatchEvent(new CustomEvent('stackAddedToCart'))
+      router.push('/private?tab=stacks_cart')
     } catch (e: unknown) {
       if (e instanceof Error) {
         console.error('Error adding to cart:', e.message)

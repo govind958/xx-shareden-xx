@@ -1,7 +1,7 @@
 "use client"
 
 // --- React & Next.js Imports ---
-import React, { useEffect, useState, useRef, } from "react"
+import React, { useEffect, useState, useRef, Suspense } from "react"
 import Image from "next/image"
 import toast, { Toaster } from 'react-hot-toast'
 import { useSearchParams } from 'next/navigation'
@@ -494,7 +494,7 @@ function FormContent({ forms, isLoading, handleFormSubmit, isFormLoading, toggle
  * This is the main component for the user's private dashboard,
  * now with a dark glassmorphic design.
  */
-export default function PrivatePanel() {
+function PrivatePanelContent() {
   // --- State Hooks ---
   const searchParams = useSearchParams()
   const [userEmail, setUserEmail] = useState<string>("")
@@ -536,6 +536,16 @@ export default function PrivatePanel() {
       }
     }
   }, [searchParams])
+
+  // Listen for custom event when stack is added to cart
+  useEffect(() => {
+    const handleStackAdded = () => {
+      setActiveTab('stacks_cart')
+      setCartRefreshKey(prev => prev + 1)
+    }
+    window.addEventListener('stackAddedToCart', handleStackAdded)
+    return () => window.removeEventListener('stackAddedToCart', handleStackAdded)
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -636,10 +646,7 @@ export default function PrivatePanel() {
         return <DashboardContent userEmail={userEmail} onNavigate={setActiveTab} />
       case "stacks":
         // Assuming StacksPage is robust and handles its own layout/data
-        return <StacksPage onAddToCart={() => {
-          setActiveTab('stacks_cart')
-          setCartRefreshKey(prev => prev + 1) // Trigger cart refresh
-        }} /> 
+        return <StacksPage /> 
          // Assuming StacksPage is robust and handles its own layout/data
          case "stacks_cart":
         return <StacksCartPage key={`cart-${cartRefreshKey}`} /> 
@@ -788,5 +795,18 @@ export default function PrivatePanel() {
         </div>
       </div>
     </div>
+  )
+}
+
+// --- Default export with Suspense boundary for useSearchParams ---
+export default function PrivatePanel() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="animate-pulse text-neutral-400">Loading...</div>
+      </div>
+    }>
+      <PrivatePanelContent />
+    </Suspense>
   )
 }
