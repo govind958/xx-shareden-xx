@@ -45,6 +45,12 @@ export interface StackProgress {
   eta: string | null;
   created_at: string;
   updated_at: string;
+  assigned_employee?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
 }
 
 // -------------------------
@@ -53,10 +59,23 @@ export interface StackProgress {
 export async function getOrderItemsWithProgress(userId: string): Promise<StackProgress[]> {
   const supabase = await createClient();
 
-  // 1️⃣ Fetch order items for the user
+  // 1️⃣ Fetch order items for the user with employee assignments
   const { data: orderItems, error: orderItemsErr } = await supabase
     .from("order_items")
-    .select("*")
+    .select(`
+      *,
+      employee_assignments (
+        id,
+        employee_id,
+        status,
+        employees (
+          id,
+          name,
+          email,
+          role
+        )
+      )
+    `)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -100,6 +119,30 @@ export async function getOrderItemsWithProgress(userId: string): Promise<StackPr
   // 5️⃣ Final merged output
   const final: StackProgress[] = typedOrderItems.map((item) => {
     const stack = typedStacks.find((s) => s.id === item.stack_id);
+    
+    // Get assigned employee from employee_assignments
+    const itemWithAssignments = item as OrderItemRow & {
+      employee_assignments?: Array<{
+        id: string
+        employee_id: string
+        status: string
+        employees?: {
+          id: string
+          name: string
+          email: string
+          role: string
+        }
+      }>
+    }
+    const assignment = itemWithAssignments.employee_assignments?.[0];
+    const assignedEmployee = assignment?.employees
+      ? {
+          id: assignment.employees.id,
+          name: assignment.employees.name,
+          email: assignment.employees.email,
+          role: assignment.employees.role,
+        }
+      : null;
 
     return {
       id: item.stack_id,
@@ -115,6 +158,7 @@ export async function getOrderItemsWithProgress(userId: string): Promise<StackPr
       eta: item.eta,
       created_at: item.created_at,
       updated_at: item.updated_at,
+      assigned_employee: assignedEmployee,
     };
   });
 

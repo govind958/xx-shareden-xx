@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Clock, Rocket, Sparkles, MessageCircle } from "lucide-react";
+import { Clock, Rocket, Sparkles, MessageCircle, User } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { getOrderItemsWithProgress, StackProgress } from "./action";
@@ -259,6 +259,22 @@ export default function StackBoardPage() {
                 <p className="text-xs text-neutral-400 mb-4">
                   {stack.progress}% complete — {etaText}
                 </p>
+
+                {/* Assigned Employee */}
+                {stack.assigned_employee && (
+                  <div className="mb-4 p-3 rounded-lg bg-teal-500/5 border border-teal-200/10">
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="h-4 w-4 text-teal-400" />
+                      <span className="text-neutral-400">Assigned to: </span>
+                      <span className="text-teal-400 font-medium">
+                        {stack.assigned_employee.name}
+                      </span>
+                      <span className="text-neutral-500 text-xs">
+                        ({stack.assigned_employee.role})
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Action buttons */}
                 <div className="flex justify-between items-center">

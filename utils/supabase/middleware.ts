@@ -37,8 +37,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Skip auth check for admin routes (handled separately)
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
+  
   if (
     !user &&
+    !isAdminRoute &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/error')
