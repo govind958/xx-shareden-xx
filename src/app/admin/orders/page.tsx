@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { verifyAdminSession } from "../actions"
 import { redirect } from "next/navigation"
 import { OrdersManagement } from "./orders-management"
+import { Order, Profile } from "../../../types/admin"
 
 export default async function AdminOrdersPage() {
   const { isValid } = await verifyAdminSession()
@@ -13,7 +14,7 @@ export default async function AdminOrdersPage() {
   const supabase = await createClient()
 
   // Fetch all orders with details (without profiles first)
-  const { data: orders, error: ordersError } = await supabase
+  const { data: ordersData, error: ordersError } = await supabase
     .from("orders")
     .select(`
       id,
@@ -49,11 +50,11 @@ export default async function AdminOrdersPage() {
     .order("created_at", { ascending: false })
 
   // Fetch profiles separately and merge
-  let ordersWithProfiles: unknown[] = orders || []
+  let ordersWithProfiles: Order[] = (ordersData || []) as unknown as Order[]
   
-  if (orders && orders.length > 0) {
+  if (ordersWithProfiles.length > 0) {
     const userIds = [...new Set(
-      orders.map((o: { user_id: string }) => o.user_id).filter(Boolean)
+      ordersWithProfiles.map((o) => o.user_id).filter(Boolean)
     )]
     
     if (userIds.length > 0) {
@@ -64,13 +65,13 @@ export default async function AdminOrdersPage() {
 
       // Create a map of user_id to profile
       const profileMap = new Map(
-        (profiles || []).map((p: { user_id: string; name: string | null; email: string | null }) => [p.user_id, p])
+        (profiles || []).map((p: Profile) => [p.user_id, p])
       )
 
       // Merge profiles into orders
-      ordersWithProfiles = orders.map((order: { user_id: string; [key: string]: unknown }) => ({
+      ordersWithProfiles = ordersWithProfiles.map((order) => ({
         ...order,
-        profiles: profileMap.get(order.user_id) || null,
+        profiles: order.user_id ? profileMap.get(order.user_id) || null : null,
       }))
     }
   }

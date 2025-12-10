@@ -3,49 +3,7 @@
 import { useState } from "react"
 import { User, Package, Clock, AlertCircle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-
-interface OrderItem {
-  id: string
-  stack_id: number
-  status: string
-  progress_percent: number
-  assigned_to: string | null
-  created_at: string
-  stacks: {
-    id: number
-    name: string
-    type: string
-  } | null
-  employee_assignments?: Array<{
-    id: string
-    employee_id: string
-    status: string
-    employees: {
-      id: string
-      name: string
-      email: string
-      role: string
-    }
-  }>
-}
-
-interface Order {
-  id: string
-  user_id: string
-  total_amount: number
-  created_at: string
-  updated_at: string
-  profiles: {
-    user_id: string
-    name: string | null
-    email: string | null
-  } | null | Array<{
-    user_id: string
-    name: string | null
-    email: string | null
-  }>
-  order_items: OrderItem[] | Array<OrderItem>
-}
+import { Order, OrderItem, Profile } from "../../../types/admin"
 
 interface OrdersManagementProps {
   orders: Order[]
@@ -94,22 +52,25 @@ export function OrdersManagement({ orders: initialOrders }: OrdersManagementProp
   const getFilteredOrders = () => {
     if (filter === "all") return orders
 
-    return orders.map((order) => {
-      const filteredItems = order.order_items.filter((item) => {
-        if (filter === "pending") {
-          return !item.assigned_to
-        }
-        if (filter === "assigned") {
-          return !!item.assigned_to
-        }
-        return true
-      })
+    return orders
+      .map((order) => {
+        const items = order.order_items || []
+        const filteredItems = items.filter((item: OrderItem) => {
+          if (filter === "pending") {
+            return !item.assigned_to
+          }
+          if (filter === "assigned") {
+            return !!item.assigned_to
+          }
+          return true
+        })
 
-      return {
-        ...order,
-        order_items: filteredItems,
-      }
-    }).filter((order) => order.order_items.length > 0)
+        return {
+          ...order,
+          order_items: filteredItems,
+        }
+      })
+      .filter((order) => order.order_items.length > 0)
   }
 
   const filteredOrders = getFilteredOrders()
@@ -165,8 +126,8 @@ export function OrdersManagement({ orders: initialOrders }: OrdersManagementProp
           ) : (
             <div className="space-y-4">
               {filteredOrders.map((order) => {
-                const user = Array.isArray(order.profiles) ? order.profiles[0] : order.profiles
-                const items = Array.isArray(order.order_items) ? order.order_items : []
+                const user = order.profiles as Profile | null
+                const items: OrderItem[] = order.order_items || []
                 const hasUnassigned = items.some((item) => !item.assigned_to)
 
                 return (

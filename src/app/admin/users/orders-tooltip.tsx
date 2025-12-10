@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { getUserOrders } from "../actions"
+import { OrdersTooltipOrder } from "../../../types/admin"
 
 interface OrdersTooltipProps {
   userId: string
@@ -10,25 +11,8 @@ interface OrdersTooltipProps {
   children: React.ReactNode
 }
 
-interface Order {
-  id: string
-  total_amount: number
-  created_at: string
-  order_items: Array<{
-    id: string
-    stack_id: number
-    status: string
-    created_at: string
-    stacks: {
-      id: number
-      name: string
-      type: string
-    } | null
-  }>
-}
-
 export function OrdersTooltip({ userId, ordersCount, children }: OrdersTooltipProps) {
-  const [orders, setOrders] = useState<Order[] | null>(null)
+  const [orders, setOrders] = useState<OrdersTooltipOrder[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -44,7 +28,7 @@ export function OrdersTooltip({ userId, ordersCount, children }: OrdersTooltipPr
         setError(result.error)
       } else {
         // Transform the response to match our Order type
-        const transformedOrders: Order[] = ((result.orders || []) as unknown[]).map((order) => {
+        const transformedOrders: OrdersTooltipOrder[] = ((result.orders || []) as unknown[]).map((order) => {
           const o = order as {
             id: unknown
             total_amount: unknown
@@ -70,17 +54,31 @@ export function OrdersTooltip({ userId, ordersCount, children }: OrdersTooltipPr
             id: String(o.id),
             total_amount: Number(o.total_amount),
             created_at: String(o.created_at),
-            order_items: o.order_items.map((item) => {
+            order_items: o.order_items.map((item: {
+              id: unknown
+              stack_id: unknown
+              status: unknown
+              created_at: unknown
+              stacks: {
+                id: unknown
+                name: unknown
+                type: unknown
+              } | null | Array<{
+                id: unknown
+                name: unknown
+                type: unknown
+              }>
+            }) => {
               // Handle both single object and array cases for stacks
               const stackData = Array.isArray(item.stacks) ? item.stacks[0] : item.stacks
               return {
                 id: String(item.id),
-                stack_id: Number(item.stack_id),
+                stack_id: String(item.stack_id),
                 status: String(item.status),
                 created_at: String(item.created_at),
                 stacks: stackData
                   ? {
-                      id: Number(stackData.id),
+                      id: String(stackData.id),
                       name: String(stackData.name),
                       type: String(stackData.type),
                     }
@@ -170,7 +168,7 @@ export function OrdersTooltip({ userId, ordersCount, children }: OrdersTooltipPr
                         {formatDate(order.created_at)}
                       </div>
                       <div className="space-y-1">
-                        {order.order_items.map((item) => (
+                        {order.order_items.map((item: OrdersTooltipOrder["order_items"][number]) => (
                           <div
                             key={item.id}
                             className="flex items-center justify-between text-xs"

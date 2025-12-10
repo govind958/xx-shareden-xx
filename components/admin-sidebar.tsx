@@ -1,10 +1,12 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Home, Layers3, Users, UserCircle2, Settings, ShoppingCart } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useState, useTransition } from "react"
+import { createPortal } from "react-dom"
+import { Home, Layers3, Users, UserCircle2, Settings, ShoppingCart, LogOut, Loader2 } from "lucide-react"
 
 import { cn } from "@/src/lib/utils"
+import { adminLogout } from "@/src/app/admin/actions"
 
 const links = [
   {
@@ -41,6 +43,35 @@ const links = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [navTarget, setNavTarget] = useState<string | null>(null)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (isNavigating && navTarget && pathname?.startsWith(navTarget)) {
+      setIsNavigating(false)
+      setNavTarget(null)
+    }
+  }, [pathname, isNavigating, navTarget])
+
+  const handleLogout = () => {
+    startTransition(async () => {
+      await adminLogout()
+    })
+  }
+
+  const handleNavigate = (href: string) => {
+    if (pathname?.startsWith(href)) return
+    setNavTarget(href)
+    setIsNavigating(true)
+    router.push(href)
+  }
 
   return (
     <aside className="hidden h-screen w-64 flex-col border-r border-teal-500/10 bg-neutral-950/20 p-4 text-neutral-50 shadow-2xl backdrop-blur-xl md:flex">
@@ -56,11 +87,12 @@ export function AdminSidebar() {
           const isActive = pathname?.startsWith(item.href)
 
           return (
-            <Link
+            <button
               key={item.href}
-              href={item.href}
+              type="button"
+              onClick={() => handleNavigate(item.href)}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-200",
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-200",
                 isActive
                   ? "bg-teal-500/15 text-teal-400 shadow-inner shadow-teal-500/10 border border-teal-500/30"
                   : "text-neutral-400 hover:bg-teal-500/10 hover:text-teal-400"
@@ -68,10 +100,29 @@ export function AdminSidebar() {
             >
               <item.icon className="h-4 w-4" />
               <span>{item.label}</span>
-            </Link>
+            </button>
           )
         })}
       </nav>
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="mt-4 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-300 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-400 border border-transparent hover:border-red-500/20"
+        disabled={isPending}
+      >
+        <LogOut className="h-4 w-4" />
+        <span>{isPending ? "Logging out..." : "Logout"}</span>
+      </button>
+      {mounted && isNavigating &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm text-teal-200">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-3 text-sm">
+              Loading {navTarget ? navTarget.replace("/admin/", "") : "section"}...
+            </span>
+          </div>,
+          document.body
+        )}
     </aside>
   )
 }

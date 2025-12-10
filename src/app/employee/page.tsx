@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
-import { Clock, CheckCircle2, User, TrendingUp } from "lucide-react"
+import { Clock, CheckCircle2, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface Assignment {
@@ -114,7 +114,7 @@ export default function EmployeePage() {
           console.error("Error fetching assignments:", assignmentsError)
           setAssignments([])
         } else {
-          setAssignments((assignmentsData as Assignment[]) || [])
+          setAssignments((assignmentsData || []) as unknown as Assignment[])
         }
       } catch (error) {
         console.error("Error loading assignments:", error)
@@ -166,7 +166,7 @@ export default function EmployeePage() {
         // Refresh assignments
         window.location.reload()
       }
-    } catch (error) {
+    } catch {
       alert("Failed to update progress")
     } finally {
       setUpdating(null)

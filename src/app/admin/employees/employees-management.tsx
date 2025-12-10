@@ -1,76 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { UserPlus, X, CheckCircle2, Clock, User } from "lucide-react"
+import { UserPlus, X, User } from "lucide-react"
 import {
   assignEmployeeToOrderItem,
-  unassignEmployeeFromOrderItem,
-  getEmployees,
-  getEmployeeAssignments,
+  unassignEmployeeFromOrderItem
 } from "../actions"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-
-interface Employee {
-  id: string
-  name: string
-  email: string
-  role: string
-  specialization: string | null
-  is_active: boolean
-}
-
-interface Assignment {
-  id: string
-  employee_id: string
-  order_item_id: string
-  assigned_at: string
-  status: string
-  notes: string | null
-  employees: Employee
-  order_items: {
-    id: string
-    order_id: string
-    user_id: string
-    stack_id: number
-    status: string
-    progress_percent: number
-    stacks: {
-      id: number
-      name: string
-      type: string
-    } | null
-    profiles: {
-      user_id: string
-      name: string | null
-      email: string | null
-    } | null
-  }
-}
-
-interface UnassignedItem {
-  id: string
-  order_id: string
-  user_id: string
-  stack_id: number
-  status: string
-  progress_percent: number
-  stacks: {
-    id: number
-    name: string
-    type: string
-  } | null
-  profiles: {
-    user_id: string
-    name: string | null
-    email: string | null
-  } | null
-}
+import { Assignment, Employee, UnassignedItem } from "../../../types/admin"
 
 interface EmployeesManagementProps {
   employees: Employee[]
@@ -84,8 +21,8 @@ export function EmployeesManagement({
   unassignedItems: initialUnassignedItems,
 }: EmployeesManagementProps) {
   const [employees] = useState<Employee[]>(initialEmployees)
-  const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments)
-  const [unassignedItems, setUnassignedItems] = useState<UnassignedItem[]>(initialUnassignedItems)
+  const [assignments] = useState<Assignment[]>(initialAssignments)
+  const [unassignedItems] = useState<UnassignedItem[]>(initialUnassignedItems)
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null)
   const [selectedOrderItem, setSelectedOrderItem] = useState<string | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
@@ -110,7 +47,7 @@ export function EmployeesManagement({
         // Refresh data
         window.location.reload()
       }
-    } catch (error) {
+    } catch {
       alert("Failed to assign employee")
     } finally {
       setIsAssigning(false)
@@ -130,7 +67,7 @@ export function EmployeesManagement({
         // Refresh data
         window.location.reload()
       }
-    } catch (error) {
+    } catch {
       alert("Failed to unassign employee")
     } finally {
       setIsUnassigning(null)

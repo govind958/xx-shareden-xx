@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { verifyAdminSession } from "../actions"
 import { redirect } from "next/navigation"
 import { EmployeesManagement } from "./employees-management"
+import { Assignment, Employee, UnassignedItem } from "../../../types/admin"
 
 export default async function AdminEmployeesPage() {
   const { isValid } = await verifyAdminSession()
@@ -20,7 +21,7 @@ export default async function AdminEmployeesPage() {
     .order("name", { ascending: true })
 
   // Fetch assignments with related data
-  const { data: assignments, error: assignmentsError } = await supabase
+  const { data: assignments } = await supabase
     .from("employee_assignments")
     .select(`
       id,
@@ -58,7 +59,7 @@ export default async function AdminEmployeesPage() {
     .order("assigned_at", { ascending: false })
 
   // Fetch unassigned order items
-  const { data: unassignedItems, error: unassignedError } = await supabase
+  const { data: unassignedItems } = await supabase
     .from("order_items")
     .select(`
       id,
@@ -82,9 +83,6 @@ export default async function AdminEmployeesPage() {
     .in("status", ["initiated", "in_progress"])
     .order("created_at", { ascending: false })
 
-  const glassmorphismClass =
-    "bg-teal-500/10 backdrop-blur-md rounded-2xl shadow-lg border border-teal-200/20"
-
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -106,9 +104,9 @@ export default async function AdminEmployeesPage() {
 
       {/* Employees Management Component */}
       <EmployeesManagement
-        employees={employees || []}
-        assignments={assignments || []}
-        unassignedItems={unassignedItems || []}
+        employees={(employees || []) as unknown as Employee[]}
+        assignments={(assignments || []) as unknown as Assignment[]}
+        unassignedItems={(unassignedItems || []) as unknown as UnassignedItem[]}
       />
     </div>
   )

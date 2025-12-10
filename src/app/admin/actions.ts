@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { createHash, randomBytes } from 'crypto'
+import { Order, Profile } from '../../types/admin'
 
 // Helper to hash values (secret key, password, etc.)
 function hashValue(value: string): string {
@@ -411,10 +412,6 @@ export async function getUnassignedOrderItems() {
   return { orderItems: orderItems || [] }
 }
 
-// ======================
-// ORDERS MANAGEMENT
-// ======================
-
 // Get all orders with details
 export async function getAllOrders() {
   const { isValid } = await verifyAdminSession()
@@ -425,7 +422,7 @@ export async function getAllOrders() {
 
   const supabase = await createClient()
 
-  const { data: orders, error } = await supabase
+  const { data: ordersData, error } = await supabase
     .from('orders')
     .select(`
       id,
@@ -465,26 +462,33 @@ export async function getAllOrders() {
   }
 
   // Fetch profiles separately and merge
-  let ordersWithProfiles = orders || []
-  if (orders && orders.length > 0) {
-    const userIds = [...new Set(orders.map((o: any) => o.user_id).filter(Boolean))]
+  const orders = (ordersData || []) as unknown as Order[]
+  let ordersWithProfiles = orders
+  if (orders.length > 0) {
+    const userIds = [...new Set(
+      orders
+        .map((o) => o.user_id)
+        .filter((id): id is string => Boolean(id))
+    )]
     
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase
+      const { data: profilesData } = await supabase
         .from('profiles')
         .select('user_id, name, email')
         .in('user_id', userIds)
 
+      const profiles = (profilesData || []) as Profile[]
+
       // Create a map of user_id to profile
       const profileMap = new Map(
-        (profiles || []).map((p: any) => [p.user_id, p])
+        profiles.map((p) => [p.user_id, p])
       )
 
       // Merge profiles into orders
-      ordersWithProfiles = orders.map((order: any) => ({
+      ordersWithProfiles = orders.map((order) => ({
         ...order,
-        profiles: profileMap.get(order.user_id) || null,
-      }))git 
+        profiles: order.user_id ? profileMap.get(order.user_id) || null : null,
+      }))
     }
   }
 
