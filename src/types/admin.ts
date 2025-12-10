@@ -1,0 +1,76 @@
+// Shared admin dashboard types
+
+export type Profile = {
+  user_id: string
+  name: string | null
+  email: string | null
+}
+
+export type StackSummary = {
+  id: string
+  name: string
+  type: string
+}
+
+export type Employee = {
+  id: string
+  name: string
+  email: string
+  role: string
+  specialization: string | null
+  is_active: boolean
+}
+
+export type OrderEmployeeAssignment = {
+  id: string
+  employee_id: string
+  status: string
+  employees?: Employee | null
+}
+
+export type OrderItem = {
+  id: string
+  order_id?: string
+  user_id?: string
+  stack_id: string
+  status: string
+  progress_percent: number | null
+  assigned_to?: string | null
+  created_at: string
+  stacks?: StackSummary | null
+  employee_assignments?: OrderEmployeeAssignment[]
+  profiles?: Profile | null
+}
+
+export type Order = {
+  id: string
+  user_id: string | null
+  total_amount: number
+  created_at: string
+  updated_at: string
+  order_items: OrderItem[]
+  profiles?: Profile | null
+}
+
+export type Assignment = {
+  id: string
+  employee_id: string
+  order_item_id: string
+  assigned_at: string
+  status: string
+  notes: string | null
+  employees: Employee
+  order_items: OrderItem
+}
+
+export type UnassignedItem = OrderItem
+
+export type OrdersTooltipOrder = {
+  id: string
+  total_amount: number
+  created_at: string
+  order_items: Array<
+    Pick<OrderItem, "id" | "stack_id" | "status" | "created_at" | "stacks">
+  >
+}
+

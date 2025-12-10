@@ -1,6 +1,8 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from './utils/supabase/middleware'
 
+// Keep middleware minimal: just keep Supabase user sessions in sync.
+// All admin domain / auth logic is handled inside the /admin React tree.
 export async function middleware(request: NextRequest) {
   return await updateSession(request)
 }
