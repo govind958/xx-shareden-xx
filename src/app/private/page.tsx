@@ -68,7 +68,7 @@ function PrivatePanelContent() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#050505] text-neutral-100 selection:bg-teal-500/30">
+    <div className="flex min-h-screen w-full bg-[#050505] text-neutral-100 selection:bg-teal-500/30 ">
       
       {/* --- FLUX STYLE SIDEBAR --- */}
       <aside className="hidden h-screen w-64 flex-col bg-[#050505] border-r border-neutral-900 md:flex select-none sticky top-0">
