@@ -78,28 +78,7 @@ export default function AdminStacksPage() {
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
       
-      {/* 1. TOP GLOBAL NAVIGATION */}
-      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
-                <Layers size={18} />
-             </div>
-             <span className="text-white font-bold tracking-tighter text-xl">StackCenter</span>
-          </div>
-          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <button className="hover:text-neutral-200 transition py-7">Dashboard</button>
-            <button className="text-teal-400 border-b-2 border-teal-500 py-7">Stacks</button>
-            <button className="hover:text-neutral-200 transition py-7">Infrastructure</button>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center hover:bg-neutral-800 transition">
-            <Activity size={18} />
-          </button>
-        </div>
-      </nav>
+     
 
       <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
         
