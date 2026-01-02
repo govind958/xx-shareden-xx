@@ -6,7 +6,6 @@ import { getStacks } from './actions'
 import { useRouter } from 'next/navigation'
 import {
   Rocket,
-  CheckCircle,
   ArrowRight,
   Loader2,
   Users,
@@ -14,42 +13,23 @@ import {
   Coins,
   Layers,
   Grid3x3,
-  Hash,
-  Activity
+  Activity,
+  Zap,
+  Search,
+  Bell,
+  CheckCircle2,
+  Cpu
 } from 'lucide-react'
 
-/* ---------------- INDUSTRIAL STYLING HELPERS ---------------- */
+/* ---------------- STYLE HELPERS ---------------- */
 const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
 
-// Optimized for responsiveness: Reduced padding on mobile (p-5 vs p-8)
-const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] md:rounded-[32px] p-5 md:p-8 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
-const ICON_CONTAINER = "w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
-
-const StackShimmerCard = () => (
-  <div className="rounded-[32px] p-8 bg-[#080808] border border-neutral-900 animate-pulse h-[350px] md:h-[400px] flex flex-col gap-6">
-    <div className="flex justify-between">
-      <div className="w-10 h-10 md:w-12 md:h-12 bg-neutral-900 rounded-xl" />
-      <div className="w-16 md:w-20 h-8 bg-neutral-900 rounded-xl" />
-    </div>
-    <div className="space-y-3">
-      <div className="h-6 bg-neutral-900 rounded w-1/2" />
-      <div className="h-4 bg-neutral-900 rounded w-full" />
-    </div>
-    <div className="mt-auto h-12 bg-neutral-900 rounded-2xl w-full" />
-  </div>
-)
+const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] p-6 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
+const ICON_CONTAINER = "w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
 
 interface SubStack { id: string; name: string; price: number; is_free: boolean; }
 interface Stack { id: string; name: string; description?: string; type?: string; base_price: number; sub_stacks?: SubStack[]; }
 type StackCategory = 'All' | 'HR' | 'Marketing' | 'Finance' | 'Product'
-
-const tabs: { label: string; value: StackCategory; icon: any }[] = [
-  { label: 'All', value: 'All', icon: Grid3x3 },
-  { label: 'HR', value: 'HR', icon: Users },
-  { label: 'Marketing', value: 'Marketing', icon: Megaphone },
-  { label: 'Finance', value: 'Finance', icon: Coins },
-  { label: 'Product', value: 'Product', icon: Layers },
-]
 
 export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([])
@@ -57,9 +37,11 @@ export default function ProductStacksPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<StackCategory>('All')
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
+    setMounted(true)
     async function loadStacks() {
       try {
         const data = await getStacks()
@@ -73,6 +55,13 @@ export default function ProductStacksPage() {
     if (activeTab === 'All') return stacks
     return stacks.filter(s => s.type?.toLowerCase() === activeTab.toLowerCase())
   }, [stacks, activeTab])
+
+  const stats = [
+    { label: "Active Nodes", val: stacks.length, icon: Cpu },
+    { label: "Deployment Ready", val: "99.9%", icon: Activity },
+    { label: "Global Tiers", val: 5, icon: Layers },
+    { label: "System Health", val: "Optimal", icon: CheckCircle2 },
+  ]
 
   const toggleSub = (stackId: string, subId: string) => {
     setSelectedSubs(prev => {
@@ -95,134 +84,171 @@ export default function ProductStacksPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return alert('Login required')
-
       const { error } = await supabase.from('cart_stacks').insert([{
         user_id: user.id, stack_id: stack.id, sub_stack_ids: selectedSubs[stack.id] || [],
         total_price: getTotal(stack), status: 'pending',
       }])
-
       if (error) throw error
       window.dispatchEvent(new CustomEvent('stackAddedToCart'))
       router.push('/private?tab=stacks_cart')
     } catch (e) { alert('Sync failed') } finally { setSaving(null) }
   }
 
-  return (
-    <div className="flex-1 flex flex-col min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30 overflow-x-hidden">
-      
-      {/* Background Ambience */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-teal-500/5 rounded-full blur-[120px]" />
-      </div>
+  if (!mounted) return <div className="min-h-screen bg-[#020202]" />
 
-      <main className="relative z-10 p-4 sm:p-8 lg:p-12 xl:p-16 max-w-[1800px] mx-auto w-full space-y-8 md:space-y-12">
+  return (
+    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
+      
+      {/* 1. TOP GLOBAL NAVIGATION */}
+      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
+                <Zap size={18} fill="currentColor" />
+             </div>
+             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
+          </div>
+          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+            <button onClick={() => setActiveTab('All')} className={cn("py-7 transition", activeTab === 'All' ? "text-teal-400 border-b-2 border-teal-500" : "text-neutral-500 hover:text-neutral-200")}>Overview</button>
+            <button className="hover:text-neutral-200 transition py-7 text-neutral-500">Analytics</button>
+          </div>
+        </div>
         
-        {/* HEADER: Stacked on mobile, side-by-side on desktop */}
-        <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-          <div className="space-y-2">
-            <span className="text-[9px] md:text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">Infrastructure Nodes</span>
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tighter text-white leading-tight md:leading-none">Startup Stacks</h2>
-            <p className="text-neutral-600 text-sm md:text-base font-medium tracking-tight max-w-md pt-1">
-              Select and synchronize pre-configured AI modules.
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 bg-neutral-900/50 border border-neutral-800 px-3 py-1.5 rounded-xl mr-4">
+            <Search size={14} className="text-neutral-600" />
+            <input type="text" placeholder="Search infrastructure..." className="bg-transparent border-none outline-none text-xs w-32" />
+          </div>
+          <button className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center relative">
+            <Bell size={18} />
+          </button>
+        </div>
+      </nav>
+
+      <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
+        
+        {/* 2. HEADER SECTION (OPERATOR STYLE) */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em] block mb-2">System Deployment</span>
+            <h1 className="text-4xl font-bold text-white tracking-tight">
+                Operator: <span className="text-neutral-400">Startup Stacks</span>
+            </h1>
+            <p className="text-neutral-500 mt-2 flex items-center gap-2 font-mono text-sm">
+              <Activity size={14} className="text-teal-500" /> All modules reporting <span className="text-neutral-200 font-medium">Ready for Sync</span>
             </p>
           </div>
+          <div className="flex gap-2 bg-neutral-900/50 p-1 rounded-xl border border-neutral-800 overflow-x-auto no-scrollbar">
+            {['All', 'HR', 'Marketing', 'Finance', 'Product'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab as StackCategory)}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                    activeTab === tab ? "bg-teal-500 text-black" : "text-neutral-500 hover:text-white"
+                  )}
+                >
+                  {tab}
+                </button>
+            ))}
+          </div>
+        </div>
 
-          {/* TAB STRIP: Scrollable on mobile, fixed on desktop */}
-          
-        </section>
-
-        {/* CONTENT GRID: 1 on mobile, 2 on tablet, 3 on large desktop, 4 on ultra-wide */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 md:gap-8">
-          {loading ? (
-            [...Array(4)].map((_, i) => <StackShimmerCard key={i} />)
-          ) : filteredStacks.length === 0 ? (
-            <div className="col-span-full py-24 md:py-32 bg-[#080808] border border-dashed border-neutral-900 rounded-[32px] md:rounded-[40px] text-center">
-              <Layers size={32} className="mx-auto text-neutral-800 mb-4" />
-              <p className="text-neutral-600 font-black uppercase tracking-widest text-[10px]">No active nodes found</p>
+        {/* 3. STATS GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((item, i) => (
+            <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">{item.label}</p>
+                  <h3 className="text-3xl font-bold text-white tracking-tighter">{item.val}</h3>
+                </div>
+                <item.icon size={20} className="text-neutral-700" />
             </div>
-          ) : (
-            filteredStacks.map((stack) => (
+          ))}
+        </div>
+
+        {/* 4. CONTENT GRID (INFRASTRUCTURE CARDS) */}
+        <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden">
+          <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex items-center gap-3">
+             <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Module Selection Terminal v4.0</span>
+          </div>
+
+          <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {loading ? (
+              <div className="col-span-full py-20 text-center animate-pulse text-neutral-600 font-mono">INITIALIZING NODES...</div>
+            ) : filteredStacks.map((stack) => (
               <div key={stack.id} className={INDUSTRIAL_CARD}>
-                {/* Upper Section */}
-                <div className="flex justify-between items-start mb-6 md:mb-8">
-                  <div className="flex items-center gap-3 md:gap-4">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
                     <div className={ICON_CONTAINER}><Rocket size={20} /></div>
                     <div>
-                      <h2 className="text-lg md:text-xl font-bold text-white tracking-tight leading-tight">{stack.name}</h2>
+                      <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{stack.name}</h2>
                       <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest flex items-center gap-1 mt-1">
-                        <Activity size={10} className="text-teal-500" /> {stack.type || 'Node'}
+                        <Activity size={10} className="text-teal-500" /> {stack.type || 'Standard Node'}
                       </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-0.5">Base</p>
-                    <p className="text-md md:text-lg font-mono font-bold text-white">₹{stack.base_price.toLocaleString()}</p>
-                  </div>
                 </div>
 
-                {stack.description && (
-                  <p className="text-neutral-500 text-xs md:text-sm mb-6 md:mb-8 leading-relaxed font-medium line-clamp-3">
-                    {stack.description}
-                  </p>
-                )}
+                <p className="text-neutral-500 text-sm mb-8 leading-relaxed font-medium line-clamp-3">
+                  {stack.description || "Deploy pre-configured AI infrastructure for this segment."}
+                </p>
 
-                {/* Sub-stacks */}
-                {stack.sub_stacks && stack.sub_stacks.length > 0 && (
-                  <div className="space-y-3 mb-8">
-                    <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest block">Modules</span>
-                    <div className="grid grid-cols-1 gap-2">
-                      {stack.sub_stacks.map((sub) => {
-                        const isSelected = selectedSubs[stack.id]?.includes(sub.id)
-                        return (
-                          <button
-                            key={sub.id}
-                            onClick={() => toggleSub(stack.id, sub.id)}
-                            className={cn(
-                              'flex justify-between items-center p-3 md:p-4 rounded-xl md:rounded-2xl border text-left transition-all duration-300',
-                              isSelected ? 'bg-teal-500/5 border-teal-500/40 text-white' : 'bg-neutral-900/30 border-neutral-800/50 text-neutral-500'
-                            )}
-                          >
-                            <span className="text-[10px] md:text-[11px] font-bold uppercase truncate pr-2">{sub.name}</span>
-                            <span className="text-[10px] font-mono font-black text-teal-500 shrink-0">
-                              {sub.is_free ? 'FREE' : `+₹${sub.price}`}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                {stack.sub_stacks && (
+                  <div className="space-y-2 mb-8 flex-grow">
+                    {stack.sub_stacks.map((sub) => {
+                      const isSelected = selectedSubs[stack.id]?.includes(sub.id)
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => toggleSub(stack.id, sub.id)}
+                          className={cn(
+                            'w-full flex justify-between items-center p-3 rounded-xl border text-left transition-all duration-300 font-mono',
+                            isSelected ? 'bg-teal-500/10 border-teal-500/40 text-white' : 'bg-neutral-900/30 border-neutral-800/50 text-neutral-500 hover:border-neutral-700'
+                          )}
+                        >
+                          <span className="text-[10px] font-bold uppercase">{sub.name}</span>
+                          <span className="text-[10px] font-black text-teal-500">
+                            {sub.is_free ? '0.00' : `+${sub.price}`}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
 
-                {/* Total / Action */}
-                <div className="mt-auto pt-6 md:pt-8 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-center sm:text-left">
-                    <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-1">Final Config</p>
-                    <h3 className="text-2xl md:text-3xl font-bold text-white font-mono tracking-tighter">
+                <div className="mt-auto pt-6 border-t border-neutral-900 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-1">Total Payload</p>
+                    <h3 className="text-2xl font-bold text-white font-mono tracking-tighter">
                       ₹{getTotal(stack).toLocaleString()}
                     </h3>
                   </div>
                   <button
                     onClick={() => handleActivate(stack)}
                     disabled={saving === stack.id}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 md:py-4 bg-teal-600 text-black font-black uppercase tracking-widest text-[10px] md:text-[11px] rounded-xl md:rounded-2xl hover:bg-teal-500 transition-all shadow-xl shadow-teal-500/10 disabled:opacity-50"
+                    className="flex items-center gap-2 px-5 py-3 bg-teal-600 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-teal-500 transition-all disabled:opacity-50"
                   >
-                    {saving === stack.id ? <Loader2 size={16} className="animate-spin" /> : <>Sync Node <ArrowRight size={16} /></>}
+                    {saving === stack.id ? <Loader2 size={16} className="animate-spin" /> : <>Sync <ArrowRight size={14} /></>}
                   </button>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
+        </div>
+
+        {/* 5. FOOTER LOGS */}
+        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden">
+          <div className="px-8 py-4 bg-black/40 flex justify-between items-center">
+            <p className="text-[10px] font-medium text-neutral-700 font-mono tracking-tighter">
+                LAST_SYNC: {new Date().toISOString()}
+            </p>
+            <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[0.5em]">SYSTEM STACK TERMINAL V4.0.2</p>
+          </div>
         </div>
       </main>
-
-      <footer className="py-12 text-center border-t border-neutral-900 mx-4 sm:mx-8">
-         <p className="text-[9px] md:text-[10px] font-black text-neutral-800 uppercase tracking-[0.5em] md:tracking-[1em]">SYSTEM STACK TERMINAL V4.0.2</p>
-      </footer>
-
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   )
 }

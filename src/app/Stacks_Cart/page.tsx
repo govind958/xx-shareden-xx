@@ -1,21 +1,33 @@
-"use client";
+'use client'
 
-import React, { useEffect, useState } from "react";
-import { ArrowRight, Rocket, CheckCircle, Sparkles, Loader2, Trash2 } from "lucide-react";
-import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
-import { getCartStacks, createOrderFromCart } from "./actions";
+import { useEffect, useState, useMemo } from 'react'
+import { createClient } from '@/utils/supabase/client'
+import { getCartStacks, createOrderFromCart } from './actions'
+import { useRouter } from 'next/navigation'
+import {
+  Rocket,
+  ArrowRight,
+  Loader2,
+  Activity,
+  Zap,
+  Search,
+  Bell,
+  CheckCircle2,
+  Cpu,
+  Trash2,
+  ShoppingCart,
+  CreditCard,
+  Layers
+} from 'lucide-react'
 
-// Mock implementation of cn
-const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
+/* ---------------- STYLE HELPERS (From Page 1) ---------------- */
+const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
 
-// --- Types ---
-interface SubStack {
-  id: string;
-  name: string;
-  price: number;
-}
+const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] p-6 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
+const ICON_CONTAINER = "w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
 
+/* ---------------- TYPES ---------------- */
+interface SubStack { id: string; name: string; price: number; }
 interface Stack {
   cart_id: string;
   id: string;
@@ -23,299 +35,236 @@ interface Stack {
   type: string;
   description: string | null;
   base_price: number;
-  active: boolean;
   sub_stacks: SubStack[];
   total_price: number;
 }
 
-// --- Utility: dynamic icon ---
-const getIconForStack = (type: string) => {
-  switch (type.toLowerCase()) {
-    case "hr":
-      return <Rocket size={24} className="text-cyan-400" />;
-    default:
-      return <Sparkles size={24} className="text-teal-400" />;
-  }
-};
-
-const discountAmount = 20.00;
-
-// --- New Shimmer Card Component for Cart Items ---
-const CartShimmerCard = ({ glassmorphism, innerGlass }: { glassmorphism: string, innerGlass: string }) => {
-  const shimmer = "animate-pulse bg-neutral-800/50 rounded-lg";
-  
-  return (
-    <div className={cn("p-6", glassmorphism)}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${innerGlass}`}>
-            <div className={cn("w-6 h-6", shimmer)} />
-          </div>
-          <div>
-            <div className={cn("w-64 h-5 mb-1", shimmer)} />
-            <div className={cn("w-96 h-3", shimmer)} />
-          </div>
-        </div>
-        <div className={cn("w-16 h-5", shimmer)} />
-      </div>
-      <div className="mt-4">
-        <div className={cn("w-32 h-4 mb-3", shimmer)} />
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {[1, 2, 3].map((i) => (
-            <li key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5 text-sm">
-              <div className={cn("w-40 h-3", shimmer)} />
-              <div className={cn("w-12 h-3", shimmer)} />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-};
+const DISCOUNT_AMOUNT = 20.00;
 
 export default function StacksCartPage() {
-  const [cartStacks, setCartStacks] = useState<Stack[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isClearing, setIsClearing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [removingSubId, setRemovingSubId] = useState<string | null>(null);
-  const [removingStackId, setRemovingStackId] = useState<string | null>(null);
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [cartStacks, setCartStacks] = useState<Stack[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const router = useRouter()
 
-  const glassmorphism = "bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10";
-  const innerGlass = "bg-white/5 backdrop-blur-sm rounded-xl border border-white/10";
-  
   useEffect(() => {
-    async function loadCartStacks() {
+    setMounted(true)
+    async function loadCart() {
       try {
-        setIsLoading(true);
-        setErrorMessage(null);
-        const supabase = createClient();
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError || !user) {
-          setCartStacks([]);
-          setIsLoading(false);
-          setUserId(null);
-          return;
-        }
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return setLoading(false)
 
-        setUserId(user.id);
-        const cartData = await getCartStacks(user.id);
-        
-        const transformedStacks: Stack[] = cartData.map((item) => ({
+        const cartData = await getCartStacks(user.id)
+        const transformed: Stack[] = cartData.map((item) => ({
           cart_id: item.cart_id,
           id: item.stack_id,
-          name: item.name || 'Unknown Stack',
-          type: item.type || 'General',
-          description: item.description || null,
+          name: item.name || 'Unknown Node',
+          type: item.type || 'Standard',
+          description: item.description ?? null,
           base_price: item.base_price || 0,
-          active: item.active || false,
-          sub_stacks: item.sub_stacks.map((sub) => ({
-            id: sub.id,
-            name: sub.name,
-            price: sub.price,
-          })),
+          sub_stacks: (item.sub_stacks || []) as SubStack[],
           total_price: item.total_price,
-        }));
-
-        setCartStacks(transformedStacks);
+        }))
+        setCartStacks(transformed)
       } catch (error) {
-        setErrorMessage("Unable to load your cart right now. Please try again.");
+        console.error(error)
       } finally {
-        setIsLoading(false);
+        setLoading(false)
       }
     }
-    loadCartStacks();
-  }, []);
+    loadCart()
+  }, [])
 
-  const handleClearCart = async () => {
-    if (!userId || cartStacks.length === 0) return;
-    try {
-      setIsClearing(true);
-      const supabase = createClient();
-      const { error } = await supabase.from("cart_stacks").delete().eq("user_id", userId);
-      if (error) throw error;
-      setCartStacks([]);
-    } catch (error) {
-      setErrorMessage("Could not clear your cart.");
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
-  const handleRemoveSubstack = async (cartId: string, subId: string) => {
-    if (!userId) return;
-    const targetStack = cartStacks.find((stack) => stack.cart_id === cartId);
-    if (!targetStack) return;
-    try {
-      setRemovingSubId(`${cartId}-${subId}`);
-      const updatedSubStacks = targetStack.sub_stacks.filter((sub) => sub.id !== subId);
-      const updatedSubIds = updatedSubStacks.map((sub) => sub.id);
-      const updatedTotal = targetStack.base_price + updatedSubStacks.reduce((sum, sub) => sum + sub.price, 0);
-      const supabase = createClient();
-      const { error } = await supabase.from("cart_stacks").update({ sub_stack_ids: updatedSubIds, total_price: updatedTotal }).eq("id", cartId).eq("user_id", userId);
-      if (error) throw error;
-      setCartStacks((prev) => prev.map((stack) => stack.cart_id === cartId ? { ...stack, sub_stacks: updatedSubStacks, total_price: updatedTotal } : stack));
-    } catch (error) {
-      setErrorMessage("Could not update modules.");
-    } finally {
-      setRemovingSubId(null);
-    }
-  };
+  const subtotal = useMemo(() => cartStacks.reduce((acc, curr) => acc + curr.total_price, 0), [cartStacks])
+  const finalTotal = subtotal - DISCOUNT_AMOUNT
 
   const handleRemoveStack = async (cartId: string) => {
-    if (!userId) return;
     try {
-      setRemovingStackId(cartId);
-      const supabase = createClient();
-      const { error } = await supabase.from("cart_stacks").delete().eq("id", cartId).eq("user_id", userId);
-      if (error) throw error;
-      setCartStacks((prev) => prev.filter((stack) => stack.cart_id !== cartId));
-    } catch (error) {
-      setErrorMessage("Could not remove stack.");
+      setRemovingId(cartId)
+      const supabase = createClient()
+      const { error } = await supabase.from("cart_stacks").delete().eq("id", cartId)
+      if (error) throw error
+      setCartStacks(prev => prev.filter(s => s.cart_id !== cartId))
+      window.dispatchEvent(new CustomEvent('stackAddedToCart')) // Refresh counters if any
+    } catch (e) {
+      alert("Removal sequence failed.")
     } finally {
-      setRemovingStackId(null);
+      setRemovingId(null)
     }
-  };
+  }
 
-  const handleCreateOrder = async () => {
-    if (!userId || cartStacks.length === 0) return;
+  const handleCheckout = async () => {
     try {
-      setIsCreatingOrder(true);
-      const result = await createOrderFromCart(userId, discountAmount);
-      if (!result.success) {
-        setErrorMessage(result.error || "Unable to complete checkout.");
-        return;
+      setIsCreatingOrder(true)
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const result = await createOrderFromCart(user.id, DISCOUNT_AMOUNT)
+      if (result.success) {
+        router.push('/private?tab=orders')
+      } else {
+        alert(result.error)
       }
-      setCartStacks([]);
-      alert("✅ Order placed successfully!");
-    } catch (error) {
-      setErrorMessage("Something went wrong.");
+    } catch (e) {
+      alert("Checkout sync failed.")
     } finally {
-      setIsCreatingOrder(false);
+      setIsCreatingOrder(false)
     }
-  };
-
-  const calculateTotal = (stacks: Stack[]) => {
-    return stacks.reduce((sum, stack) => {
-      const subTotal = stack.sub_stacks?.reduce((s, sub) => s + sub.price, 0) ?? 0;
-      return sum + stack.base_price + subTotal;
-    }, 0);
-  };
-  
-  const subtotalCost = calculateTotal(cartStacks);
-  const finalTotalCost = subtotalCost - discountAmount;
-
-  // Loading and Main Content wrapped in a div with overflow-x-hidden and min-h-screen to prevent white bar
-  const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-screen w-full bg-neutral-950 overflow-x-hidden">
-      <div className="min-h-screen w-full bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-        {children}
-      </div>
-    </div>
-  );
-
-  if (isLoading) {
-    return (
-      <PageWrapper>
-        <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
-          <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
-            Your Stacks Cart
-          </h1>
-        </header>
-        <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <CartShimmerCard glassmorphism={glassmorphism} innerGlass={innerGlass} />
-          </div>
-          <aside className={cn("p-6 sticky top-10 h-fit animate-pulse", glassmorphism)}>
-            <div className="w-40 h-7 mb-4 bg-neutral-800/50 rounded-lg" />
-            <div className="space-y-3 text-sm mb-6">
-              <div className="flex justify-between"><div className="w-1/3 h-4 bg-neutral-800/50 rounded-lg" /><div className="w-1/4 h-4 bg-neutral-800/50 rounded-lg" /></div>
-              <div className="flex justify-between font-bold text-white text-base border-t border-white/10 pt-3"><div className="w-1/2 h-5 bg-neutral-800/50 rounded-lg" /><div className="w-1/4 h-5 bg-neutral-800/50 rounded-lg" /></div>
-            </div>
-            <div className="w-full h-12 rounded-full bg-neutral-800/50" />
-          </aside>
-        </main>
-      </PageWrapper>
-    );
   }
 
-  if (cartStacks.length === 0) {
-    return (
-      <PageWrapper>
-        <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
-          <Rocket className="text-cyan-400 mb-6" size={48} />
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">You haven’t added any stacks yet</h2>
-          <Link href="/product_stacks" className="px-6 py-3 rounded-full font-bold text-neutral-950 bg-gradient-to-r from-cyan-400 to-teal-500 hover:scale-105 transition-all duration-300 shadow-lg">
-            Explore Stacks
-          </Link>
-        </div>
-      </PageWrapper>
-    );
-  }
+  if (!mounted) return <div className="min-h-screen bg-[#020202]" />
 
   return (
-    <PageWrapper>
-      <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
-        <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
-          Your Stacks Cart
-        </h1>
-      </header>
+    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
       
-      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          {errorMessage && (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-200 rounded-2xl text-sm">{errorMessage}</div>
-          )}
-          {cartStacks.map((stack) => (
-            <div key={stack.cart_id} className={cn("p-6", glassmorphism)}>
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-xl ${innerGlass}`}>{getIconForStack(stack.type)}</div>
-                  <div>
-                    <h2 className="text-xl font-bold">{stack.name}</h2>
-                    <p className="text-neutral-400 text-sm">{stack.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-semibold text-teal-400">₹{stack.total_price.toFixed(2)}</span>
-                  {removingStackId === stack.cart_id ? <Loader2 size={18} className="animate-spin text-neutral-500" /> : (
-                    <button onClick={() => handleRemoveStack(stack.cart_id)} className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 transition-all"><Trash2 size={18} /></button>
-                  )}
-                </div>
-              </div>
+      {/* 1. TOP GLOBAL NAVIGATION */}
+      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
+                <Zap size={18} fill="currentColor" />
+             </div>
+             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
+          </div>
+          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+            <button onClick={() => router.push('/product_stacks')} className="text-neutral-500 hover:text-neutral-200 transition">Infrastructure</button>
+            <button className="text-teal-400 border-b-2 border-teal-500 py-7">Manifest Cart</button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+            <Bell size={18} />
+          </button>
+        </div>
+      </nav>
 
-              {stack.sub_stacks?.length > 0 && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
+        
+        {/* 2. HEADER SECTION */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em] block mb-2">Checkout Pipeline</span>
+            <h1 className="text-4xl font-bold text-white tracking-tight">
+                Review: <span className="text-neutral-400">Deployment Manifest</span>
+            </h1>
+            <p className="text-neutral-500 mt-2 flex items-center gap-2 font-mono text-sm">
+              <ShoppingCart size={14} className="text-teal-500" /> {cartStacks.length} Modules queued for <span className="text-neutral-200 font-medium">Provisioning</span>
+            </p>
+          </div>
+        </div>
+
+        {/* 3. SUMMARY STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+            <div>
+              <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Subtotal Value</p>
+              <h3 className="text-3xl font-bold text-white tracking-tighter font-mono">₹{subtotal.toLocaleString()}</h3>
+            </div>
+            <Layers size={20} className="text-neutral-700" />
+          </div>
+          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+            <div>
+              <p className="text-[10px] font-black uppercase text-teal-500/60 tracking-widest mb-1">Applied Credits</p>
+              <h3 className="text-3xl font-bold text-teal-500 tracking-tighter font-mono">-₹{DISCOUNT_AMOUNT}</h3>
+            </div>
+            <Activity size={20} className="text-neutral-700" />
+          </div>
+          <div className="bg-teal-500 border border-teal-400 p-6 rounded-[24px] flex justify-between items-start text-black">
+            <div>
+              <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">Final Payload Total</p>
+              <h3 className="text-3xl font-bold tracking-tighter font-mono">₹{Math.max(0, finalTotal).toLocaleString()}</h3>
+            </div>
+            <CreditCard size={20} className="opacity-40" />
+          </div>
+        </div>
+
+        {/* 4. CART ITEMS GRID */}
+        <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden">
+          <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex justify-between items-center">
+             <div className="flex items-center gap-3">
+               <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Active Queue Terminal</span>
+             </div>
+             {cartStacks.length > 0 && (
+                <button 
+                  onClick={handleCheckout}
+                  disabled={isCreatingOrder}
+                  className="px-6 py-2 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-teal-500 transition-colors flex items-center gap-2"
+                >
+                  {isCreatingOrder ? <Loader2 size={14} className="animate-spin" /> : <>Initiate Deployment <ArrowRight size={14} /></>}
+                </button>
+             )}
+          </div>
+
+          <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {loading ? (
+              <div className="col-span-full py-20 text-center animate-pulse text-neutral-600 font-mono">SCANNING QUEUE...</div>
+            ) : cartStacks.length === 0 ? (
+              <div className="col-span-full py-20 text-center text-neutral-600 font-mono">
+                MANIFEST EMPTY. <button onClick={() => router.push('/product_stacks')} className="text-teal-500 hover:underline">RE-LINK HARDWARE?</button>
+              </div>
+            ) : cartStacks.map((stack) => (
+              <div key={stack.cart_id} className={INDUSTRIAL_CARD}>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className={ICON_CONTAINER}><Rocket size={20} /></div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{stack.name}</h2>
+                      <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest flex items-center gap-1 mt-1">
+                        <Cpu size={10} className="text-teal-500" /> {stack.type}
+                      </span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleRemoveStack(stack.cart_id)}
+                    className="text-neutral-700 hover:text-red-500 transition-colors"
+                  >
+                    {removingId === stack.cart_id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} />}
+                  </button>
+                </div>
+
+                <div className="space-y-2 mb-8 flex-grow">
+                  <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Loaded Modules</p>
+                  <div className="p-3 rounded-xl bg-neutral-900/30 border border-neutral-800/50 flex justify-between items-center font-mono">
+                    <span className="text-[10px] text-neutral-400 uppercase">Base Core</span>
+                    <span className="text-[10px] text-teal-500">₹{stack.base_price}</span>
+                  </div>
                   {stack.sub_stacks.map((sub) => (
-                    <div key={sub.id} className={cn("flex justify-between items-center p-3 rounded-xl border", removingSubId === `${stack.cart_id}-${sub.id}` ? "opacity-50" : "bg-gradient-to-r from-cyan-400/20 to-teal-400/20 border-cyan-400/40")}>
-                      <span className="text-sm">{sub.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold">₹{sub.price.toFixed(2)}</span>
-                        <button onClick={() => handleRemoveSubstack(stack.cart_id, sub.id)} className="text-red-400"><Trash2 size={16} /></button>
-                      </div>
+                    <div key={sub.id} className="p-3 rounded-xl bg-neutral-900/30 border border-neutral-800/50 flex justify-between items-center font-mono">
+                      <span className="text-[10px] text-neutral-400 uppercase">{sub.name}</span>
+                      <span className="text-[10px] text-teal-500">+₹{sub.price}</span>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          ))}
+
+                <div className="mt-auto pt-6 border-t border-neutral-900 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-1">Node Cost</p>
+                    <h3 className="text-2xl font-bold text-white font-mono tracking-tighter">
+                      ₹{stack.total_price.toLocaleString()}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <aside className={cn("p-6 sticky top-10 h-fit", glassmorphism)}>
-          <h3 className="text-2xl font-bold mb-4">Pricing Summary</h3>
-          <div className="space-y-2 text-sm text-neutral-400 mb-6">
-            <div className="flex justify-between"><span>Subtotal</span><span>₹{subtotalCost.toFixed(2)}</span></div>
-            <div className="flex justify-between text-green-400"><span>Discount</span><span>-₹{discountAmount.toFixed(2)}</span></div>
-            <div className="flex justify-between font-bold text-white text-base border-t border-white/10 pt-3"><span>Total</span><span>₹{finalTotalCost.toFixed(2)}</span></div>
+        {/* 5. FOOTER LOGS */}
+        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden">
+          <div className="px-8 py-4 bg-black/40 flex justify-between items-center">
+            <p className="text-[10px] font-medium text-neutral-700 font-mono tracking-tighter">
+                LAST_CART_SYNC: {new Date().toISOString()}
+            </p>
+            <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[0.5em]">SYSTEM STACK TERMINAL V4.0.2</p>
           </div>
-          <button onClick={handleCreateOrder} disabled={isCreatingOrder} className="w-full py-3 rounded-full font-bold text-neutral-950 bg-gradient-to-r from-cyan-400 to-teal-600 flex items-center justify-center gap-2">
-            {isCreatingOrder ? <Loader2 size={16} className="animate-spin" /> : <>Proceed to Payment <ArrowRight size={16} /></>}
-          </button>
-        </aside>
+        </div>
       </main>
-    </PageWrapper>
-  );
+    </div>
+  )
 }
