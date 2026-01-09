@@ -15,15 +15,7 @@ const LEGAL_LINKS = [
     "Shipping and Delivery",
     "Contact Us",
 ];
-
-// --- Sidebar Components ---
-
-interface SidebarLinkProps {
-  label: string
-  isActive?: boolean
-  hasSubMenu: boolean 
-  onClick: () => void 
-}
+import {SidebarLinkProps} from '@/src/types/privacy'
 
 /**
  * Reusable component for the sidebar navigation links.

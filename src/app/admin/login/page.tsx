@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminLogin } from "../actions";
-import { Button } from "@/components/ui/button";
+import { adminLogin } from '@/src/modules/admin/actions';
+import { Button } from "@/src/components/ui/button";
 import { Mail, Lock } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 

@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { 
-  Search, Filter, Clock, CheckCircle2, AlertCircle, Package, 
-  User, MessageSquare, UserPlus, X, ChevronRight, Download, 
-  CreditCard, Activity, MoreVertical, ShieldCheck, Zap,
+  Search, Filter, Clock, CheckCircle2, 
+  User, MessageSquare, UserPlus, X, Download, 
+  CreditCard, Activity, MoreVertical, ShieldCheck,
   ArrowUpRight, Calendar, Layers, Hash
 } from "lucide-react";
 

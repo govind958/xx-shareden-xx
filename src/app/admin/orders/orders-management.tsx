@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { User, Package, Clock, AlertCircle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-import { Order, OrderItem, Profile } from "../../../types/admin"
+import { Order, OrderItem, Profile } from "@/src/types/admin"
 
 interface OrdersManagementProps {
   orders: Order[]

@@ -1,19 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { UserPlus, X, User } from "lucide-react"
 import {
   assignEmployeeToOrderItem,
   unassignEmployeeFromOrderItem
-} from "../actions"
-import { Button } from "@/components/ui/button"
-import { Assignment, Employee, UnassignedItem } from "../../../types/admin"
+} from "@/src/modules/admin/actions"
+import { Assignment, Employee, UnassignedItem, EmployeesManagementProps } from "@/src/types/admin"
 
-interface EmployeesManagementProps {
-  employees: Employee[]
-  assignments: Assignment[]
-  unassignedItems: UnassignedItem[]
-}
+
 
 export function EmployeesManagement({
   employees: initialEmployees,

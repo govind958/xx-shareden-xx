@@ -4,24 +4,16 @@ import React, { useState, useEffect } from "react"
 import { 
   Users, FileText, ShieldCheck, Layers, 
   Activity, Zap, 
-  Search, Bell, Plus, Trash2, Download
+  Search, Bell, Trash2, Download
 } from "lucide-react"
-
-interface AdminDashboardProps {
-  adminUser?: { name?: string; email?: string };
-  counts: {
-    users: number;
-    forms: number;
-    sessions: number;
-    stacks: number;
-  };
-}
+import { SpreadsheetRow } from "@/src/types/admin"
+import { AdminDashboardProps } from "@/src/types/admin"
 
 export default function AdminDashboard({ adminUser, counts }: AdminDashboardProps) {
   const [mounted, setMounted] = useState(false)
 
   // --- SPREADSHEET STATE ---
-  const [columns, setColumns] = useState([
+  const [columns] = useState([
     { id: "segment", label: "Segment", width: "160px" },
     { id: "metric", label: "Metric Name", width: "auto" },
     { id: "w1", label: "Week 01", width: "120px" },
@@ -31,7 +23,7 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
     { id: "actions", label: "", width: "80px" }, // For Delete Button
   ])
 
-  const [rows, setRows] = useState([
+  const [rows, setRows] = useState<SpreadsheetRow[]>([
     { id: 1, segment: "Aware", metric: "System Ad Spend (Global)", w1: "$6,515", w2: "$5,894", target: "$25,000", health: "Green" },
     { id: 2, segment: "Engage", metric: "Infrastructure Video Views", w1: "323", w2: "216", target: "1,000", health: "Critical" },
   ])
@@ -172,7 +164,7 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
                 </tr>
               </thead>
               <tbody className="text-xs">
-                {rows.map((row: any) => (
+                {rows.map((row: SpreadsheetRow) => (
                   <tr key={row.id} className="border-b border-neutral-900/50 hover:bg-white/[0.02] transition-colors group font-mono">
                     {columns.map((col) => (
                        <td key={col.id} className="px-8 py-4 border-r border-neutral-900/30 text-neutral-400 group-hover:text-white last:border-r-0">
@@ -200,10 +192,10 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
                             </button>
                          ) : col.id === 'segment' ? (
                             <span className="px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-neutral-300 text-[9px] font-bold uppercase">
-                                {row[col.id]}
+                                {row[col.id as keyof SpreadsheetRow]}
                             </span>
                          ) : (
-                            row[col.id]
+                            row[col.id as keyof SpreadsheetRow]
                          )}
 
                        </td>

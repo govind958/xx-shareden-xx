@@ -1,8 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
-import { verifyAdminSession } from "../actions"
+import { verifyAdminSession } from "@/src/modules/admin/actions"
 import { redirect } from "next/navigation"
 import { OrdersManagement } from "./orders-management"
-import { Order, Profile } from "../../../types/admin"
+import { Order, Profile } from "@/src/types/admin"
 
 export default async function AdminOrdersPage() {
   const { isValid } = await verifyAdminSession()
