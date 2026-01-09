@@ -139,3 +139,7 @@ export interface StackFormData {
   base_price: number
   active: string
 }
+
+export interface OrdersManagementProps {
+  orders: Order[]
+}
