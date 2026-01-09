@@ -17,25 +17,14 @@ import {
   CreditCard,
   Layers
 } from 'lucide-react'
-
+import { Stack, SubStack } from '@/src/types/Substack'
 /* ---------------- STYLE HELPERS (From Page 1) ---------------- */
 const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
 
 const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] p-6 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
 const ICON_CONTAINER = "w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
 
-/* ---------------- TYPES ---------------- */
-interface SubStack { id: string; name: string; price: number; }
-interface Stack {
-  cart_id: string;
-  id: string;
-  name: string;
-  type: string;
-  description: string | null;
-  base_price: number;
-  sub_stacks: SubStack[];
-  total_price: number;
-}
+
 
 const DISCOUNT_AMOUNT = 20.00;
 
