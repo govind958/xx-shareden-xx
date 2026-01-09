@@ -1,20 +1,20 @@
 "use client";
 
 import React, { FC, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import Footer from "@/components/Footer";
+import { Button } from "@/src/components/ui/button";
+import Footer from "@/src/components/Footer";
 import {
   // NavigationMenu,
   // NavigationMenuItem,
   // NavigationMenuList,
-} from "@/components/ui/navigation-menu"; // Commented out unused imports
+} from "@/src/components/ui/navigation-menu"; // Commented out unused imports
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/src/components/ui/sheet";
 import { Menu, ArrowRight, CheckCircle2 } from "lucide-react";
 import mixpanel from "mixpanel-browser"; // Removed Dict import
 

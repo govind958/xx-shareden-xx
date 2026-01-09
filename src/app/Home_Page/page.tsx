@@ -1,4 +1,8 @@
-import { AppSidebar } from "@/components/app-sidebar"
+"use client"
+
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { AppSidebar } from "@/src/components/app-sidebar"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,15 +10,16 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
+} from "@/src/components/ui/breadcrumb"
+import { Separator } from "@/src/components/ui/separator"
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
+} from "@/src/components/ui/sidebar"
 
 export default function Page() {
+
   return (
     <SidebarProvider>
       <AppSidebar />

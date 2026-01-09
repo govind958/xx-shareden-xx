@@ -2,28 +2,12 @@
 
 import React, { useState } from "react"
 import { 
-  Plus, Pencil, Trash2, X, Check, Layers, 
+  Plus, Pencil, Trash2, X, Layers, 
   DollarSign, Activity, Hash, ArrowUpRight, Filter,
-  PlusCircle, MinusCircle, LayoutGrid, IndianRupee
+  PlusCircle, MinusCircle, LayoutGrid
 } from "lucide-react"
 
-// --- Types ---
-type Substack = {
-  id: string
-  label: string
-  price: number
-}
-
-type Stack = {
-  id: string
-  name: string
-  type: string
-  description: string
-  base_price: number
-  active: boolean
-  created_at: string
-  substacks?: Substack[]
-}
+import { Stack, Substack } from "@/src/types/admin"
 
 const MOCK_STACKS: Stack[] = [
   { 
@@ -44,7 +28,7 @@ const MOCK_STACKS: Stack[] = [
 ]
 
 export default function AdminStacksPage() {
-  const [stacks, setStacks] = useState<Stack[]>(MOCK_STACKS)
+  const [stacks] = useState<Stack[]>(MOCK_STACKS)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingStack, setEditingStack] = useState<Stack | null>(null)
   

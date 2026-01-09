@@ -74,3 +74,68 @@ export type OrdersTooltipOrder = {
   >
 }
 
+
+export interface AdminDashboardProps {
+  adminUser?: { name?: string; email?: string };
+  counts: {
+    users: number;
+    forms: number;
+    sessions: number;
+    stacks: number;
+  };
+}
+
+export interface SpreadsheetRow {
+  id: number;
+  segment: string;
+  metric: string;
+  w1: string;
+  w2: string;
+  target: string;
+  health: string;
+}
+
+export interface EmployeesManagementProps {
+  employees: Employee[]
+  assignments: Assignment[]
+  unassignedItems: UnassignedItem[]
+}
+
+export interface AdminEmployeesPageProps {
+  employees: Employee[]
+  assignments: Assignment[]
+  unassignedItems: UnassignedItem[]
+  error?: Error
+}
+
+export type Substack = {
+  id: string
+  label: string
+  price: number
+}
+
+export type Stack = {
+  id: string
+  name: string
+  type: string
+  description: string
+  base_price: number
+  active: boolean
+  created_at: string
+  substacks?: Substack[]
+}
+
+
+export interface OrdersTooltipProps {
+  userId: string
+  ordersCount: number
+  children: React.ReactNode
+}
+
+export interface StackFormData {
+  name: string
+  type: string
+  description: string
+  base_price: number
+  active: string
+}

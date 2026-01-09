@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { getCartStacks, createOrderFromCart } from './actions'
+import { getCartStacks, createOrderFromCart } from '@/src/modules/stack_cart/actions'
 import { useRouter } from 'next/navigation'
 import {
   Rocket,
@@ -10,9 +10,7 @@ import {
   Loader2,
   Activity,
   Zap,
-  Search,
   Bell,
-  CheckCircle2,
   Cpu,
   Trash2,
   ShoppingCart,

@@ -2,9 +2,8 @@
 
 import React from "react"
 import { 
-  TrendingUp, Zap, ShieldCheck, Layers, ArrowUpRight, 
-  Activity, Clock, Hash, Database, Cpu, Globe,
-  Search, Bell
+  TrendingUp, Zap, ShieldCheck, Layers, 
+ Clock, Database,
 } from "lucide-react"
 
 /* ---------------- INDUSTRIAL STYLING HELPERS ---------------- */
@@ -120,6 +119,6 @@ export default function ClientDashboardPage() {
   )
 }
 
-function cn(...inputs: any[]) {
+function cn(...inputs: (string | false | null | undefined)[]) {
   return inputs.filter(Boolean).join(" ")
 }

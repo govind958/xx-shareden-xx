@@ -6,17 +6,10 @@ import {
   Plus, Calendar, Hash, ArrowUpRight, Clock, 
   LayoutGrid, X, Rocket, Zap, Users, Shield, Terminal, Search
 } from "lucide-react"
-import { insertForm } from "./actions"
+import { insertForm } from "@/src/modules/stack_upon_boarding_form/actions"
 import { createClient } from "@/utils/supabase/client"
+import { FormEntry } from "@/src/types/stack_on_boarding_form"
 
-// --- Types ---
-interface FormEntry {
-  id: string
-  title: string
-  description: string
-  label: string
-  created_at: string
-}
 
 export default function StartupOnboardingPage() {
   const [forms, setForms] = useState<FormEntry[]>([])

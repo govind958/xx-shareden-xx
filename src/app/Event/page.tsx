@@ -1,15 +1,15 @@
 "use client";
 
 import React, { FC, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import Footer from "@/components/Footer";
+import { Button } from "@/src/components/ui/button";
+import Footer from "@/src/components/Footer";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/src/components/ui/sheet";
 import {
   Menu,
   ArrowRight,
@@ -20,8 +20,8 @@ import {
   Users,
   TrendingUp,
   Target,
-  LucideIcon, // Importing a better type for Lucide/Feather icons
 } from "lucide-react"; 
+import { Event } from "@/src/types/event";
 import mixpanel from "mixpanel-browser";
 
 // ⚡ Initialize Mixpanel (Safe Check)
@@ -37,17 +37,6 @@ if (typeof window !== "undefined") {
 // MOCK DATA & UTILITIES
 // ────────────────────────────────────────────
 
-// Type for a single event card
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  type: string;
-  icon: LucideIcon; // Using LucideIcon for better type definition of the component
-  description: string;
-  link: string;
-}
 
 const UPCOMING_EVENTS: Event[] = [
   {

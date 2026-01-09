@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { createHash, randomBytes } from 'crypto'
-import { Order, Profile } from '@/types/admin'
+import { Order, Profile } from '@/src/types/admin'
 
 // Helper to hash values (secret key, password, etc.)
 function hashValue(value: string): string {

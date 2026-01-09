@@ -3,7 +3,9 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
-import { StackFormData } from "@/types/admin"
+import { StackFormData } from "@/src/types/admin"
+
+
 
 export async function saveStack(formData: StackFormData, id?: string) {
   const supabase = await createClient()

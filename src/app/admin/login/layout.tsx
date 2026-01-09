@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { verifyAdminSession } from '../actions'
+import { verifyAdminSession } from '@/src/modules/admin/actions'
 
 export default async function AdminLoginLayout({
   children,
