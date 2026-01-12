@@ -99,10 +99,8 @@ export default function ProductStacksPage() {
       <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
-                <Zap size={18} fill="currentColor" />
-             </div>
-             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
+             
+            
           </div>
           <div className="h-6 w-px bg-neutral-800 hidden md:block" />
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">

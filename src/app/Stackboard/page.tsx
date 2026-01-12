@@ -1,301 +1,244 @@
-"use client";
+'use client'
 
-import React, { useEffect, useState } from "react";
-import { Clock, Rocket, Sparkles, MessageCircle, User } from "lucide-react";
-import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
-import { getOrderItemsWithProgress } from "@/src/modules/stack_board/action";
-import type { StackProgress } from "@/src/types/stack_board";
 
-const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
+import React, { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-const getIconForStack = (type: string) => {
-  switch (type.toLowerCase()) {
-    case "hr":
-      return <Rocket size={22} className="text-cyan-400" />;
-    default:
-      return <Sparkles size={22} className="text-teal-400" />;
-  }
-};
+import {
+  Clock,
+  Rocket,
+  Sparkles,
+  MessageCircle,
+  User,
+  ArrowRight,
+  Loader2,
+  Activity,
+  Zap,
+  Bell,
+  Cpu,
+  ShieldCheck,
+  Terminal,
+  Layers,
+} from 'lucide-react';
 
-const getStatusColor = (status: string) => {
-  const statusLower = status.toLowerCase();
-  if (statusLower === "not started" || statusLower === "initiated") {
-    return "bg-neutral-700 text-neutral-300";
-  }
-  if (statusLower === "in progress" || statusLower === "in_progress") {
-    return "bg-cyan-500/20 text-cyan-300";
-  }
-  if (statusLower === "under review" || statusLower === "under_review") {
-    return "bg-amber-500/20 text-amber-300";
-  }
-  if (statusLower === "done" || statusLower === "completed") {
-    return "bg-green-500/20 text-green-300";
-  }
-  return "bg-neutral-700 text-neutral-300";
-};
+import { createClient } from '@/utils/supabase/client';
+import { getOrderItemsWithProgress } from '@/src/modules/stack_board/action';
+import type { StackProgress } from '@/src/types/stack_board';
 
-// Helper function to format ETA date
+
+/* ---------------- STYLE HELPERS ---------------- */
+const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
+
+const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] p-6 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
+const ICON_CONTAINER = "w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
+
+/* ---------------- FORMATTERS ---------------- */
 const formatETA = (eta: string | null): string => {
-  if (!eta) return "TBD";
+  if (!eta) return "PENDING"
   try {
-    const date = new Date(eta);
-    const now = new Date();
-    const isPast = date < now;
-    
-    if (isPast && date.toDateString() === now.toDateString()) {
-      return "Today";
-    }
-    
-    return date.toLocaleDateString("en-US", { 
-      year: "numeric", 
-      month: "short", 
-      day: "numeric" 
-    });
-  } catch {
-    return eta;
-  }
-};
+    const date = new Date(eta)
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase()
+  } catch { return "TBD" }
+}
 
-// Helper function to format relative time
 const formatRelativeTime = (dateString: string): string => {
   try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return "just now";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-    
-    return date.toLocaleDateString("en-US", { 
-      month: "short", 
-      day: "numeric" 
-    });
-  } catch {
-    return "recently";
-  }
-};
-
-// --- New Shimmer Component ---
-const ShimmerCard = ({ glass }: { glass: string }) => {
-  // Shimmer effect classes
-  const shimmer = "animate-pulse bg-neutral-800/50 rounded-lg";
-
-  return (
-    <div className={cn("p-6", glass)}>
-      <div className="flex items-start justify-between mb-4">
-        {/* Icon and Text Placeholder */}
-        <div className="flex items-center gap-3">
-          <div className={cn("w-10 h-10 rounded-xl", shimmer)} />
-          <div>
-            <div className={cn("w-48 h-5 mb-1", shimmer)} />
-            <div className={cn("w-64 h-3", shimmer)} />
-          </div>
-        </div>
-        {/* Status Placeholder */}
-        <div className={cn("w-20 h-5 rounded-full", shimmer)} />
-      </div>
-
-      {/* Progress Bar Placeholder */}
-      <div className="w-full bg-white/10 rounded-full h-3 mt-4 mb-2">
-        <div className={cn("w-2/3 h-3 rounded-full", shimmer)}></div>
-      </div>
-      <div className={cn("w-40 h-3 mb-4", shimmer)} />
-
-      {/* Action buttons Placeholder */}
-      <div className="flex justify-between items-center">
-        <div className={cn("w-32 h-5", shimmer)} />
-        <div className={cn("w-28 h-8 rounded-full", shimmer)} />
-      </div>
-    </div>
-  );
-};
-// --- End New Shimmer Component ---
-
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+    if (diff < 3600) return `${Math.floor(diff / 60)}M AGO`
+    if (diff < 86400) return `${Math.floor(diff / 3600)}H AGO`
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
+  } catch { return "RECENT" }
+}
 
 export default function StackBoardPage() {
-  const [stacks, setStacks] = useState<StackProgress[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const glass = "bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10";
-  const inner = "bg-white/5 backdrop-blur-sm rounded-xl border border-white/10";
+  const [stacks, setStacks] = useState<StackProgress[]>([])
+  const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    setMounted(true)
     async function loadOrderItems() {
       try {
-        setIsLoading(true);
-        setErrorMessage(null);
-        const supabase = createClient();
-        
-        // Get current user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError || !user) {
-          console.error('Error getting user:', authError);
-          setStacks([]);
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch order items with progress
-        const orderItemsData = await getOrderItemsWithProgress(user.id);
-        setStacks(orderItemsData);
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return setLoading(false)
+        const data = await getOrderItemsWithProgress(user.id)
+        setStacks(data || [])
       } catch (error) {
-        console.error('Error loading order items:', error);
-        setStacks([]);
-        setErrorMessage("Unable to load your stacks right now. Please try again.");
+        console.error(error)
       } finally {
-        setIsLoading(false);
+        setLoading(false)
       }
     }
+    loadOrderItems()
+  }, [])
 
-    loadOrderItems();
-  }, []);
-
-  // Show shimmer effect while loading
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-        <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
-          <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
-            StackBoard
-          </h1>
-        </header>
-        
-        {/* Shimmer loading content */}
-        <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Render Shimmer Cards */}
-          <ShimmerCard glass={glass} />
-          <ShimmerCard glass={glass} />
-          <ShimmerCard glass={glass} />
-        </main>
-
-        <footer className="max-w-7xl mx-auto text-center py-10 text-neutral-500 text-sm border-t border-white/10 mt-10">
-          Loading your stacks...
-        </footer>
-      </div>
-    )
-  }
-
-  // Display "No active stacks" message only if not loading AND stacks are empty
-  if (!isLoading && stacks.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
-        <Rocket className="text-cyan-400 mb-6" size={48} />
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-          No active stacks yet
-        </h2>
-        <p className="text-neutral-500 mb-6">
-          Once you purchase a stack, progress tracking will appear here.
-        </p>
-        <Link
-          href="/private?tab=stacks"
-          className="px-6 py-3 rounded-full font-bold text-neutral-950 bg-gradient-to-r from-cyan-400 to-teal-500 hover:scale-105 transition-all duration-300 shadow-lg"
-        >
-          Explore Stacks
-        </Link>
-      </div>
-    );
-  }
+  if (!mounted) return <div className="min-h-screen bg-[#020202]" />
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-      {/* Header - "Back to Dashboard" removed, title centered */}
-      <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
-        <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
-          StackBoard
-        </h1>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto">
-        {errorMessage && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-200 rounded-2xl text-sm mb-6">
-            {errorMessage}
+    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
+      
+      {/* 1. TOP GLOBAL NAVIGATION */}
+      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
+                <Zap size={18} fill="currentColor" />
+             </div>
+             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
           </div>
-        )}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {stacks.map((stack) => {
-            const progressColor = 
-              stack.progress === 100 
-                ? "bg-green-400"
-                : stack.statusDisplay === "Under Review"
-                ? "bg-amber-400"
-                : "bg-cyan-400";
-            
-            const etaText = stack.eta 
-              ? `Expected by ${formatETA(stack.eta)}`
-              : "ETA TBD";
-            
-            return (
-              <div key={stack.order_item_id} className={cn("p-6", glass)}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-xl ${inner}`}>{getIconForStack(stack.type)}</div>
+          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+            <button onClick={() => router.push('/product_stacks')} className="text-neutral-500 hover:text-neutral-200 transition">Infrastructure</button>
+            <button className="text-teal-400 border-b-2 border-teal-500 py-7">System Monitor</button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center relative">
+            <Bell size={18} />
+          </button>
+        </div>
+      </nav>
+
+      <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
+        
+        {/* 2. HEADER SECTION */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em] block mb-2">Live Node Tracking</span>
+            <h1 className="text-4xl font-bold text-white tracking-tight">
+                Operator: <span className="text-neutral-400">StackBoard v4.0</span>
+            </h1>
+            <p className="text-neutral-500 mt-2 flex items-center gap-2 font-mono text-sm">
+              <Activity size={14} className="text-teal-500" /> System reporting <span className="text-neutral-200 font-medium">{stacks.length} Active Deployments</span>
+            </p>
+          </div>
+          <div className="flex gap-4">
+             <div className="px-4 py-2 bg-neutral-900/50 border border-neutral-800 rounded-xl flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">All Systems Nominal</span>
+             </div>
+          </div>
+        </div>
+
+        {/* 3. SYSTEM STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+              <div>
+                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Active Tasks</p>
+                <h3 className="text-3xl font-bold text-white tracking-tighter font-mono">{stacks.length}</h3>
+              </div>
+              <Layers size={20} className="text-neutral-700" />
+          </div>
+          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+              <div>
+                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Average Sync</p>
+                <h3 className="text-3xl font-bold text-white tracking-tighter font-mono">74%</h3>
+              </div>
+              <Cpu size={20} className="text-neutral-700" />
+          </div>
+          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+              <div>
+                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Security Status</p>
+                <h3 className="text-3xl font-bold text-white tracking-tighter">Verified</h3>
+              </div>
+              <ShieldCheck size={20} className="text-teal-500/50" />
+          </div>
+          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
+              <div>
+                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Last Update</p>
+                <h3 className="text-3xl font-bold text-white tracking-tighter">Today</h3>
+              </div>
+              <Clock size={20} className="text-neutral-700" />
+          </div>
+        </div>
+
+        {/* 4. MAIN BOARD GRID */}
+        <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden">
+          <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex items-center gap-3">
+             <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Deployment Progress Terminal</span>
+          </div>
+
+          <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
+            {loading ? (
+              <div className="col-span-full py-20 text-center animate-pulse text-neutral-600 font-mono">INITIALIZING TELEMETRY...</div>
+            ) : stacks.length === 0 ? (
+              <div className="col-span-full py-20 text-center text-neutral-600 font-mono">NO ACTIVE NODES DETECTED.</div>
+            ) : stacks.map((stack) => (
+              <div key={stack.order_item_id} className={INDUSTRIAL_CARD}>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className={ICON_CONTAINER}><Rocket size={20} /></div>
                     <div>
-                      <h2 className="text-xl font-bold">{stack.name}</h2>
-                      <p className="text-neutral-400 text-sm">{stack.description}</p>
+                      <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{stack.name}</h2>
+                      <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest flex items-center gap-1 mt-1">
+                        <Terminal size={10} className="text-teal-500" /> {stack.type || 'Standard Module'}
+                      </span>
                     </div>
                   </div>
-                  <span
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-semibold",
-                      getStatusColor(stack.statusDisplay)
-                    )}
-                  >
+                  <div className="px-3 py-1 rounded-lg border border-neutral-800 bg-black text-[9px] font-black uppercase tracking-widest text-teal-400">
                     {stack.statusDisplay}
-                  </span>
+                  </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="w-full bg-white/10 rounded-full h-3 mt-4 mb-2">
-                  <div
-                    className={cn("h-3 rounded-full transition-all duration-700", progressColor)}
-                    style={{ width: `${stack.progress}%` }}
-                  ></div>
+                {/* Industrial Progress Bar */}
+                <div className="mb-6">
+                  <div className="flex justify-between items-end mb-2 font-mono">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Sync Progress</span>
+                    <span className="text-sm font-black text-white">{stack.progress}%</span>
+                  </div>
+                  <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden border border-neutral-800">
+                    <div 
+                      className="bg-teal-500 h-full transition-all duration-1000 shadow-[0_0_10px_rgba(20,184,166,0.5)]"
+                      style={{ width: `${stack.progress}%` }}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-neutral-400 mb-4">
-                  {stack.progress}% complete — {etaText}
-                </p>
 
-                {/* Assigned Employee */}
-                {stack.assigned_employee && (
-                  <div className="mb-4 p-3 rounded-lg bg-teal-500/5 border border-teal-200/10">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-teal-400" />
-                      <span className="text-neutral-400">Assigned to: </span>
-                      <span className="text-teal-400 font-medium">
-                        {stack.assigned_employee.name}
-                      </span>
-                      <span className="text-neutral-500 text-xs">
-                        ({stack.assigned_employee.role})
-                      </span>
+                {/* Metadata Grid */}
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-900">
+                        <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Timeline ETA</p>
+                        <p className="text-xs font-bold text-white font-mono">{formatETA(stack.eta)}</p>
                     </div>
-                  </div>
-                )}
+                    {stack.assigned_employee && (
+                        <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-900">
+                            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Lead Operator</p>
+                            <p className="text-xs font-bold text-teal-500 flex items-center gap-1">
+                                <User size={10} /> {stack.assigned_employee.name.toUpperCase()}
+                            </p>
+                        </div>
+                    )}
+                </div>
 
-                {/* Action buttons */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-neutral-400 text-sm">
-                    <Clock size={14} /> Updated {formatRelativeTime(stack.updated_at)}
+                <div className="mt-auto pt-6 border-t border-neutral-900 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-600 font-mono">
+                    <Clock size={12} /> LAST_SYNC: {formatRelativeTime(stack.updated_at)}
                   </div>
-                  <button className="px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-cyan-400 to-teal-500 text-neutral-950 flex items-center gap-2 hover:scale-105 transition-all duration-300">
-                    <MessageCircle size={14} /> Ask Expert
+                  <button className="flex items-center gap-2 px-5 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-teal-500 transition-all">
+                    Ask Expert <MessageCircle size={14} />
                   </button>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+        </div>
+
+        {/* 5. FOOTER LOGS */}
+        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden">
+          <div className="px-8 py-4 bg-black/40 flex justify-between items-center">
+            <p className="text-[10px] font-medium text-neutral-700 font-mono tracking-tighter">
+                TELEMETRY_ID: {Math.random().toString(36).substring(7).toUpperCase()}
+            </p>
+            <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[0.5em]">SYSTEM STACK TERMINAL V4.0.2</p>
+          </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="max-w-7xl mx-auto text-center py-10 text-neutral-500 text-sm border-t border-white/10 mt-10">
-        Tracking {stacks.length} stack{stacks.length !== 1 ? 's' : ''} in progress — growing faster every week 🚀
-      </footer>
     </div>
-  );
+  )
 }
