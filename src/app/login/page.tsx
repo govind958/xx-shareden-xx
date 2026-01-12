@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { login, signInWithGoogle, signup } from "./actions";
-import { Button } from "@/components/ui/button";
+import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
+import { Button } from "@/src/components/ui/button";
 import { Mail, Lock,GithubIcon,RectangleGogglesIcon } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
 

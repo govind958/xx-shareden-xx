@@ -3,16 +3,19 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
+import { StackFormData } from "@/src/types/admin"
 
-export async function saveStack(formData: any, id?: string) {
+
+
+export async function saveStack(formData: StackFormData, id?: string) {
   const supabase = await createClient()
   
   const stackData = {
     name: formData.name,
     type: formData.type,
     description: formData.description,
-    base_price: parseFloat(formData.base_price),
-    active: formData.active === "true",
+    base_price: parseFloat(String(formData.base_price)),
+    active: formData.active === "true" 
   }
 
   const { error } = id 

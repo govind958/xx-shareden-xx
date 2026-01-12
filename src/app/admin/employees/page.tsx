@@ -7,14 +7,8 @@ import {
   ChevronRight, Laptop 
 } from "lucide-react"
 import { EmployeesManagement } from "./employees-management"
-import { Assignment, Employee, UnassignedItem } from "../../../types/admin"
+import { AdminEmployeesPageProps } from "@/src/types/admin"
 
-interface AdminEmployeesPageProps {
-  employees: Employee[]
-  assignments: Assignment[]
-  unassignedItems: UnassignedItem[]
-  error?: any
-}
 
 export default function AdminEmployeesPage({ 
   employees = [], 
@@ -76,7 +70,7 @@ export default function AdminEmployeesPage({
             <button className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
               <Filter size={14} /> Refine View
             </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-black font-black rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-teal-500 transition shadow-lg shadow-teal-500/10">
+            <button className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-black rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-teal-500 transition shadow-lg shadow-teal-500/10">
               Onboard Personnel
             </button>
           </div>

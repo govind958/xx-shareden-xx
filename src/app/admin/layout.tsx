@@ -1,5 +1,5 @@
-import { verifyAdminSession } from "./actions"
-import { AdminSidebar } from "@/components/admin-sidebar"
+import { verifyAdminSession } from "@/src/modules/admin/actions"
+import { AdminSidebar } from "@/src/components/admin-sidebar"
 
 export default async function AdminLayout({
   children,

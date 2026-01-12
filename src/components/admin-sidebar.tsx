@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/src/lib/utils"
-import { adminLogout } from "@/src/app/admin/actions"
+import { adminLogout } from "@/src/modules/admin/actions"
 
 const links = [
   { label: "Dashboard", href: "/admin/dashboard", icon: Home },

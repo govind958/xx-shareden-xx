@@ -2,17 +2,13 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { getStacks } from './actions'
+import { getStacks } from '@/src/modules/product_stacks/actions'
 import { useRouter } from 'next/navigation'
 import {
   Rocket,
   ArrowRight,
   Loader2,
-  Users,
-  Megaphone,
-  Coins,
   Layers,
-  Grid3x3,
   Activity,
   Zap,
   Search,

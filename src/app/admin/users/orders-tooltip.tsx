@@ -1,15 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { getUserOrders } from "../actions"
-import { OrdersTooltipOrder } from "../../../types/admin"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/ui/tooltip"
+import { getUserOrders } from "@/src/modules/admin/actions"
+import { OrdersTooltipOrder, OrdersTooltipProps } from "@/src/types/admin"
 
-interface OrdersTooltipProps {
-  userId: string
-  ordersCount: number
-  children: React.ReactNode
-}
 
 export function OrdersTooltip({ userId, ordersCount, children }: OrdersTooltipProps) {
   const [orders, setOrders] = useState<OrdersTooltipOrder[] | null>(null)

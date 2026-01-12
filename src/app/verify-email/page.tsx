@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/button";
+import { Button } from "@/src/components/ui/button";
 
 export default function VerifyEmailPage() {
   return (

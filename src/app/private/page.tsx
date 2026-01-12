@@ -2,17 +2,17 @@
 
 import React, { useEffect, useState, Suspense } from "react"
 import { createClient } from "@/utils/supabase/client"
-import { logout } from "@/src/app/logout/actions"
+import { logout } from "@/src/modules/logout/actions"
 
 // Icons
 import {
   Home, Settings, Code, LucideShoppingCart, CircuitBoardIcon,
   CreditCardIcon, LogOut, Bell, Search, Command, 
-  ShieldCheck, Globe, RefreshCcw
+  ShieldCheck, RefreshCcw
 } from "lucide-react"
 
 // UI Components
-import { Button } from "@/components/ui/button"
+import { Button } from "@/src/components/ui/button"
 import { cn } from "@/src/lib/utils"
 
 // Imported Page Views
