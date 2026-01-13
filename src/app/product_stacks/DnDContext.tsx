@@ -1,29 +1,30 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode } from 'react'
+import { Stack } from '@/src/types/product_stack'
 
 interface DnDContextType {
-  type: string | null
-  setType: (type: string | null) => void
+  dragItem: Stack | null
+  setDragItem: (item: Stack | null) => void
 }
 
 const DnDContext = createContext<DnDContextType | undefined>(undefined)
 
 export const DnDProvider = ({ children }: { children: ReactNode }) => {
-  const [type, setType] = useState<string | null>(null)
+  const [dragItem, setDragItem] = useState<Stack | null>(null)
 
   return (
-    <DnDContext.Provider value={{ type, setType }}>
+    <DnDContext.Provider value={{ dragItem, setDragItem }}>
       {children}
     </DnDContext.Provider>
   )
 }
 
-export const useDnD = (): [string | null, (type: string | null) => void] => {
+export const useDnD = (): [Stack | null, (item: Stack | null) => void] => {
   const context = useContext(DnDContext)
   if (context === undefined) {
     throw new Error('useDnD must be used within a DnDProvider')
   }
-  return [context.type, context.setType]
+  return [context.dragItem, context.setDragItem]
 }
 
