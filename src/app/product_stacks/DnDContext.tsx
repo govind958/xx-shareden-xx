@@ -1,29 +1,22 @@
-'use client'
+// DnDContext.tsx
+import { createContext, useContext, useState, ReactNode } from 'react';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+type DnDContextType = [string | null, (type: string | null) => void];
 
-interface DnDContextType {
-  type: string | null
-  setType: (type: string | null) => void
-}
-
-const DnDContext = createContext<DnDContextType | undefined>(undefined)
+const DnDContext = createContext<DnDContextType>([null, () => {}]);
 
 export const DnDProvider = ({ children }: { children: ReactNode }) => {
-  const [type, setType] = useState<string | null>(null)
+  const [type, setType] = useState<string | null>(null);
 
   return (
-    <DnDContext.Provider value={{ type, setType }}>
+    <DnDContext.Provider value={[type, setType]}>
       {children}
     </DnDContext.Provider>
-  )
-}
+  );
+};
 
-export const useDnD = (): [string | null, (type: string | null) => void] => {
-  const context = useContext(DnDContext)
-  if (context === undefined) {
-    throw new Error('useDnD must be used within a DnDProvider')
-  }
-  return [context.type, context.setType]
-}
+export default DnDContext;
 
+export const useDnD = () => {
+  return useContext(DnDContext);
+};
