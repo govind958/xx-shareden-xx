@@ -7,6 +7,17 @@ export interface CanvasNode {
   width?: number;
   height?: number;
   parentId?: string;
+  isSaved?: boolean; // For clusters and locked children
+  base_price?: number; // Price for pricing calculations
+}
+
+export interface SavedStack {
+  id: string;
+  name: string;
+  author: string;
+  timestamp: string;
+  modules: { name: string; type?: string; base_price: number }[];
+  clusterNodeId?: string; // ID of the cluster node on canvas
 }
 
 export interface InteractionState {

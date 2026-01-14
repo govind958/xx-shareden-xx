@@ -29,9 +29,9 @@ export async function getStacks(): Promise<Stack[]> {
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("Error fetching stacks with sub_stacks:", error.message)
-    return []
+    console.error("Error fetching stacks with sub_stacks:", error.message);
+    return [];
   }
 
-  return (data as Stack[]) ?? []
+  return (data as Stack[]) ?? [];
 }

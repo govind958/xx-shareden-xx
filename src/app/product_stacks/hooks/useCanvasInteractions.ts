@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { CanvasNode, InteractionState } from '../types/canvas';
 
 export const useCanvasInteractions = (
@@ -27,6 +27,16 @@ export const useCanvasInteractions = (
     const node = nodes.find(n => n.id === id);
     if (!node) return;
 
+    // Prevent dragging if this node or its parent is saved (locked)
+    let isLocked = !!node.isSaved;
+    if (node.parentId) {
+      const parent = nodes.find(p => p.id === node.parentId);
+      if (parent && parent.isSaved) {
+        isLocked = true;
+      }
+    }
+    if (isLocked) return;
+
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -41,8 +51,13 @@ export const useCanvasInteractions = (
   }, [interaction.mode, nodes, scale, panOffset, containerRef]);
 
   const startResize = useCallback((_e: React.MouseEvent, id: string) => {
+    const node = nodes.find(n => n.id === id);
+    if (node && node.isSaved) {
+      // Prevent resizing of saved clusters
+      return;
+    }
     setInteraction({ mode: 'resize', id });
-  }, []);
+  }, [nodes]);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (interaction.mode === 'idle' || !containerRef.current) return;
@@ -76,6 +91,7 @@ export const useCanvasInteractions = (
     startResize,
     onMouseMove,
     onMouseUp,
+    setInteraction,
   };
 };
 
