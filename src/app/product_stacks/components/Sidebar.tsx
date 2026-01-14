@@ -3,6 +3,8 @@
 import { Terminal, LayoutGrid } from 'lucide-react';
 import { Stack } from '@/src/types/product_stack';
 import { useDnD } from '../DnDContext';
+import { ClusterGroupCard } from '../ClusterGroupCard';
+
 import { getIconForType } from '../utils/iconMapper';
 
 interface SidebarProps {
@@ -36,21 +38,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
       </div>
       <div className="space-y-4">
         {/* Cluster Group Box */}
-        <div
-          draggable
-          onDragStart={(e) => onDragStart(e, clusterGroup)}
-          className="p-4 border rounded-xl cursor-grab transition-all group relative overflow-hidden bg-neutral-900/80 border-dashed border-neutral-700 hover:border-teal-500/50"
-        >
-          <div className="flex items-center gap-3 mb-2 relative z-10">
-            <LayoutGrid size={14} className="group-hover:text-teal-500 text-neutral-400" />
-            <span className="text-xs font-bold text-white uppercase">Cluster Group</span>
-          </div>
-          <p className="text-[10px] text-neutral-500 leading-tight">
-            Drag to create a container for nodes
-          </p>
-        </div>
+  <ClusterGroupCard
+  clusterGroup={clusterGroup}
+  onDragStart={onDragStart}
+  onBuy={() => {
+    console.log('Cluster group bought');
+    // later: add to cart / mark purchased
+  }}
+  purchased={false}
+/>
 
-        {/* Regular Stacks */}
+  {/* Regular Stacks */}
         {stacks.map((stack) => {
           const Icon = getIconForType(stack.type);
 
