@@ -34,7 +34,7 @@ const navSections = [
             { label: "API Reference", href: "/api" },
             { label: "Community", href: "/community" },
             { label: "Event", href: "/Event" },
-              { label: "Forms", href: "/startuponbordingform" },
+            { label: "Forms", href: "/startuponbordingform" },
             { label: "Help Center", href: "/help" },
         ]
     },
@@ -44,6 +44,7 @@ const navSections = [
             { label: "About", href: "/about" },
             { label: "Careers", href: "/careers", badge: "Hiring" },
             { label: "Blog", href: "/blog" },
+            { label: "Early Access", href: "/Prebooking_Landing_Page" },
             { label: "Contact", href: "/contact" },
         ]
     },
