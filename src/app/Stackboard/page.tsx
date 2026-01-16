@@ -1,9 +1,11 @@
 'use client'
 
-
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Stack, SubStack } from '@/src/types/product_stack';
+import { CanvasContainer } from './components/CanvasContainer';
+import { Footer } from './components/Footer';
 
 import {
   Clock,
@@ -59,6 +61,17 @@ export default function StackBoardPage() {
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
+  // 1. HOOKS FIRST: useMemo must be called before any conditional returns
+  const convertedStacks: Stack[] = useMemo(() => {
+    return stacks.map(s => {
+      return {
+        ...(s as any),
+        base_price: (s as any).base_price ?? 0,
+        active: (s as any).active ?? true,
+      } as Stack
+    })
+  }, [stacks])
+
   useEffect(() => {
     setMounted(true)
     async function loadOrderItems() {
@@ -77,7 +90,10 @@ export default function StackBoardPage() {
     loadOrderItems()
   }, [])
 
+  // 2. CONDITIONAL RETURNS SECOND: Only return early AFTER all hooks are declared
   if (!mounted) return <div className="min-h-screen bg-[#020202]" />
+
+  const subStacks: SubStack[] = []
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
@@ -153,91 +169,24 @@ export default function StackBoardPage() {
                 <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Last Update</p>
                 <h3 className="text-3xl font-bold text-white tracking-tighter">Today</h3>
               </div>
-              <Clock size={20} className="text-neutral-700" />
           </div>
         </div>
 
         {/* 4. MAIN BOARD GRID */}
+
         <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden">
           <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex items-center gap-3">
              <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Deployment Progress Terminal</span>
           </div>
 
-          <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
-            {loading ? (
-              <div className="col-span-full py-20 text-center animate-pulse text-neutral-600 font-mono">INITIALIZING TELEMETRY...</div>
-            ) : stacks.length === 0 ? (
-              <div className="col-span-full py-20 text-center text-neutral-600 font-mono">NO ACTIVE NODES DETECTED.</div>
-            ) : stacks.map((stack) => (
-              <div key={stack.order_item_id} className={INDUSTRIAL_CARD}>
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className={ICON_CONTAINER}><Rocket size={20} /></div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{stack.name}</h2>
-                      <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest flex items-center gap-1 mt-1">
-                        <Terminal size={10} className="text-teal-500" /> {stack.type || 'Standard Module'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="px-3 py-1 rounded-lg border border-neutral-800 bg-black text-[9px] font-black uppercase tracking-widest text-teal-400">
-                    {stack.statusDisplay}
-                  </div>
-                </div>
-
-                {/* Industrial Progress Bar */}
-                <div className="mb-6">
-                  <div className="flex justify-between items-end mb-2 font-mono">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Sync Progress</span>
-                    <span className="text-sm font-black text-white">{stack.progress}%</span>
-                  </div>
-                  <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden border border-neutral-800">
-                    <div 
-                      className="bg-teal-500 h-full transition-all duration-1000 shadow-[0_0_10px_rgba(20,184,166,0.5)]"
-                      style={{ width: `${stack.progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Metadata Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-900">
-                        <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Timeline ETA</p>
-                        <p className="text-xs font-bold text-white font-mono">{formatETA(stack.eta)}</p>
-                    </div>
-                    {stack.assigned_employee && (
-                        <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-900">
-                            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Lead Operator</p>
-                            <p className="text-xs font-bold text-teal-500 flex items-center gap-1">
-                                <User size={10} /> {stack.assigned_employee.name.toUpperCase()}
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                <div className="mt-auto pt-6 border-t border-neutral-900 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-600 font-mono">
-                    <Clock size={12} /> LAST_SYNC: {formatRelativeTime(stack.updated_at)}
-                  </div>
-                  <button className="flex items-center gap-2 px-5 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-teal-500 transition-all">
-                    Ask Expert <MessageCircle size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <CanvasContainer stacks={convertedStacks} subStacks={subStacks} />
         </div>
+
 
         {/* 5. FOOTER LOGS */}
-        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden">
-          <div className="px-8 py-4 bg-black/40 flex justify-between items-center">
-            <p className="text-[10px] font-medium text-neutral-700 font-mono tracking-tighter">
-                TELEMETRY_ID: {Math.random().toString(36).substring(7).toUpperCase()}
-            </p>
-            <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[0.5em]">SYSTEM STACK TERMINAL V4.0.2</p>
-          </div>
-        </div>
+        <Footer />
+
       </main>
     </div>
   )
