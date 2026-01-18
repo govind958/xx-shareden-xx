@@ -110,32 +110,36 @@ export const Canvas: React.FC = () => {
       const supabase = createClient();
       const {data: authData, error: authError} = await supabase.auth.getUser();
       if(authError || !authData.user) throw new Error('Please sign in to purchase this stack');
+
       // 1) Save stack
       const {data: stackRow, error: stackError} = await supabase.from('stacks')
-       .insert({
-         name: clusterNode?.label || 'Custom Stack',
-         description: "Purchased from Infrastructure Stacks",
-         type: 'custom',
-         base_price: totalPrice,
-         active: true,
-       })
-      .select()
-      .single();
+        .insert({
+          name: clusterNode?.label || 'Custom Stack',
+          description: "Purchased from Infrastructure Stacks",
+          type: 'custom',
+          base_price: totalPrice,
+          author_id: authData.user.id,
+          active: true,
+        })
+        .select('id')
+        .single();
+
       if (stackError || !stackRow) {
         const details = stackError
           ? `${stackError.message}${stackError.details ? ` (${stackError.details})` : ''}`
           : 'No stack row returned.';
         throw new Error(`Failed to save stack: ${details}`);
       }
-     // 2) Save sub_stacks
-     const subStackPayload = substacks.map((node) => ({
-      stack_id: stackRow.id,
-      name: node.label,
-      price: node.base_price || 0,
-      is_free: (node.base_price || 0) === 0,
-    }));
 
-    const { data: subRows, error: subError } = await supabase
+      // 2) Save sub_stacks
+      const subStackPayload = substacks.map((node) => ({
+        stack_id: stackRow.id,
+        name: node.label,
+        price: node.base_price || 0,
+        is_free: (node.base_price || 0) === 0,
+      }));
+
+      const { data: subRows, error: subError } = await supabase
         .from('sub_stacks')
         .insert(subStackPayload)
         .select('id');
@@ -143,8 +147,10 @@ export const Canvas: React.FC = () => {
       if (subError) {
         throw subError;
       }
+
       const subStackIds = (subRows || []).map((row: { id: string }) => row.id);
-            // 3) Add to cart for checkout
+
+      // 3) Add to cart for checkout
       const { error: cartError } = await supabase.from('cart_stacks').insert({
         user_id: authData.user.id,
         stack_id: stackRow.id,
@@ -152,6 +158,7 @@ export const Canvas: React.FC = () => {
         total_price: totalPrice,
         status: 'active',
       });
+
       if (cartError) {
         throw cartError;
       }

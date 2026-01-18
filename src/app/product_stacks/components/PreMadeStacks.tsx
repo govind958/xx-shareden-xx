@@ -1,20 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Stack } from '@/src/types/product_stack';
-import { Search } from 'lucide-react'; 
+import { Search, Trash2 } from 'lucide-react'; 
+import { createClient } from '@/utils/supabase/client';
 
 interface PreMadeStacksProps {
   stacks: Stack[];
+  onDelete: (id: string) => void
 }
-
-export function PreMadeStacks({ stacks }: PreMadeStacksProps) {
+export function PreMadeStacks({ stacks , onDelete}: PreMadeStacksProps, ) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        setCurrentUserId(data.user?.id ?? null);
+      } catch {
+        setCurrentUserId(null);
+      }
+    };
+    loadUser();
+  }, []);
   const filteredStacks = stacks.filter((stack) =>
     stack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     stack.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+
 
   return (
     <section className="w-full py-12">
@@ -49,9 +65,25 @@ export function PreMadeStacks({ stacks }: PreMadeStacksProps) {
                 className="group flex flex-col justify-between p-6 h-52 rounded-xl border border-neutral-800 bg-[#020202] hover:bg-[#080808] transition-all duration-200"
               >
                 <div>
+                <div className="flex justify-between items-start">
                   <h3 className="text-neutral-200 font-medium group-hover:text-white transition-colors">
                     {stack.name}
                   </h3>
+                    {/* Delete Button for User's Own Stacks */}
+                    {stack.author_id && stack.author_id === currentUserId && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(stack.id);
+                        }}
+                        className="text-neutral-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete Template"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                  
                   <p className="mt-3 text-xs text-neutral-500 leading-relaxed line-clamp-3">
                     {stack.description || "No description provided for this template stack."}
                   </p>

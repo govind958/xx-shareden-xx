@@ -15,6 +15,11 @@ export default function ProductStacksPage() {
   const [subStacks, setSubStacks] = useState<SubStack[]>([]);
   const [mounted, setMounted] = useState(false);
 
+
+  const handleDeleteStack = (id: string) => {
+    setStacks(prev => prev.filter(t => t.id !== id));
+  };
+
   useEffect(() => {
     setMounted(true);
     async function loadStacks() {
@@ -41,7 +46,7 @@ export default function ProductStacksPage() {
         <CanvasContainer stacks={stacks} subStacks={subStacks} />
 
         {/* 2. Inserted the new section here */}
-        <PreMadeStacks stacks={stacks} />
+        <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} />
 
         <Footer />
       </main>
