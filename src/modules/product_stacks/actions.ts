@@ -14,6 +14,7 @@ export async function getStacks(): Promise<Stack[]> {
       description,
       type,
       base_price,
+      author_id,
       active,
       created_at,
       sub_stacks (

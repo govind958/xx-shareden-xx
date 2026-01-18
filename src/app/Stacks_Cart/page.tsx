@@ -6,7 +6,6 @@ import { getCartStacks, createOrderFromCart } from '@/src/modules/stack_cart/act
 import { useRouter } from 'next/navigation'
 import {
   Rocket,
-  ArrowRight,
   Loader2,
   Activity,
   Zap,
@@ -19,8 +18,6 @@ import {
 } from 'lucide-react'
 import { Stack, SubStack } from '@/src/types/Substack'
 /* ---------------- STYLE HELPERS (From Page 1) ---------------- */
-const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
-
 const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] p-6 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
 const ICON_CONTAINER = "w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
 
@@ -72,11 +69,23 @@ export default function StacksCartPage() {
     try {
       setRemovingId(cartId)
       const supabase = createClient()
+      const stackToDelete = cartStacks.find((s) => s.cart_id === cartId)
+      const stackId = stackToDelete?.id
       const { error } = await supabase.from("cart_stacks").delete().eq("id", cartId)
       if (error) throw error
+      if (stackId) {
+        const { error: orderItemsError } = await supabase.from("order_items").delete().eq("stack_id", stackId)
+        if (orderItemsError) throw orderItemsError
+
+        const { error: subStacksError } = await supabase.from("sub_stacks").delete().eq("stack_id", stackId)
+        if (subStacksError) throw subStacksError
+
+        const { error: stackDeleteError } = await supabase.from("stacks").delete().eq("id", stackId)
+        if (stackDeleteError) throw stackDeleteError
+      }
       setCartStacks(prev => prev.filter(s => s.cart_id !== cartId))
       window.dispatchEvent(new CustomEvent('stackAddedToCart')) // Refresh counters if any
-    } catch (e) {
+    } catch {
       alert("Removal sequence failed.")
     } finally {
       setRemovingId(null)
@@ -91,12 +100,13 @@ export default function StacksCartPage() {
       if (!user) return
       
       const result = await createOrderFromCart(user.id, DISCOUNT_AMOUNT)
+      console.log("result",result)
       if (result.success) {
-        router.push('/private?tab=orders')
+        router.push('/Stack_board')
       } else {
         alert(result.error)
       }
-    } catch (e) {
+    } catch {
       alert("Checkout sync failed.")
     } finally {
       setIsCreatingOrder(false)
@@ -177,15 +187,11 @@ export default function StacksCartPage() {
                <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Active Queue Terminal</span>
              </div>
-             {cartStacks.length > 0 && (
-                <button 
-                  onClick={handleCheckout}
-                  disabled={isCreatingOrder}
-                  className="px-6 py-2 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-teal-500 transition-colors flex items-center gap-2"
-                >
-                  {isCreatingOrder ? <Loader2 size={14} className="animate-spin" /> : <>Initiate Deployment <ArrowRight size={14} /></>}
-                </button>
-             )}
+            {cartStacks.length > 0 && (
+              <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
+                Ready for checkout
+              </div>
+            )}
           </div>
 
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
@@ -236,6 +242,13 @@ export default function StacksCartPage() {
                       ₹{stack.total_price.toLocaleString()}
                     </h3>
                   </div>
+                  <button 
+                    onClick={handleCheckout}
+                    disabled={isCreatingOrder}
+                    className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-black text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-all hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isCreatingOrder ? <>Processing <Loader2 size={12} className="animate-spin" /></> : <>Buy Now <CreditCard size={12} /></>}
+                  </button>
                 </div>
               </div>
             ))}

@@ -5,6 +5,7 @@ export interface SubStack {
   price: number
   is_free: boolean
   created_at: string
+  author_id: string
 }
 
 export interface Stack {
@@ -14,6 +15,7 @@ export interface Stack {
   type?: string
   base_price: number
   active: boolean
+  author_id?: string
   created_at: string
   sub_stacks?: SubStack[]     // <--- include sub_stacks here
 }
