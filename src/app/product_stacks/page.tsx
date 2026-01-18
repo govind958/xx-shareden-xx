@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getStacks } from '@/src/modules/product_stacks/actions';
+import { createClient } from '@/utils/supabase/client';
 import { Stack, SubStack } from '@/src/types/product_stack';
 import { TopNav } from './components/TopNav';
 import { PageHeader } from './components/PageHeader';
@@ -16,8 +17,35 @@ export default function ProductStacksPage() {
   const [mounted, setMounted] = useState(false);
 
 
-  const handleDeleteStack = (id: string) => {
-    setStacks(prev => prev.filter(t => t.id !== id));
+  const handleDeleteStack = async (id: string) => {
+    try {
+      const supabase = createClient();
+      const { count, error: countError } = await supabase
+        .from('order_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('stack_id', id);
+
+      if (countError) throw countError;
+      if ((count || 0) > 0) {
+        alert('This stack is already ordered and cannot be deleted.');
+        return;
+      }
+
+      const { error: cartError } = await supabase.from('cart_stacks').delete().eq('stack_id', id);
+      if (cartError) throw cartError;
+
+      const { error: subStacksError } = await supabase.from('sub_stacks').delete().eq('stack_id', id);
+      if (subStacksError) throw subStacksError;
+
+      const { error } = await supabase.from('stacks').delete().eq('id', id);
+      if (error) throw error;
+
+      setStacks(prev => prev.filter(t => t.id !== id));
+      setSubStacks(prev => prev.filter(s => s.stack_id !== id));
+    } catch (error) {
+      console.error('Error deleting stack:', error);
+      alert('Unable to delete this stack right now.');
+    }
   };
 
   useEffect(() => {

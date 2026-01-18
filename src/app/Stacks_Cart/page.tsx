@@ -6,7 +6,6 @@ import { getCartStacks, createOrderFromCart } from '@/src/modules/stack_cart/act
 import { useRouter } from 'next/navigation'
 import {
   Rocket,
-  ArrowRight,
   Loader2,
   Activity,
   Zap,
@@ -71,10 +70,17 @@ export default function StacksCartPage() {
       setRemovingId(cartId)
       const supabase = createClient()
       const stackToDelete = cartStacks.find((s) => s.cart_id === cartId)
+      const stackId = stackToDelete?.id
       const { error } = await supabase.from("cart_stacks").delete().eq("id", cartId)
       if (error) throw error
-      if (stackToDelete?.id) {
-        const { error: stackDeleteError } = await supabase.from("stacks").delete().eq("id", stackToDelete.id)
+      if (stackId) {
+        const { error: orderItemsError } = await supabase.from("order_items").delete().eq("stack_id", stackId)
+        if (orderItemsError) throw orderItemsError
+
+        const { error: subStacksError } = await supabase.from("sub_stacks").delete().eq("stack_id", stackId)
+        if (subStacksError) throw subStacksError
+
+        const { error: stackDeleteError } = await supabase.from("stacks").delete().eq("id", stackId)
         if (stackDeleteError) throw stackDeleteError
       }
       setCartStacks(prev => prev.filter(s => s.cart_id !== cartId))
@@ -94,8 +100,9 @@ export default function StacksCartPage() {
       if (!user) return
       
       const result = await createOrderFromCart(user.id, DISCOUNT_AMOUNT)
+      console.log("result",result)
       if (result.success) {
-        router.push('/private?tab=orders')
+        router.push('/Stack_board')
       } else {
         alert(result.error)
       }
@@ -180,15 +187,11 @@ export default function StacksCartPage() {
                <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Active Queue Terminal</span>
              </div>
-             {cartStacks.length > 0 && (
-                <button 
-                  onClick={handleCheckout}
-                  disabled={isCreatingOrder}
-                  className="px-6 py-2 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-teal-500 transition-colors flex items-center gap-2"
-                >
-                  {isCreatingOrder ? <Loader2 size={14} className="animate-spin" /> : <>Initiate Deployment <ArrowRight size={14} /></>}
-                </button>
-             )}
+            {cartStacks.length > 0 && (
+              <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
+                Ready for checkout
+              </div>
+            )}
           </div>
 
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
@@ -239,6 +242,13 @@ export default function StacksCartPage() {
                       ₹{stack.total_price.toLocaleString()}
                     </h3>
                   </div>
+                  <button 
+                    onClick={handleCheckout}
+                    disabled={isCreatingOrder}
+                    className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-black text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-all hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isCreatingOrder ? <>Processing <Loader2 size={12} className="animate-spin" /></> : <>Buy Now <CreditCard size={12} /></>}
+                  </button>
                 </div>
               </div>
             ))}
