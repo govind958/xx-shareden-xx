@@ -1,22 +1,19 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDnD } from '../DnDContext';
-import { CanvasNode, SavedStack } from '../types/canvas';
+import { CanvasNode } from '../types/canvas';
 import { CustomNode } from './CustomNode';
 import { ZoomControls } from './ZoomControls';
 import { useZoom } from '../hooks/useZoom';
 import { useCanvasInteractions } from '../hooks/useCanvasInteractions';
-
-interface CanvasProps {
-  onStackCreate?: (stack: SavedStack) => void;
-  onDeleteClusterRef?: React.MutableRefObject<((clusterNodeId: string) => void) | null>;
-  userName?: string;
-}
+import { createClient } from '@/utils/supabase/client';
 
 const STORAGE_KEY_CANVAS_NODES = 'product_stacks_canvas_nodes';
 
-export const Canvas: React.FC<CanvasProps> = ({ onStackCreate, onDeleteClusterRef, userName }) => {
+export const Canvas: React.FC = () => {
+  const router = useRouter();
   // Load nodes from localStorage on mount
   const [nodes, setNodes] = useState<CanvasNode[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -28,6 +25,7 @@ export const Canvas: React.FC<CanvasProps> = ({ onStackCreate, onDeleteClusterRe
     }
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [purchasingIds, setPurchasingIds] = useState<string[]>([]);
 
   // Save to localStorage whenever nodes change
   useEffect(() => {
@@ -47,6 +45,19 @@ export const Canvas: React.FC<CanvasProps> = ({ onStackCreate, onDeleteClusterRe
     onMouseMove,
     onMouseUp,
   } = useCanvasInteractions(nodes, setNodes, scale, panOffset, containerRef);
+
+  // Prevent the page from scrolling when the user scrolls over the canvas
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const preventScroll = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', preventScroll, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', preventScroll);
+    };
+  }, []);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -87,52 +98,79 @@ export const Canvas: React.FC<CanvasProps> = ({ onStackCreate, onDeleteClusterRe
     return 0;
   });
 
-  // --- Logic: Save Cluster ---
-  const handleSaveCluster = (clusterId: string) => {
+  // --- Logic: Purchase Cluster ---
+  const handlePurchaseCluster = async (clusterId: string) => {
+    if (purchasingIds.includes(clusterId)) return;
+    setPurchasingIds((prev) => [...prev, clusterId]);
+
     const clusterNode = nodes.find(n => n.id === clusterId);
     const substacks = nodes.filter(n => n.parentId === clusterId);
-    
-    // Create new Saved Stack with cluster node ID reference
-    const newStack: SavedStack = {
-      id: `saved-${Date.now()}`,
-      name: clusterNode?.label || 'Custom Stack',
-      author: userName || 'User',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      modules: substacks.map(n => ({
-        name: n.label,
-        type: n.type,
-        base_price: n.base_price || 0,
-      })),
-      clusterNodeId: clusterId, // Store reference to canvas cluster node
-    };
-
-    // Callback to parent to add to saved stacks
-    if (onStackCreate) {
-      onStackCreate(newStack);
-    }
-
-    // Mark cluster and ALL children as saved
-    setNodes(prev => prev.map(n => {
-      if (n.id === clusterId) return { ...n, isSaved: true };
-      if (n.parentId === clusterId) return { ...n, isSaved: true };
-      return n;
+    const totalPrice = substacks.reduce((sum, n) => sum + (n.base_price || 0), 0);
+    try{
+      const supabase = createClient();
+      const {data: authData, error: authError} = await supabase.auth.getUser();
+      if(authError || !authData.user) throw new Error('Please sign in to purchase this stack');
+      // 1) Save stack
+      const {data: stackRow, error: stackError} = await supabase.from('stacks')
+       .insert({
+         name: clusterNode?.label || 'Custom Stack',
+         description: "Purchased from Infrastructure Stacks",
+         type: 'custom',
+         base_price: totalPrice,
+         active: true,
+       })
+      .select()
+      .single();
+      if (stackError || !stackRow) {
+        const details = stackError
+          ? `${stackError.message}${stackError.details ? ` (${stackError.details})` : ''}`
+          : 'No stack row returned.';
+        throw new Error(`Failed to save stack: ${details}`);
+      }
+     // 2) Save sub_stacks
+     const subStackPayload = substacks.map((node) => ({
+      stack_id: stackRow.id,
+      name: node.label,
+      price: node.base_price || 0,
+      is_free: (node.base_price || 0) === 0,
     }));
+
+    const { data: subRows, error: subError } = await supabase
+        .from('sub_stacks')
+        .insert(subStackPayload)
+        .select('id');
+
+      if (subError) {
+        throw subError;
+      }
+      const subStackIds = (subRows || []).map((row: { id: string }) => row.id);
+            // 3) Add to cart for checkout
+      const { error: cartError } = await supabase.from('cart_stacks').insert({
+        user_id: authData.user.id,
+        stack_id: stackRow.id,
+        sub_stack_ids: subStackIds,
+        total_price: totalPrice,
+        status: 'active',
+      });
+      if (cartError) {
+        throw cartError;
+      }
+      // Mark cluster and ALL children as purchased
+      setNodes(prev => prev.map(n => {
+        if (n.id === clusterId) return { ...n, isSaved: true };
+        if (n.parentId === clusterId) return { ...n, isSaved: true };
+        return n;
+      }));
+
+      router.push('/Stacks_Cart');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Purchase failed.';
+      alert(message);
+    } finally {
+      setPurchasingIds((prev) => prev.filter((id) => id !== clusterId));
+    }
   };
 
-  // Expose delete function to parent via ref
-  useEffect(() => {
-    if (onDeleteClusterRef) {
-      onDeleteClusterRef.current = (clusterNodeId: string) => {
-        // Delete the cluster node and all its children
-        setNodes((prev) => prev.filter((n) => n.id !== clusterNodeId && n.parentId !== clusterNodeId));
-      };
-    }
-    return () => {
-      if (onDeleteClusterRef) {
-        onDeleteClusterRef.current = null;
-      }
-    };
-  }, [onDeleteClusterRef]);
   // Connection logic is not yet implemented in this modular canvas version.
 
   const handleRemoveSelected = () => {
@@ -177,6 +215,13 @@ export const Canvas: React.FC<CanvasProps> = ({ onStackCreate, onDeleteClusterRe
 
           if (node.parentId && !parentNode) return null;
 
+          const nodePrice =
+            node.type === 'group'
+              ? nodes
+                  .filter((n) => n.parentId === node.id)
+                  .reduce((sum, child) => sum + (child.base_price || 0), 0)
+              : node.base_price || 0;
+
           return (
             <div
               key={node.id}
@@ -200,9 +245,10 @@ export const Canvas: React.FC<CanvasProps> = ({ onStackCreate, onDeleteClusterRe
                 width={node.width}
                 height={node.height}
                 isSaved={node.isSaved}
+                price={nodePrice}
                 onResizeStart={(e) => startResize(e, node.id)}
                 onConnectStart={() => {}}
-                onSave={handleSaveCluster}
+                onBuy={handlePurchaseCluster}
               />
             </div>
           );

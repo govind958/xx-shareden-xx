@@ -1,4 +1,4 @@
-import { CheckCircle2, LayoutGrid, Lock, Save } from 'lucide-react';
+import { CheckCircle2, LayoutGrid, Lock, ShoppingCart } from 'lucide-react';
 import React from 'react';
 
 interface CustomNodeProps {
@@ -9,9 +9,10 @@ interface CustomNodeProps {
   width?: number;
   height?: number;
   isSaved?: boolean;
+  price?: number;
   onResizeStart?: (e: React.MouseEvent) => void;
   onConnectStart: (e: React.MouseEvent, id: string) => void;
-  onSave: (id: string) => void;
+  onBuy: (id: string) => void;
 }
 
 export const CustomNode: React.FC<CustomNodeProps> = ({
@@ -22,9 +23,10 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
   width,
   height,
   isSaved,
+  price,
   onResizeStart,
   onConnectStart,
-  onSave,
+  onBuy,
 }) => {
   // GROUP NODE RENDERING (Resizeable Box)
   if (type === 'group') {
@@ -53,36 +55,45 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
               isSaved ? 'text-green-500 font-bold' : 'text-neutral-400'
             }`}
           >
-            {isSaved ? 'Locked Cluster' : label}
+            {isSaved ? 'Purchased Stack' : label}
           </span>
         </div>
 
         {/* Content Area */}
         <div className="flex-grow" />
 
-        {/* Save Button Footer */}
-        <div className="p-3 flex justify-end">
+        {/* Purchase Footer */}
+        <div className="px-4 py-3 border-t border-neutral-800/50 flex items-center justify-between bg-[#050505]/50 rounded-b-xl">
+          <div>
+            <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider mb-0.5">
+              Total Estimate
+            </p>
+            <p className={`text-sm font-mono ${isSaved ? 'text-green-500' : 'text-teal-500'}`}>
+              ₹{(price || 0).toLocaleString()}
+            </p>
+          </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (!isSaved) onSave(id);
+              if (!isSaved) onBuy(id);
             }}
+            disabled={isSaved}
             className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all
+              flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all
               ${
                 isSaved
-                  ? 'bg-green-500/20 text-green-500 cursor-default'
-                  : 'bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white'
+                  ? 'bg-green-500/10 text-green-500 cursor-default border border-green-500/20'
+                  : 'bg-teal-600 text-black hover:bg-teal-500 hover:shadow-[0_0_15px_rgba(20,184,166,0.4)]'
               }
             `}
           >
             {isSaved ? (
               <>
-                Saved <CheckCircle2 size={10} />
+                Purchased <CheckCircle2 size={12} />
               </>
             ) : (
               <>
-                Save Cluster <Save size={10} />
+                Buy Stack <ShoppingCart size={12} />
               </>
             )}
           </button>
@@ -123,6 +134,13 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
         />
         <span className="text-[10px] font-bold text-white uppercase tracking-wider">{label}</span>
       </div>
+
+      {/* Price Tag for Node */}
+      {price !== undefined && price > 0 && (
+        <div className="absolute -bottom-3 right-2 bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded text-[8px] font-mono text-neutral-400">
+          ₹{price.toLocaleString()}
+        </div>
+      )}
 
       {/* Visual Connection Points (Interactive) */}
       <div

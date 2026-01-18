@@ -11,15 +11,6 @@ export interface CanvasNode {
   base_price?: number; // Price for pricing calculations
 }
 
-export interface SavedStack {
-  id: string;
-  name: string;
-  author: string;
-  timestamp: string;
-  modules: { name: string; type?: string; base_price: number }[];
-  clusterNodeId?: string; // ID of the cluster node on canvas
-}
-
 export interface InteractionState {
   mode: 'idle' | 'drag' | 'resize';
   id: string | null;

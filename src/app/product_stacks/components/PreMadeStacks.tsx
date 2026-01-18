@@ -86,7 +86,7 @@ export function PreMadeStacks({ stacks }: PreMadeStacksProps) {
           </div>
         ) : (
           <div className="py-20 text-center border border-dashed border-neutral-800 rounded-xl">
-            <p className="text-sm text-neutral-600">No templates found matching "{searchQuery}"</p>
+            <p className="text-sm text-neutral-600">No templates found matching &quot;{searchQuery}&quot;</p>
           </div>
         )}
       </div>
