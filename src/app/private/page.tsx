@@ -20,6 +20,7 @@ import ClientDashbordPage from "../ClientDashbord/page"
 import StacksPage from "../product_stacks/page"
 import StacksCartPage from "../Stacks_Cart/page"
 import StackboardPage from "../Stackboard/page"
+import OrganizationSettingsPage from "../Setting/page"
 
 /* ---------------- SIDEBAR CONTENT COMPONENT ---------------- */
 function PrivatePanelContent() {
@@ -62,7 +63,7 @@ function PrivatePanelContent() {
       case "stacks_cart": return <StacksCartPage />
       case "stackboard": return <StackboardPage />
       case "subscription": return <div className="text-neutral-500 p-10 font-mono text-xs italic tracking-widest">// BILLING_MODULE_OFFLINE</div>
-      case "settings": return <div className="text-neutral-500 p-10 font-mono text-xs italic tracking-widest">// SETTINGS_READ_ONLY</div>
+      case "settings": return <OrganizationSettingsPage />
       default: return <ClientDashbordPage />
     }
   }
