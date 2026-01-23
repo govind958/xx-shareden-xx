@@ -130,33 +130,7 @@ export default function OrganizationSettingsPage() {
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
       {/* NAVIGATION */}
-      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-teal-500 rounded flex items-center justify-center text-black"><Cpu size={18} /></div>
-            <span className="font-bold text-white tracking-tighter">NODE_OS</span>
-          </div>
-          <div className="h-6 w-px bg-neutral-800 mx-4" />
-          <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest hidden md:block">Configuration Console</div>
-        </div>
-        <div className="flex items-center gap-6">
-           {/* Navigation Tabs (Mock visual only) */}
-           <div className="flex items-center gap-1 bg-neutral-900/50 p-1 rounded-lg border border-neutral-800">
-              <button className="px-3 py-1.5 rounded-md text-xs font-medium text-neutral-500 hover:text-white transition-colors">Overview</button>
-              <button className="px-3 py-1.5 rounded-md text-xs font-medium bg-neutral-800 text-teal-500 shadow-sm border border-neutral-700/50">Settings</button>
-              <button className="px-3 py-1.5 rounded-md text-xs font-medium text-neutral-500 hover:text-white transition-colors">Billing</button>
-           </div>
-
-           <div className="h-6 w-px bg-neutral-800" />
-           
-           <div className="flex items-center gap-3">
-              <Bell size={16} className="text-neutral-600 cursor-pointer hover:text-white transition-colors" />
-              <div className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
-                <User size={14} />
-              </div>
-           </div>
-        </div>
-      </nav>
+     
 
       {/* MAIN CONTENT */}
       <main className="max-w-5xl mx-auto p-8 space-y-8">
@@ -171,10 +145,7 @@ export default function OrganizationSettingsPage() {
             </p>
           </div>
           <div className="flex gap-3">
-             <span className="text-[10px] font-mono text-neutral-600 bg-neutral-900 px-3 py-1.5 rounded border border-neutral-800 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Environment: Production
-             </span>
+             
           </div>
         </div>
 
@@ -340,18 +311,7 @@ export default function OrganizationSettingsPage() {
       </main>
       
       {/* Footer / Status Bar */}
-      <footer className="fixed bottom-0 w-full h-8 bg-[#050505] border-t border-neutral-900 flex items-center justify-between px-4 z-50">
-         <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-               <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-               <span className="text-[10px] font-mono text-teal-500 uppercase">System Online</span>
-            </div>
-            <span className="text-[10px] font-mono text-neutral-600 uppercase">Region: us-east-1</span>
-         </div>
-         <div className="text-[10px] font-mono text-neutral-600">
-            {new Date().toLocaleTimeString()}
-         </div>
-      </footer>
+     
     </div>
   );
 }
