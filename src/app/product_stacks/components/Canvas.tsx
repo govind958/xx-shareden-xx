@@ -33,7 +33,7 @@ export const Canvas: React.FC = () => {
       localStorage.setItem(STORAGE_KEY_CANVAS_NODES, JSON.stringify(nodes));
     }
   }, [nodes]);
-  
+
   const [dragItem] = useDnD();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scale, panOffset, zoomIn, zoomOut, resetZoom, handleWheel } = useZoom();
@@ -104,56 +104,116 @@ export const Canvas: React.FC = () => {
     setPurchasingIds((prev) => [...prev, clusterId]);
 
     const clusterNode = nodes.find(n => n.id === clusterId);
+    if (!clusterNode) {
+      setPurchasingIds((prev) => prev.filter((id) => id !== clusterId));
+      return;
+    }
+
     const substacks = nodes.filter(n => n.parentId === clusterId);
     const totalPrice = substacks.reduce((sum, n) => sum + (n.base_price || 0), 0);
-    try{
+
+    try {
       const supabase = createClient();
-      const {data: authData, error: authError} = await supabase.auth.getUser();
-      if(authError || !authData.user) throw new Error('Please sign in to purchase this stack');
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw new Error('Please sign in to purchase this stack');
 
-      // 1) Save stack
-      const {data: stackRow, error: stackError} = await supabase.from('stacks')
-        .insert({
-          name: clusterNode?.label || 'Custom Stack',
-          description: "Purchased from Infrastructure Stacks",
-          type: 'custom',
-          base_price: totalPrice,
-          author_id: authData.user.id,
-          active: true,
-        })
-        .select('id')
-        .single();
+      // Check for existing stack
+      const { data: existingStacks } = await supabase
+        .from('stacks')
+        .select('id, name')
+        .eq('author_id', authData.user.id)
+        .eq('name', clusterNode.label)
+        .eq('active', true);
 
-      if (stackError || !stackRow) {
-        const details = stackError
-          ? `${stackError.message}${stackError.details ? ` (${stackError.details})` : ''}`
-          : 'No stack row returned.';
-        throw new Error(`Failed to save stack: ${details}`);
+      let foundStackId: string | null = null;
+      let foundSubStackIds: string[] = [];
+
+      if (existingStacks && existingStacks.length > 0) {
+        // Check substacks for each candidate
+        for (const stack of existingStacks) {
+          const { data: existingSubStacks } = await supabase
+            .from('sub_stacks')
+            .select('id, name')
+            .eq('stack_id', stack.id);
+
+          if (existingSubStacks) {
+            // Compare logic: check if every substack in current cluster exists in db stack
+            // and same counts.
+            // Simple set comparison by sorting names?
+
+            const currentNames = substacks.map(s => s.label).sort();
+            const existingNames = existingSubStacks.map(s => s.name).sort();
+
+            const isMatch = currentNames.length === existingNames.length &&
+              currentNames.every((val, index) => val === existingNames[index]);
+
+            if (isMatch) {
+              foundStackId = stack.id;
+              foundSubStackIds = existingSubStacks.map(s => s.id);
+              break;
+            }
+          }
+        }
       }
 
-      // 2) Save sub_stacks
-      const subStackPayload = substacks.map((node) => ({
-        stack_id: stackRow.id,
-        name: node.label,
-        price: node.base_price || 0,
-        is_free: (node.base_price || 0) === 0,
-      }));
+      let stackId = foundStackId;
+      let subStackIds = foundSubStackIds;
 
-      const { data: subRows, error: subError } = await supabase
-        .from('sub_stacks')
-        .insert(subStackPayload)
-        .select('id');
+      if (!stackId) {
+        // 1) Save stack
+        const { data: stackRow, error: stackError } = await supabase.from('stacks')
+          .insert({
+            name: clusterNode.label || 'Custom Stack',
+            description: "Purchased from Infrastructure Stacks",
+            type: 'custom',
+            base_price: totalPrice,
+            author_id: authData.user.id,
+            active: true,
+          })
+          .select('id')
+          .single();
 
-      if (subError) {
-        throw subError;
+        if (stackError || !stackRow) {
+          const details = stackError
+            ? `${stackError.message}${stackError.details ? ` (${stackError.details})` : ''}`
+            : 'No stack row returned.';
+          throw new Error(`Failed to save stack: ${details}`);
+        }
+        stackId = stackRow.id;
+
+        // 2) Save sub_stacks
+        const subStackPayload = substacks.map((node) => ({
+          stack_id: stackId,
+          name: node.label,
+          price: node.base_price || 0,
+          is_free: (node.base_price || 0) === 0,
+        }));
+
+        const { data: subRows, error: subError } = await supabase
+          .from('sub_stacks')
+          .insert(subStackPayload)
+          .select('id');
+
+        if (subError) {
+          throw subError;
+        }
+
+        subStackIds = (subRows || []).map((row: { id: string }) => row.id);
       }
-
-      const subStackIds = (subRows || []).map((row: { id: string }) => row.id);
 
       // 3) Add to cart for checkout
+      // First check if already in cart? 
+      // The logic says "do not create new cluster in db". 
+      // It doesn't explicitly say "don't add to cart if already in cart", but usually that's desirable.
+      // However, if the user clicks buy again, maybe they want qty 2? 
+      // But let's assume valid flow is just adding to cart.
+
+      // We will perform the insert. If there is a constraint it might fail, but usually carts allow duplicates or separate entries.
+      // Based on typical flows, we just insert.
+
       const { error: cartError } = await supabase.from('cart_stacks').insert({
         user_id: authData.user.id,
-        stack_id: stackRow.id,
+        stack_id: stackId,
         sub_stack_ids: subStackIds,
         total_price: totalPrice,
         status: 'active',
@@ -225,8 +285,8 @@ export const Canvas: React.FC = () => {
           const nodePrice =
             node.type === 'group'
               ? nodes
-                  .filter((n) => n.parentId === node.id)
-                  .reduce((sum, child) => sum + (child.base_price || 0), 0)
+                .filter((n) => n.parentId === node.id)
+                .reduce((sum, child) => sum + (child.base_price || 0), 0)
               : node.base_price || 0;
 
           return (
@@ -254,7 +314,7 @@ export const Canvas: React.FC = () => {
                 isSaved={node.isSaved}
                 price={nodePrice}
                 onResizeStart={(e) => startResize(e, node.id)}
-                onConnectStart={() => {}}
+                onConnectStart={() => { }}
                 onBuy={handlePurchaseCluster}
               />
             </div>
