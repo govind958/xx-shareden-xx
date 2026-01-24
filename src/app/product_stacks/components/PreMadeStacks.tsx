@@ -9,6 +9,7 @@ import React from 'react';
 interface PreMadeStacksProps {
   stacks: Stack[];
   onDelete: (id: string) => void
+  onView: (stack: Stack) => void
 }
   /* ---------------- ICON MAPPING ---------------- */
   const getIconForType = (type?: string) => {
@@ -28,7 +29,7 @@ interface PreMadeStacksProps {
     };
     return typeMap[type?.toLowerCase() || ''] || Database;
   };
-export function PreMadeStacks({ stacks , onDelete}: PreMadeStacksProps, ) {
+export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, ) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [viewingStack, setViewingStack] = useState<Stack | null>(null);
@@ -58,7 +59,7 @@ export function PreMadeStacks({ stacks , onDelete}: PreMadeStacksProps, ) {
 
 
   return (
-    <section className="w-full py-12">
+    <section className="w-full">
       {/* Container - matching your page's border style */}
       <div className="border border-neutral-800 bg-[#050505]/50 rounded-2xl p-8">
         
@@ -114,48 +115,82 @@ export function PreMadeStacks({ stacks , onDelete}: PreMadeStacksProps, ) {
                   </p>
                 </div>
 
-                <div className="mt-4 flex-grow flex items-center">
-                  {/* Horizontal Stepper / Nodes Visualization */}
-                  <div className="flex items-center w-full overflow-hidden">
-                    {stack.sub_stacks?.slice(0, 4).map((sub, index) => (
-                      <React.Fragment key={sub.id}>
-                        {/* Connector Line (except first) */}
-                        {index > 0 && (
-                          <div className="h-px w-6 bg-neutral-800 flex-shrink-0" />
-                        )}
-                        
-                        {/* The Node (Circle) */}
-                        <div 
-                          className="flex-shrink-0 w-12 h-12 rounded-full border border-neutral-800 bg-[#0f0f0f] flex items-center justify-center p-1 z-10 shadow-sm hover:border-teal-500/50 transition-colors cursor-help"
-                          title={sub.name}
-                        >
-                          <span className="text-[9px] text-center font-medium text-neutral-400 leading-tight break-words w-full px-0.5">
-                            {formatSubstackName(sub.name)}
-                          </span>
+                {/* Enhanced Horizontal Stepper */}
+                <div className="mt-4 flex-grow flex items-center justify-center w-full">
+                  <div className="flex items-center justify-between w-full relative px-1">
+                    {/* Continuous Background Line */}
+                    <div className="absolute top-1/2 left-0 w-full h-px bg-neutral-800 group-hover:bg-neutral-700 transition-colors -z-0 rounded-full"></div>
+
+                    {stack.sub_stacks?.slice(0, 4).map((sub, index) => {
+                      // Uniform Teal Styling
+                      const colorStyles = { 
+                        border: 'border-teal-500/30 group-hover:border-teal-500/60', 
+                        bg: 'bg-teal-500/5 group-hover:bg-teal-500/10', 
+                        text: 'text-teal-600 group-hover:text-teal-400' 
+                      };
+
+                      return (
+                        <div key={sub.id} className="relative z-10 flex flex-col items-center">
+                          {/* Connector Line (except first) - Colored segment */}
+                          {index > 0 && (
+                             <div className="absolute top-1/2 -left-1/2 w-full h-px -z-10 bg-teal-500/20"></div>
+                          )}
+
+                          {/* The Node (Circle) */}
+                          <div 
+                            className={`w-11 h-11 rounded-full border-2 flex items-center justify-center p-0.5 shadow-sm 
+                                       transition-all duration-300 cursor-help backdrop-blur-sm
+                                       ${colorStyles.border} ${colorStyles.bg}
+                                       hover:!border-white hover:!bg-white/10 hover:scale-110 hover:shadow-[0_0_15px_rgba(20,184,166,0.3)]`}
+                            title={sub.name}
+                          >
+                            <span className={`text-[7px] text-center font-bold leading-none break-words w-full px-0.5 uppercase tracking-tight transition-colors ${colorStyles.text}`}>
+                              {formatSubstackName(sub.name)}
+                            </span>
+                          </div>
                         </div>
-                      </React.Fragment>
-                    ))}
+                      );
+                    })}
+                    
                     
                     {/* Overflow Indicator */}
                     {stack.sub_stacks && stack.sub_stacks.length > 4 && (
-                       <>
-                         <div className="h-px w-4 bg-neutral-800 flex-shrink-0" />
-                         <div className="flex-shrink-0 w-8 h-8 rounded-full border border-neutral-800 bg-[#0f0f0f] flex items-center justify-center z-10">
-                            <span className="text-[8px] text-neutral-600">+{stack.sub_stacks.length - 4}</span>
+                       <div className="relative z-10 flex flex-col items-center">
+                         <div className="w-8 h-8 rounded-full border-2 border-dashed border-neutral-700 bg-[#111] flex items-center justify-center z-10 group-hover:border-neutral-500 transition-colors">
+                            <span className="text-[9px] font-mono text-neutral-500 group-hover:text-neutral-300">+{stack.sub_stacks.length - 4}</span>
                          </div>
-                       </>
+                       </div>
                     )}
                   </div>
                 </div>
                   
-                {/* Footer with Price and Link */}
-                <div className="pt-4 border-t border-neutral-800 flex justify-between items-center">
-                  <span className="text-xs font-mono text-teal-600">₹{stack.base_price.toLocaleString()}</span>
-                  <span
+                {/* Footer with Price and Avatar Group */}
+                <div className="pt-4 border-t border-neutral-800 flex justify-between items-center mt-auto">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-teal-600 font-bold group-hover:text-teal-500">₹{stack.base_price.toLocaleString()}</span>
+                    
+                    {/* Mock Avatar Group - Larger & With Count */}
+                    <div className="flex items-center -space-x-2">
+                      {[1, 2, 3].map((_, i) => (
+                        <div key={i} className="w-6 h-6 rounded-full border-2 border-[#0a0a0a] bg-neutral-800 flex items-center justify-center relative z-0">
+                           <div className={`w-full h-full rounded-full flex items-center justify-center ${
+                             ['bg-teal-900/40 text-teal-200', 'bg-blue-900/40 text-blue-200', 'bg-purple-900/40 text-purple-200'][i]
+                           }`}>
+                             <span className="text-[8px] font-bold">U{i + 1}</span>
+                           </div>
+                        </div>
+                      ))}
+                      <div className="w-6 h-6 rounded-full border-2 border-[#0a0a0a] bg-neutral-800 flex items-center justify-center z-0">
+                        <span className="text-[8px] text-neutral-400 font-bold">+12</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span 
                     onClick={() => setViewingStack(stack)}
-                    className="text-[11px] font-medium text-neutral-500 group-hover:text-neutral-200 transition-colors cursor-pointer hover:underline"
+                    className="text-[10px] font-bold uppercase tracking-wider text-neutral-600 group-hover:text-white transition-colors cursor-pointer hover:underline decoration-teal-500 underline-offset-4"
                   >
-                    Load Template →
+                    View Details →
                   </span>
                 </div>
               </div>

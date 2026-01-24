@@ -246,6 +246,10 @@ export const Canvas: React.FC = () => {
     setSelectedId(null);
   };
 
+  const handleRenameCluster = (id: string, name: string) => {
+    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, label: name } : n)));
+  };
+
   return (
     <div
       ref={containerRef}
@@ -316,6 +320,7 @@ export const Canvas: React.FC = () => {
                 onResizeStart={(e) => startResize(e, node.id)}
                 onConnectStart={() => { }}
                 onBuy={handlePurchaseCluster}
+                onRename={handleRenameCluster}
               />
             </div>
           );

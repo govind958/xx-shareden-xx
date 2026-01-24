@@ -1,5 +1,5 @@
-import { CheckCircle2, LayoutGrid, Lock, ShoppingCart } from 'lucide-react';
-import React from 'react';
+import { CheckCircle2, LayoutGrid, Lock, Pencil, ShoppingCart } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 interface CustomNodeProps {
   id: string;
@@ -13,6 +13,7 @@ interface CustomNodeProps {
   onResizeStart?: (e: React.MouseEvent) => void;
   onConnectStart: (e: React.MouseEvent, id: string) => void;
   onBuy: (id: string) => void;
+  onRename: (id: string, name: string) => void;
 }
 
 export const CustomNode: React.FC<CustomNodeProps> = ({
@@ -27,7 +28,25 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
   onResizeStart,
   onConnectStart,
   onBuy,
+  onRename,
 }) => {
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [draftLabel, setDraftLabel] = useState(label);
+
+  useEffect(() => {
+    setDraftLabel(label);
+  }, [label]);
+
+  const commitLabel = () => {
+    const trimmed = draftLabel.trim();
+    if (trimmed && trimmed !== label) {
+      onRename(id, trimmed);
+    } else {
+      setDraftLabel(label);
+    }
+    setIsEditingLabel(false);
+  };
+
   // GROUP NODE RENDERING (Resizeable Box)
   if (type === 'group') {
     return (
@@ -50,13 +69,47 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
           ) : (
             <LayoutGrid size={12} className="text-neutral-500" />
           )}
-          <span
-            className={`text-[10px] font-mono uppercase tracking-widest ${
-              isSaved ? 'text-green-500 font-bold' : 'text-neutral-400'
-            }`}
-          >
-            {isSaved ? 'Purchased Stack' : label}
-          </span>
+          {isSaved ? (
+            <span className="text-[10px] font-mono uppercase tracking-widest text-green-500 font-bold">
+              Purchased Stack
+            </span>
+          ) : isEditingLabel ? (
+            <input
+              value={draftLabel}
+              onChange={(e) => setDraftLabel(e.target.value)}
+              onBlur={commitLabel}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commitLabel();
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setDraftLabel(label);
+                  setIsEditingLabel(false);
+                }
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-40 bg-transparent text-[10px] font-mono uppercase tracking-widest text-neutral-200 outline-none border-b border-neutral-700 focus:border-teal-500"
+              autoFocus
+            />
+          ) : (
+            <>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400">
+                {label}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditingLabel(true);
+                }}
+                className="text-neutral-500 hover:text-teal-400 transition-colors"
+                title="Rename cluster"
+              >
+                <Pencil size={10} />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Content Area */}

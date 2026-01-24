@@ -17,7 +17,7 @@ export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([]);
   const [subStacks, setSubStacks] = useState<SubStack[]>([]);
   const [mounted, setMounted] = useState(false);
-
+  const [viewingTemplate, setViewingTemplate] = useState<Stack | null>(null);
 
   const handleDeleteStack = async (id: string) => {
     try {
@@ -85,9 +85,9 @@ export default function ProductStacksPage() {
           </div>
           <div className="flex flex-grow overflow-hidden relative min-h-[520px]">
             <DnDProvider>
-              <Sidebar stacks={stacks} />
+              {/* <Sidebar stacks={stacks} /> */}
               <div className="flex-grow overflow-y-auto">
-                <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} />
+                <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} onView={setViewingTemplate as (stack: Stack) => void} />
               </div>
             </DnDProvider>
           </div>
