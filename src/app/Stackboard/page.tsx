@@ -1,244 +1,294 @@
 'use client'
 
-
-import React, { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-
+import React, { useEffect, useState } from 'react';
 import {
-  Clock,
-  Rocket,
-  Sparkles,
-  MessageCircle,
-  User,
-  ArrowRight,
-  Loader2,
   Activity,
-  Zap,
-  Bell,
   Cpu,
-  ShieldCheck,
-  Terminal,
+  Shield,
+  Wifi,
   Layers,
+  ArrowUpRight,
+  Database,
+  Lock,
+  MoreHorizontal,
+  Zap,
+  CheckCircle2,
+  Server,
+  Terminal,
+  FileText,
+  Check,
+  X,
+  Paperclip,
+  Send,
+  Globe,
+  Command
 } from 'lucide-react';
 
-import { createClient } from '@/utils/supabase/client';
-import { getOrderItemsWithProgress } from '@/src/modules/stack_board/action';
-import type { StackProgress } from '@/src/types/stack_board';
+/* ---------------- MOCK DATA ---------------- */
+const PURCHASED_STACKS = [
+  { id: 'stk-1', name: 'AUTH_PROTOCOL', type: 'SECURITY_CORE', price: 299.00, status: 'ENCRYPTED', icon: Lock },
+  { id: 'stk-2', name: 'STRIPE_GATEWAY', type: 'PAYMENT_ENGINE', price: 450.00, status: 'SYNCING', icon: Zap },
+  { id: 'stk-3', name: 'AWS_NODE_CLUSTER', type: 'INFRA_STRUCTURE', price: 1200.00, status: 'STABLE', icon: Server },
+  { id: 'stk-4', name: 'EDGE_DATABASE', type: 'STORAGE_LAYER', price: 150.00, status: 'ACTIVE', icon: Database },
+];
 
+const SYSTEM_PROGRESS = [
+  { label: 'Role_Identification', desc: 'Activist, Partner', status: 'completed' },
+  { label: 'Value_Alignment', desc: 'Alertness Protocol', status: 'completed' },
+  { label: 'Principles_Engine', desc: 'Recovery cycles for optimal cognitive performance.', status: 'completed' },
+  { label: 'Conduct_Code', desc: 'Circadian rhythm synchronization established.', status: 'completed' },
+  { label: 'Purpose_Logic', desc: 'Define primary impact vectors.', status: 'current' },
+  { label: 'Vision_Matrix', desc: 'Target architectural life state.', status: 'pending' },
+];
 
-/* ---------------- STYLE HELPERS ---------------- */
-const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
+/* ---------------- UTILS ---------------- */
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
-const INDUSTRIAL_CARD = "group relative bg-[#080808] border border-neutral-900 rounded-[24px] p-6 transition-all duration-500 hover:border-teal-500/40 hover:shadow-[0_0_40px_-15px_rgba(20,184,166,0.1)] flex flex-col h-full"
-const ICON_CONTAINER = "w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
+/* ---------------- MAIN COMPONENT ---------------- */
 
-/* ---------------- FORMATTERS ---------------- */
-const formatETA = (eta: string | null): string => {
-  if (!eta) return "PENDING"
-  try {
-    const date = new Date(eta)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase()
-  } catch { return "TBD" }
-}
-
-const formatRelativeTime = (dateString: string): string => {
-  try {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-    if (diff < 3600) return `${Math.floor(diff / 60)}M AGO`
-    if (diff < 86400) return `${Math.floor(diff / 3600)}H AGO`
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
-  } catch { return "RECENT" }
-}
-
-export default function StackBoardPage() {
-  const [stacks, setStacks] = useState<StackProgress[]>([])
-  const [loading, setLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
-  const router = useRouter()
+export default function TechNoirDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    setMounted(true)
-    async function loadOrderItems() {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return setLoading(false)
-        const data = await getOrderItemsWithProgress(user.id)
-        setStacks(data || [])
-      } catch (error) {
-        console.error(error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadOrderItems()
-  }, [])
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const loader = setTimeout(() => setLoading(false), 1500);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(loader);
+    };
+  }, []);
 
-  if (!mounted) return <div className="min-h-screen bg-[#020202]" />
+  if (loading) return <BootSequence />;
+
+  const progressPercent = 65; 
 
   return (
-    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
+    <div className="min-h-screen bg-[#020202] text-neutral-500 font-sans selection:bg-teal-500/30 overflow-x-hidden p-4 lg:p-10">
       
-      {/* 1. TOP GLOBAL NAVIGATION */}
-      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
-                <Zap size={18} fill="currentColor" />
-             </div>
-             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
-          </div>
-          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <button onClick={() => router.push('/product_stacks')} className="text-neutral-500 hover:text-neutral-200 transition">Infrastructure</button>
-            <button className="text-teal-400 border-b-2 border-teal-500 py-7">System Monitor</button>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center relative">
-            <Bell size={18} />
-          </button>
-        </div>
-      </nav>
+      {/* ATMOSPHERIC GRADIENT BLURS */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-teal-500/5 blur-[160px] rounded-full" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-teal-900/10 blur-[120px] rounded-full" />
+      </div>
 
-      <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
+      <div className="relative z-10 w-full max-w-[1700px] mx-auto space-y-8">
         
-        {/* 2. HEADER SECTION */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em] block mb-2">Live Node Tracking</span>
-            <h1 className="text-4xl font-bold text-white tracking-tight">
-                Operator: <span className="text-neutral-400">StackBoard v4.0</span>
+        {/* --- INDUSTRIAL HEADER --- */}
+        <header className="flex flex-col md:flex-row items-center justify-between bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] shadow-2xl">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 bg-teal-500 animate-pulse" />
+              <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.6em]">System_Uplink: Active</span>
+            </div>
+            <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic flex items-baseline gap-1">
+              NEXUS<span className="text-neutral-800 not-italic">.OS</span>
             </h1>
-            <p className="text-neutral-500 mt-2 flex items-center gap-2 font-mono text-sm">
-              <Activity size={14} className="text-teal-500" /> System reporting <span className="text-neutral-200 font-medium">{stacks.length} Active Deployments</span>
-            </p>
-          </div>
-          <div className="flex gap-4">
-             <div className="px-4 py-2 bg-neutral-900/50 border border-neutral-800 rounded-xl flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">All Systems Nominal</span>
-             </div>
-          </div>
-        </div>
-
-        {/* 3. SYSTEM STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
-              <div>
-                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Active Tasks</p>
-                <h3 className="text-3xl font-bold text-white tracking-tighter font-mono">{stacks.length}</h3>
-              </div>
-              <Layers size={20} className="text-neutral-700" />
-          </div>
-          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
-              <div>
-                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Average Sync</p>
-                <h3 className="text-3xl font-bold text-white tracking-tighter font-mono">74%</h3>
-              </div>
-              <Cpu size={20} className="text-neutral-700" />
-          </div>
-          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
-              <div>
-                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Security Status</p>
-                <h3 className="text-3xl font-bold text-white tracking-tighter">Verified</h3>
-              </div>
-              <ShieldCheck size={20} className="text-teal-500/50" />
-          </div>
-          <div className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] flex justify-between items-start">
-              <div>
-                <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Last Update</p>
-                <h3 className="text-3xl font-bold text-white tracking-tighter">Today</h3>
-              </div>
-              <Clock size={20} className="text-neutral-700" />
-          </div>
-        </div>
-
-        {/* 4. MAIN BOARD GRID */}
-        <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden">
-          <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex items-center gap-3">
-             <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
-             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Deployment Progress Terminal</span>
           </div>
 
-          <div className="p-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
-            {loading ? (
-              <div className="col-span-full py-20 text-center animate-pulse text-neutral-600 font-mono">INITIALIZING TELEMETRY...</div>
-            ) : stacks.length === 0 ? (
-              <div className="col-span-full py-20 text-center text-neutral-600 font-mono">NO ACTIVE NODES DETECTED.</div>
-            ) : stacks.map((stack) => (
-              <div key={stack.order_item_id} className={INDUSTRIAL_CARD}>
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className={ICON_CONTAINER}><Rocket size={20} /></div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white tracking-tight leading-tight">{stack.name}</h2>
-                      <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest flex items-center gap-1 mt-1">
-                        <Terminal size={10} className="text-teal-500" /> {stack.type || 'Standard Module'}
-                      </span>
+          <div className="flex items-center gap-12 mt-6 md:mt-0">
+            <div className="hidden xl:grid grid-cols-2 gap-x-8 gap-y-1">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-700">Latency</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-700">Timestamp</span>
+              <span className="text-[10px] font-mono text-teal-500/70">14ms</span>
+              <span className="text-[10px] font-mono text-white">{currentTime.toLocaleTimeString('en-GB')}</span>
+            </div>
+            
+            <button className="group relative overflow-hidden bg-white text-black px-10 py-4 rounded-full text-[11px] font-black uppercase tracking-[0.3em] transition-all hover:pr-14">
+               <span className="relative z-10">Initialize_Deploy</span>
+               <ArrowUpRight className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all" size={18} />
+            </button>
+          </div>
+        </header>
+
+        {/* --- TECH-STACK HORIZONTAL SCROLL / GRID --- */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {PURCHASED_STACKS.map((stack) => (
+            <StackCard key={stack.id} stack={stack} />
+          ))}
+        </section>
+
+        {/* --- PRIMARY DATA INTERFACE --- */}
+        <main className="grid grid-cols-12 gap-8 items-start">
+          
+          {/* LEFT: PROGRESS ARCHITECTURE */}
+          <aside className="col-span-12 lg:col-span-4 bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col">
+            <div className="p-8 border-b border-neutral-900">
+              <div className="flex items-center justify-between mb-8">
+                 <div className="space-y-1">
+                    <p className="text-[9px] font-black text-neutral-600 uppercase tracking-[0.5em]">Global_Status</p>
+                    <h2 className="text-white text-lg font-bold tracking-tight">System Initialization</h2>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-[10px] font-mono text-teal-500 font-bold">{progressPercent}%</p>
+                    <div className="w-24 h-1 bg-neutral-900 mt-2 overflow-hidden">
+                       <div className="h-full bg-teal-500" style={{ width: `${progressPercent}%` }} />
                     </div>
-                  </div>
-                  <div className="px-3 py-1 rounded-lg border border-neutral-800 bg-black text-[9px] font-black uppercase tracking-widest text-teal-400">
-                    {stack.statusDisplay}
-                  </div>
-                </div>
-
-                {/* Industrial Progress Bar */}
-                <div className="mb-6">
-                  <div className="flex justify-between items-end mb-2 font-mono">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Sync Progress</span>
-                    <span className="text-sm font-black text-white">{stack.progress}%</span>
-                  </div>
-                  <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden border border-neutral-800">
-                    <div 
-                      className="bg-teal-500 h-full transition-all duration-1000 shadow-[0_0_10px_rgba(20,184,166,0.5)]"
-                      style={{ width: `${stack.progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Metadata Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-900">
-                        <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Timeline ETA</p>
-                        <p className="text-xs font-bold text-white font-mono">{formatETA(stack.eta)}</p>
-                    </div>
-                    {stack.assigned_employee && (
-                        <div className="p-3 rounded-xl bg-neutral-950 border border-neutral-900">
-                            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Lead Operator</p>
-                            <p className="text-xs font-bold text-teal-500 flex items-center gap-1">
-                                <User size={10} /> {stack.assigned_employee.name.toUpperCase()}
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                <div className="mt-auto pt-6 border-t border-neutral-900 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-600 font-mono">
-                    <Clock size={12} /> LAST_SYNC: {formatRelativeTime(stack.updated_at)}
-                  </div>
-                  <button className="flex items-center gap-2 px-5 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-teal-500 transition-all">
-                    Ask Expert <MessageCircle size={14} />
-                  </button>
-                </div>
+                 </div>
               </div>
-            ))}
+
+              <div className="space-y-10 relative">
+                <div className="absolute left-[21px] top-2 bottom-2 w-[1px] bg-neutral-900" />
+                {SYSTEM_PROGRESS.map((step, idx) => (
+                  <ProgressStep key={idx} step={step} />
+                ))}
+              </div>
+            </div>
+            
+            <div className="p-6 bg-neutral-900/20 flex items-center gap-4">
+               <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
+               <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-[0.4em]">Kernel_Stream: Online</span>
+            </div>
+          </aside>
+
+          {/* RIGHT: COMMAND CENTER / MESSAGING */}
+          <div className="col-span-12 lg:col-span-8 flex flex-col gap-8">
+            <MessageDashboard />
+          </div>
+
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- REFINED SUB-COMPONENTS ---------------- */
+
+function StackCard({ stack }: { stack: any }) {
+  const Icon = stack.icon;
+  return (
+    <div className="group bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] hover:border-teal-500/30 transition-all duration-500 relative overflow-hidden">
+      <div className="flex justify-between items-start mb-12">
+        <div className="p-3 bg-neutral-900 rounded-2xl group-hover:bg-teal-500 transition-colors duration-500 group-hover:text-black text-neutral-400">
+          <Icon size={20} />
+        </div>
+        <div className="text-[9px] font-bold text-neutral-600 border border-neutral-800 px-3 py-1 rounded-full uppercase tracking-widest">
+          {stack.status}
+        </div>
+      </div>
+      
+      <div className="space-y-1">
+        <p className="text-[9px] font-black text-teal-500/60 uppercase tracking-[0.4em]">{stack.type}</p>
+        <h3 className="text-white font-black text-lg tracking-tighter uppercase">{stack.name}</h3>
+      </div>
+
+      <div className="mt-8 pt-8 border-t border-neutral-900 flex items-end justify-between">
+        <div>
+          <p className="text-[8px] font-bold text-neutral-700 uppercase tracking-[0.3em] mb-1">Architecture_Value</p>
+          <p className="text-2xl font-mono text-white font-bold tracking-tighter">${stack.price.toFixed(2)}</p>
+        </div>
+        <div className="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-600 group-hover:text-white group-hover:bg-neutral-800 transition-all">
+          <ArrowUpRight size={18} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressStep({ step }: { step: any }) {
+  const isCompleted = step.status === 'completed';
+  const isCurrent = step.status === 'current';
+
+  return (
+    <div className={cn("flex gap-6 items-start transition-opacity duration-500", !isCompleted && !isCurrent && "opacity-25")}>
+      <div className={cn(
+        "z-10 w-[42px] h-[42px] shrink-0 rounded-full flex items-center justify-center border-4 border-[#020202]",
+        isCompleted ? "bg-teal-500 text-black" : isCurrent ? "bg-neutral-900 border-teal-500/50 text-teal-500" : "bg-neutral-900 text-neutral-700"
+      )}>
+        {isCompleted ? <Check size={20} strokeWidth={4} /> : <div className={cn("w-1.5 h-1.5 rounded-full", isCurrent ? "bg-teal-500 animate-pulse" : "bg-neutral-700")} />}
+      </div>
+      <div className="space-y-1.5 pt-1">
+        <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", isCurrent ? "text-teal-500" : "text-white")}>{step.label}</p>
+        <p className="text-[11px] text-neutral-500 leading-relaxed font-medium">{step.desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function MessageDashboard() {
+  return (
+    <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[700px]">
+      <div className="p-6 border-b border-neutral-900 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
+            <Terminal size={18} />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Deployment_Console</h3>
+            <p className="text-[9px] font-mono text-neutral-600 uppercase mt-0.5">Vector: 40.7128 • 74.0060</p>
+          </div>
+        </div>
+        <MoreHorizontal className="text-neutral-700" />
+      </div>
+
+      <div className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
+        {/* Incoming File */}
+        <div className="flex flex-col gap-3 max-w-[400px]">
+          <span className="text-[9px] font-bold text-neutral-700 uppercase tracking-widest ml-1">System_Output</span>
+          <div className="bg-neutral-900/40 border border-neutral-800 p-5 rounded-3xl rounded-tl-none flex items-center gap-4">
+            <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-500">
+              <FileText size={20} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[13px] text-white font-bold">CORE_MANIFEST.JSON</p>
+              <p className="text-[10px] text-neutral-600 font-mono mt-0.5">12.8 KB • READY</p>
+            </div>
+            <button className="text-[10px] font-black text-teal-500 tracking-tighter hover:text-white transition-colors">DECODE</button>
           </div>
         </div>
 
-        {/* 5. FOOTER LOGS */}
-        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden">
-          <div className="px-8 py-4 bg-black/40 flex justify-between items-center">
-            <p className="text-[10px] font-medium text-neutral-700 font-mono tracking-tighter">
-                TELEMETRY_ID: {Math.random().toString(36).substring(7).toUpperCase()}
+        {/* Action Prompt */}
+        <div className="flex flex-col gap-3 max-w-[460px] ml-auto items-end">
+          <span className="text-[9px] font-bold text-neutral-700 uppercase tracking-widest mr-1">User_Auth_Required</span>
+          <div className="bg-neutral-900 border border-teal-500/20 p-8 rounded-[32px] rounded-tr-none text-right">
+            <p className="text-sm text-neutral-400 leading-relaxed mb-6">
+              Primary architecture requires <span className="text-white font-bold">manual override</span> for Region_Sub_04 cluster deployment. Review logic gates before execution.
             </p>
-            <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[0.5em]">SYSTEM STACK TERMINAL V4.0.2</p>
+            <div className="flex gap-4 justify-end">
+              <button className="px-8 py-3 bg-teal-500 text-black text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all">Authorize</button>
+              <button className="px-8 py-3 bg-transparent border border-neutral-800 text-neutral-500 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-neutral-800 transition-all">Abort</button>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
+
+      <div className="p-8 bg-neutral-900/30">
+        <div className="relative">
+          <input 
+            type="text" 
+            placeholder="EXECUTE COMMAND..." 
+            className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 transition-all placeholder:text-neutral-800"
+          />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-3 text-neutral-600">
+             <Command size={16} />
+             <span className="text-[10px] font-bold">ENTER</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BootSequence() {
+  return (
+    <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center font-mono">
+       <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
+          <div className="absolute inset-0 bg-teal-500 animate-loading" />
+       </div>
+       <div className="flex flex-col items-center gap-2">
+          <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Initializing Nexus.OS</p>
+          <p className="text-[8px] tracking-[0.2em] text-neutral-700 uppercase">Kernel Revision 4.2.0-Alpha</p>
+       </div>
+       <style jsx>{`
+          @keyframes loading {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(0%); }
+            100% { transform: translateX(100%); }
+          }
+          .animate-loading {
+            animation: loading 1.5s infinite ease-in-out;
+          }
+       `}</style>
     </div>
   )
 }
