@@ -10,6 +10,8 @@ import { CanvasContainer } from './components/CanvasContainer';
 import { Footer } from './components/Footer';
 // 1. Import the new component
 import { PreMadeStacks } from './components/PreMadeStacks'; 
+import { Sidebar } from './components/Sidebar';
+import { DnDProvider } from './DnDContext';
 
 export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([]);
@@ -74,7 +76,22 @@ export default function ProductStacksPage() {
         <CanvasContainer stacks={stacks} subStacks={subStacks} />
 
         {/* 2. Inserted the new section here */}
-        <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} />
+        <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden flex flex-col shadow-2xl">
+          <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Template Library</span>
+            </div>
+          </div>
+          <div className="flex flex-grow overflow-hidden relative min-h-[520px]">
+            <DnDProvider>
+              <Sidebar stacks={stacks} />
+              <div className="flex-grow overflow-y-auto">
+                <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} />
+              </div>
+            </DnDProvider>
+          </div>
+        </div>
 
         <Footer />
       </main>

@@ -2,6 +2,7 @@ export interface SubStack {
   id: string
   stack_id: string
   name: string
+  type?: string
   price: number
   is_free: boolean
   created_at: string
