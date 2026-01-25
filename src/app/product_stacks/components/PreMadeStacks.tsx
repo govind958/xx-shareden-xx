@@ -5,11 +5,11 @@ import { Stack } from '@/src/types/product_stack';
 import { ArrowRight, Search, Trash2, User,X,Clock, Users, BarChart3, LayoutGrid, Globe, Layers, Box, Database, Shield, Zap, Server, Mail, Target, LucideIcon } from 'lucide-react'; 
 import { createClient } from '@/utils/supabase/client';
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 interface PreMadeStacksProps {
   stacks: Stack[];
   onDelete: (id: string) => void
-  onView: (stack: Stack) => void
 }
   /* ---------------- ICON MAPPING ---------------- */
   const getIconForType = (type?: string) => {
@@ -29,10 +29,13 @@ interface PreMadeStacksProps {
     };
     return typeMap[type?.toLowerCase() || ''] || Database;
   };
-export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, ) {
+export function PreMadeStacks({ stacks , onDelete}: PreMadeStacksProps, ) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [viewingStack, setViewingStack] = useState<Stack | null>(null);
+  const [loadingStackId, setLoadingStackId] = useState<string | null>(null);
+  const [userCounts, setUserCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadUser = async () => {
@@ -46,6 +49,33 @@ export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, 
     };
     loadUser();
   }, []);
+
+  // Fetch user counts for each stack
+  useEffect(() => {
+    const fetchUserCounts = async () => {
+      if (stacks.length === 0) return;
+      const supabase = createClient();
+      
+      const { data } = await supabase
+        .from('order_items')
+        .select('stack_id, user_id')
+        .in('stack_id', stacks.map((s) => s.id));
+
+      const counts: Record<string, Set<string>> = {};
+      data?.forEach((item) => {
+        if (!counts[item.stack_id]) counts[item.stack_id] = new Set();
+        counts[item.stack_id].add(item.user_id);
+      });
+
+      setUserCounts(
+        Object.fromEntries(
+          Object.entries(counts).map(([id, users]) => [id, users.size])
+        )
+      );
+    };
+
+    fetchUserCounts();
+  }, [stacks]);
   const filteredStacks = stacks.filter((stack) =>
     stack.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     stack.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -55,6 +85,55 @@ export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, 
     const words = name.split(' ');
     if (words.length === 1 && name.length > 8) return name.substring(0, 8) + "..";
     return name;
+  };
+
+  const handleLoadTemplate = async (stack: Stack) => {
+    if (loadingStackId === stack.id) return;
+    setLoadingStackId(stack.id);
+    try {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+
+      if (!authData.user) {
+        alert('Please sign in to continue.');
+        return;
+      }
+
+      let subStackIds: string[] = [];
+      let totalPrice = stack.base_price || 0;
+
+      if (stack.sub_stacks && stack.sub_stacks.length > 0) {
+        subStackIds = stack.sub_stacks.map((sub) => sub.id).filter(Boolean);
+        totalPrice = stack.sub_stacks.reduce((sum, sub) => sum + (sub.price || 0), 0);
+      } else {
+        const { data: subRows, error: subError } = await supabase
+          .from('sub_stacks')
+          .select('id, price')
+          .eq('stack_id', stack.id);
+
+        if (subError) throw subError;
+        subStackIds = (subRows || []).map((row: { id: string }) => row.id);
+        if (subRows && subRows.length > 0) {
+          totalPrice = subRows.reduce((sum: number, row: { price: number }) => sum + (row.price || 0), 0);
+        }
+      }
+
+      const { error: cartError } = await supabase.from('cart_stacks').insert({
+        user_id: authData.user.id,
+        stack_id: stack.id,
+        sub_stack_ids: subStackIds,
+        total_price: totalPrice,
+        status: 'active',
+      });
+
+      if (cartError) throw cartError;
+      router.push('/Stacks_Cart');
+    } catch (error) {
+      console.error('Error loading template into cart:', error);
+      alert('Unable to add this template to cart right now.');
+    } finally {
+      setLoadingStackId(null);
+    }
   };
 
 
@@ -91,9 +170,14 @@ export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, 
                 className="group flex flex-col justify-between p-6 h-52 rounded-xl border border-neutral-800 bg-[#020202] hover:bg-[#080808] transition-all duration-200"
               >
                 <div>
-                <div className="flex justify-between items-start">
-                  <h3 className="text-neutral-200 font-medium group-hover:text-white transition-colors">
-                    {stack.name}
+                <div className="flex justify-between items-start gap-2">
+                  <h3 className="text-neutral-200 font-medium group-hover:text-white transition-colors flex-1 flex items-center gap-3 flex-wrap">
+                    <span>{stack.name}</span>
+                    {stack.type && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-teal-500 bg-teal-500/10 px-2 py-0.5 rounded">
+                        {stack.type.replace(/_/g, ' ')}
+                      </span>
+                    )}
                   </h3>
                     {/* Delete Button for User's Own Stacks */}
                     {stack.author_id && stack.author_id === currentUserId && (
@@ -169,9 +253,9 @@ export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, 
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-mono text-teal-600 font-bold group-hover:text-teal-500">₹{stack.base_price.toLocaleString()}</span>
                     
-                    {/* Mock Avatar Group - Larger & With Count */}
+                    {/* Avatar Group - User Count */}
                     <div className="flex items-center -space-x-2">
-                      {[1, 2, 3].map((_, i) => (
+                      {(userCounts[stack.id] || 0) > 0 && Array.from({ length: Math.min(userCounts[stack.id] || 0, 3) }).map((_, i) => (
                         <div key={i} className="w-6 h-6 rounded-full border-2 border-[#0a0a0a] bg-neutral-800 flex items-center justify-center relative z-0">
                            <div className={`w-full h-full rounded-full flex items-center justify-center ${
                              ['bg-teal-900/40 text-teal-200', 'bg-blue-900/40 text-blue-200', 'bg-purple-900/40 text-purple-200'][i]
@@ -180,9 +264,16 @@ export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, 
                            </div>
                         </div>
                       ))}
-                      <div className="w-6 h-6 rounded-full border-2 border-[#0a0a0a] bg-neutral-800 flex items-center justify-center z-0">
-                        <span className="text-[8px] text-neutral-400 font-bold">+12</span>
-                      </div>
+                      {(userCounts[stack.id] || 0) > 3 && (
+                        <div className="w-6 h-6 rounded-full border-2 border-[#0a0a0a] bg-neutral-800 flex items-center justify-center z-0">
+                          <span className="text-[8px] text-neutral-400 font-bold">+{(userCounts[stack.id] || 0) - 3}</span>
+                        </div>
+                      )}
+                      {(userCounts[stack.id] || 0) === 0 && (
+                        <div className="flex items-center gap-1 text-[9px] text-neutral-600">
+                          <Users size={12} /> 0
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -202,12 +293,27 @@ export function PreMadeStacks({ stacks , onDelete, onView}: PreMadeStacksProps, 
           </div>
         )}
       </div>
-      <TemplateDetailsPanel stack={viewingStack} onClose={() => setViewingStack(null)} />
+      <TemplateDetailsPanel
+        stack={viewingStack}
+        onClose={() => setViewingStack(null)}
+        onLoad={handleLoadTemplate}
+        isLoading={loadingStackId === viewingStack?.id}
+      />
     </section>
   );
 }
 
-const TemplateDetailsPanel = ({ stack, onClose }: { stack: Stack | null; onClose: () => void }) => {
+const TemplateDetailsPanel = ({
+  stack,
+  onClose,
+  onLoad,
+  isLoading,
+}: {
+  stack: Stack | null;
+  onClose: () => void;
+  onLoad: (stack: Stack) => void;
+  isLoading: boolean;
+}) => {
   if (!stack) return null;
 
   return (
@@ -280,8 +386,12 @@ const TemplateDetailsPanel = ({ stack, onClose }: { stack: Stack | null; onClose
               <span className="text-[10px] text-neutral-600">Monthly billing</span>
             </div>
           </div>
-          <button className="w-full py-3.5 bg-teal-600 hover:bg-teal-500 text-black font-bold uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(20,184,166,0.15)] hover:shadow-[0_0_30px_rgba(20,184,166,0.3)] flex items-center justify-center gap-2">
-            Load Configuration <ArrowRight size={16} />
+          <button
+            onClick={() => onLoad(stack)}
+            disabled={isLoading}
+            className="w-full py-3.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-70 text-black font-bold uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(20,184,166,0.15)] hover:shadow-[0_0_30px_rgba(20,184,166,0.3)] flex items-center justify-center gap-2"
+          >
+            {isLoading ? 'Loading...' : 'Add to Cart'} <ArrowRight size={16} />
           </button>
         </div>
       </div>
