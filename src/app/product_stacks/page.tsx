@@ -10,14 +10,12 @@ import { CanvasContainer } from './components/CanvasContainer';
 import { Footer } from './components/Footer';
 // 1. Import the new component
 import { PreMadeStacks } from './components/PreMadeStacks'; 
-import { Sidebar } from './components/Sidebar';
 import { DnDProvider } from './DnDContext';
 
 export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([]);
   const [subStacks, setSubStacks] = useState<SubStack[]>([]);
   const [mounted, setMounted] = useState(false);
-  const [viewingTemplate, setViewingTemplate] = useState<Stack | null>(null);
 
   const handleDeleteStack = async (id: string) => {
     try {
@@ -87,7 +85,7 @@ export default function ProductStacksPage() {
             <DnDProvider>
               {/* <Sidebar stacks={stacks} /> */}
               <div className="flex-grow overflow-y-auto">
-                <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} onView={setViewingTemplate as (stack: Stack) => void} />
+                <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} />
               </div>
             </DnDProvider>
           </div>
