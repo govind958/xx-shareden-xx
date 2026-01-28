@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useEffect } from "react";
+import React, { FC, useEffect, useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import Footer from "@/src/components/Footer";
 import {
@@ -11,6 +11,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Activity,
+  AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 import mixpanel from "mixpanel-browser";
 
@@ -83,7 +85,6 @@ const BillingPage: FC = () => {
 
         {/* 1. Primary Subscription Card */}
         <section className="relative overflow-hidden bg-zinc-900/20 border border-white/5 rounded-[32px] p-8 md:p-12 mb-8 backdrop-blur-sm">
-          {/* Subtle Grid Background Overlay */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0V0zm1 1h38v38H1V1z' fill='%23ffffff' fill-rule='evenodd'/%3E%3C/svg%3E")` }} />
           
           <div className="relative z-10 grid md:grid-cols-2 gap-12">
@@ -135,6 +136,107 @@ const BillingPage: FC = () => {
             <Button onClick={() => handleAction('Edit Payment')} className="bg-white text-black hover:bg-teal-500 hover:text-white rounded-none px-10 uppercase tracking-widest text-[10px] font-bold h-10 transition-all">
               Modify
             </Button>
+          </div>
+        </section>
+
+        
+       {/* ──────────────────────────────────────────── */}
+        {/* NEW: SUBSCRIPTION MANAGEMENT / CANCEL SECTION */}
+        {/* ──────────────────────────────────────────── */}
+        <section className="bg-zinc-900/10 border border-white/5 rounded-[32px] p-8 md:p-12 mb-8 backdrop-blur-sm relative overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-8">
+            <span className="text-zinc-500 text-xs uppercase tracking-[0.3em]">Subscriptions & Payments</span>
+            <ChevronRight className="w-4 h-4 text-zinc-700" />
+            <span className="text-white text-xs uppercase tracking-[0.3em] font-bold">Cancel Subscription</span>
+          </div>
+
+          <div className="space-y-6 max-w-4xl">
+            {/* Option 1: Full Cancellation */}
+            <label className="flex flex-col md:flex-row gap-6 p-6 rounded-2xl border border-white/5 bg-black/20 cursor-pointer hover:bg-zinc-800/20 transition-all group">
+              <input type="radio" name="cancel-logic" className="mt-1 w-5 h-5 accent-teal-500" />
+              <div className="flex-1">
+                <h3 className="text-white font-bold text-lg mb-2">Cancel with loss of remaining period</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed">
+                  The publication will be hidden from users and placed in the archive as soon as the action is confirmed. 
+                  The remaining period of the publication's existence will be canceled.
+                </p>
+              </div>
+            </label>
+
+            {/* Option 2: Transfer Credit (The Layout from image) */}
+            <div className="p-1 rounded-2xl bg-gradient-to-b from-teal-500/20 to-transparent">
+              <div className="flex flex-col gap-6 p-6 rounded-2xl border border-teal-500/30 bg-black/40">
+                <label className="flex gap-6 cursor-pointer">
+                  <input type="radio" name="cancel-logic" defaultChecked className="mt-1 w-5 h-5 accent-teal-500" />
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold text-lg mb-2">Apply remaining period to another publication</h3>
+                    <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
+                      The publication will be hidden from users and placed in the archive as soon as the action is confirmed.
+                      The remaining period of the publication's existence will be applied to the publication you selected.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Sub-table for Publications */}
+                <div className="overflow-x-auto rounded-xl border border-white/5 bg-zinc-900/40">
+                  <table className="w-full text-left min-w-[600px]">
+                    <thead>
+                      <tr className="text-[10px] uppercase tracking-widest text-zinc-600 border-b border-white/5">
+                        <th className="px-6 py-4">Publication Title</th>
+                        <th className="px-6 py-4">Payment</th>
+                        <th className="px-6 py-4">Next Payment</th>
+                        <th className="px-6 py-4">Auto-renewal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {[
+                        { id: '275-671-951', title: 'Opening locked doors', price: '$40,00', cycle: '3 months', next: 'November 21, 2023', days: 43, auto: false },
+                        { id: '254-904-156', title: 'Beauty Center', price: '$15,00', cycle: '1 month', next: 'October 21, 2023', days: 13, auto: true },
+                        { id: '121-475-289', title: 'Plumbing services', price: '$40,00', cycle: '3 months', next: 'December 2, 2023', days: 55, auto: false },
+                      ].map((pub, idx) => (
+                        <tr key={pub.id} className="group hover:bg-white/[0.02]">
+                          <td className="px-6 py-5">
+                            <div className="flex items-start gap-4">
+                              <input type="radio" name="pub-select" defaultChecked={idx === 0} className="mt-1 accent-teal-500" />
+                              <div>
+                                <div className="text-sm font-bold text-white">{pub.title}</div>
+                                <div className="text-[10px] text-zinc-600 font-mono">ID: {pub.id}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="text-sm text-white font-mono">{pub.price}</div>
+                            <div className="text-[10px] text-zinc-500">Every {pub.cycle}</div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="text-sm text-white">{pub.next}</div>
+                            <div className="text-[10px] text-teal-500">{pub.days} days</div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${pub.auto ? 'bg-teal-500' : 'bg-zinc-700'}`}>
+                               <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${pub.auto ? 'right-1' : 'left-1'}`} />
+                            </div>
+                            <span className="text-[10px] uppercase ml-2 text-zinc-500">{pub.auto ? 'On' : 'Off'}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-8 border-t border-white/5">
+              <Button 
+                onClick={() => handleAction('Confirm Cancel')}
+                className="bg-teal-500 hover:bg-teal-400 text-black font-bold uppercase tracking-widest text-[10px] px-10 h-12 rounded-none transition-all"
+              >
+                Cancel Subscription
+              </Button>
+             
+            </div>
           </div>
         </section>
 
