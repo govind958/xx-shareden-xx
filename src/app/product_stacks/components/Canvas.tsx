@@ -229,7 +229,7 @@ export const Canvas: React.FC = () => {
         return n;
       }));
 
-      router.push('/Stacks_Cart');
+      router.push('/private?tab=stacks_cart');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Purchase failed.';
       alert(message);

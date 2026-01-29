@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { logout } from "@/src/modules/logout/actions"
+import { useRouter, useSearchParams } from "next/navigation"
 
 // Icons
 import {
@@ -25,6 +26,8 @@ import OrganizationSettingsPage from "../Setting/page"
 
 /* ---------------- SIDEBAR CONTENT COMPONENT ---------------- */
 function PrivatePanelContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [userEmail, setUserEmail] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const [isNavigating, setIsNavigating] = useState(false)
@@ -40,6 +43,14 @@ function PrivatePanelContent() {
     })
   }, [])
 
+  // Sync activeTab with URL query param
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
   const navLinks = [
     { id: "overview", icon: Home, label: "Dashboard" },
     { id: "stacks", icon: Code, label: "Stacks" },
@@ -53,6 +64,7 @@ function PrivatePanelContent() {
     if (id === activeTab) return
     setIsNavigating(true)
     setActiveTab(id)
+    router.push(`/private?tab=${id}`, { scroll: false })
     // Visual buffer for the "system loading" feel
     setTimeout(() => setIsNavigating(false), 500)
   }
