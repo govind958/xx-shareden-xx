@@ -1,144 +1,223 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { 
   Users, Briefcase, AlertCircle, UserCheck, 
-  Activity, Layers, Search, Bell, Filter, 
-  ChevronRight, Laptop 
+  Activity, Layers, Filter, ChevronRight, 
+  X, Send, Mail, Trash2, Code2, ShieldAlert,
+  Terminal, Cpu, Globe
 } from "lucide-react"
-import { EmployeesManagement } from "./employees-management"
-import { AdminEmployeesPageProps } from "@/src/types/admin"
 
+// --- TYPES & DUMMY DATA ---
+const INITIAL_EMPLOYEES = [
+  { id: "1", name: "Alex Rivet", role: "Frontend Engineer", status: "Available", email: "alex@nexus.io", stack: ["React", "Tailwind"] },
+  { id: "2", name: "Jordan Byte", role: "Systems Architect", status: "Assigned", email: "j.byte@nexus.io", stack: ["Rust", "gRPC"] },
+  { id: "3", name: "Sam Syntax", role: "UI Designer", status: "Available", email: "sam@nexus.io", stack: ["Figma", "Framer"] },
+]
 
-export default function AdminEmployeesPage({ 
-  employees = [], 
-  assignments = [], 
-  unassignedItems = [], 
-  error 
-}: AdminEmployeesPageProps) {
-  
+const STACK_OPTIONS = ["React", "Next.js", "Node.js", "Python", "Rust", "TypeScript", "PostgreSQL"];
+
+export default function AdminEmployeesPage() {
+  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [email, setEmail] = useState("");
+
+  // --- ANALYTICS CALCULATIONS ---
+  const activeDeployments = employees.filter(e => e.status === "Assigned").length;
+  const availableUnits = employees.filter(e => e.status === "Available").length;
+  const loadFactor = ((activeDeployments / employees.length) * 100).toFixed(1);
+
   const stats = [
-    { label: "Pending Allocation", val: unassignedItems.length, icon: Briefcase, status: "Priority" },
-    { label: "Active Deployments", val: assignments.length, icon: UserCheck, status: "Live" },
-    { label: "Staff Bandwidth", val: `${employees.length} Units`, icon: Users, status: "Optimal" },
-  ]
+    { label: "Deployment Load", val: `${loadFactor}%`, icon: Cpu, status: "Active", trend: "up" },
+    { label: "Active Deployments", val: activeDeployments, icon: UserCheck, status: "Live", trend: "stable" },
+    { label: "Staff Bandwidth", val: availableUnits, icon: Users, status: "Available", trend: "stable" },
+  ];
+
+  // --- CORE ACTIONS ---
+  const handleRemove = (id: string) => {
+    setEmployees(prev => prev.filter(emp => emp.id !== id));
+  };
+
+  const handleAssignStack = (id: string) => {
+    const randomStack = STACK_OPTIONS[Math.floor(Math.random() * STACK_OPTIONS.length)];
+    setEmployees(prev => prev.map(emp => 
+      emp.id === id ? { 
+        ...emp, 
+        status: "Assigned", 
+        stack: Array.from(new Set([...emp.stack, randomStack])) 
+      } : emp
+    ));
+  };
+
+  const handleSendInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newEmp = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: email.split('@')[0].toUpperCase(),
+      role: "Core Developer",
+      status: "Available",
+      email: email,
+      stack: ["Pending..."]
+    };
+    setEmployees([newEmp, ...employees]);
+    setIsPanelOpen(false);
+    setEmail("");
+  };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
+    <div className="relative min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30 overflow-x-hidden">
       
-      {/* 1. TOP GLOBAL NAVIGATION */}
-      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
-                <Laptop size={18} />
-             </div>
-             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
-          </div>
-          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <button className="hover:text-neutral-200 transition py-7 text-neutral-500">Dashboard</button>
-            <button className="text-teal-400 border-b-2 border-teal-500 py-7">Workforce</button>
-            <button className="hover:text-neutral-200 transition py-7 text-neutral-500">Fleet Management</button>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 bg-neutral-900/50 border border-neutral-800 px-3 py-1.5 rounded-xl mr-2">
-            <Search size={14} className="text-neutral-600" />
-            <input type="text" placeholder="Search staff..." className="bg-transparent border-none outline-none text-xs w-32" />
-          </div>
-          <button className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center hover:bg-neutral-800 transition">
-            <Bell size={18} />
-          </button>
-        </div>
-      </nav>
-
-      <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
-        
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-                <span className="px-2 py-0.5 rounded bg-teal-500/10 border border-teal-500/20 text-[10px] font-black text-teal-500 uppercase tracking-widest">Resource Allocation</span>
+      {/* 1. SIDE PANEL (INVITE OVERLAY) */}
+      <div 
+        className={`fixed inset-0 bg-black/80 backdrop-blur-md z-40 transition-opacity duration-500 ${isPanelOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setIsPanelOpen(false)}
+      />
+      <aside className={`fixed right-0 top-0 h-full w-full max-w-md bg-[#080808] border-l border-neutral-900 z-50 transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isPanelOpen ? "translate-x-0" : "translate-x-full"}`}>
+        <div className="p-10 h-full flex flex-col">
+          <div className="flex justify-between items-center mb-12">
+            <div>
+              <h2 className="text-2xl font-bold text-white tracking-tighter uppercase italic">Induction <span className="text-teal-500">Node</span></h2>
+              <div className="h-1 w-12 bg-teal-500 mt-2" />
             </div>
-            <h1 className="text-4xl font-bold text-white tracking-tight">Workforce <span className="text-neutral-600">Infrastructure</span></h1>
-            <p className="text-neutral-500 mt-2 flex items-center gap-2">
-              <Activity size={14} className="text-teal-500" /> Currently monitoring <span className="text-neutral-200 font-medium">{employees.length} active human resources</span>
-            </p>
+            <button onClick={() => setIsPanelOpen(false)} className="p-2 bg-neutral-900 rounded-full text-neutral-500 hover:text-white transition"><X size={20}/></button>
           </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
-              <Filter size={14} /> Refine View
-            </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-black rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-teal-500 transition shadow-lg shadow-teal-500/10">
-              Onboard Personnel
-            </button>
-          </div>
-        </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-[11px] font-bold uppercase tracking-widest text-red-500">
-            <AlertCircle size={16} />
-            <span>Telemetry Error: {error.message}</span>
-          </div>
-        )}
-
-        {/* Technical Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {stats.map((item, i) => (
-            <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] relative overflow-hidden group hover:border-teal-500/30 transition-all duration-500">
-              <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
-                <item.icon size={48} className="text-teal-500" />
+          <form onSubmit={handleSendInvite} className="space-y-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase text-neutral-600 tracking-[0.3em]">Communication Channel</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-700 group-focus-within:text-teal-500 transition-colors" size={18} />
+                <input 
+                  required type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="USER@NETWORK.PROTOCOL"
+                  className="w-full bg-black border border-neutral-800 rounded-2xl py-5 pl-14 pr-4 text-white focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 outline-none transition-all"
+                />
               </div>
-              <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em] mb-3">{item.label}</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-2xl font-bold text-white">{item.val}</h3>
-                <span className="text-[10px] font-black text-teal-500 flex items-center gap-1 uppercase">
-                    <ChevronRight size={10} /> {item.status}
-                </span>
+            </div>
+            <button className="w-full py-5 bg-teal-600 text-black rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] hover:bg-teal-400 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-teal-900/20">
+              Execute Invitation
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <main className="max-w-[1600px] mx-auto p-8 lg:p-16 space-y-12">
+        
+        {/* 2. HEADER SECTION */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+              <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">System Operational</span>
+            </div>
+            <h1 className="text-5xl font-black text-white tracking-tighter">WORKFORCE <span className="text-neutral-800">INFRA</span></h1>
+          </div>
+          <div className="flex gap-4">
+            <button className="flex items-center gap-3 px-6 py-3 bg-neutral-900/50 border border-neutral-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
+              <Filter size={14} /> Filter Matrix
+            </button>
+            <button onClick={() => setIsPanelOpen(true)} className="flex items-center gap-3 px-8 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-400 transition-colors">
+              Add Employe
+            </button>
+          </div>
+        </header>
+
+        {/* 3. ANALYTICS GRID (RE-ADDED & ENHANCED) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {stats.map((item, i) => (
+            <div key={i} className="bg-neutral-900/20 border border-neutral-800/40 p-8 rounded-[32px] relative overflow-hidden group hover:border-teal-500/20 transition-all">
+              <div className="absolute -right-4 -top-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                <item.icon size={120} />
+              </div>
+              <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] mb-4">{item.label}</p>
+              <div className="flex items-end justify-between">
+                <h3 className="text-4xl font-bold text-white tracking-tighter">{item.val}</h3>
+                <div className="flex items-center gap-2 text-[10px] font-black text-teal-500 border border-teal-500/20 px-3 py-1 rounded-full uppercase italic">
+                  <ChevronRight size={12} /> {item.status}
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Main Content Area - Management Terminal */}
-        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden shadow-2xl">
-          <div className="px-8 py-5 bg-neutral-900/30 border-b border-neutral-900 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-                <Layers size={14} className="text-teal-500" />
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">Deployment Matrix</span>
+        {/* 4. MANAGEMENT TERMINAL (THE TABLE) */}
+        <section className="bg-black border border-neutral-900 rounded-[40px] overflow-hidden shadow-2xl">
+          <div className="px-10 py-6 bg-neutral-900/20 border-b border-neutral-900 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Terminal size={18} className="text-teal-500" />
+              <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Personnel Stack Allocation</h2>
             </div>
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold text-neutral-500 uppercase">System Ready</span>
-                </div>
-            </div>
-          </div>
-
-          <div className="p-2">
-            {/* The EmployeesManagement component should handle the internal table rendering */}
-            <EmployeesManagement
-                employees={employees}
-                assignments={assignments}
-                unassignedItems={unassignedItems}
-            />
-          </div>
-
-          {/* Table Footer / Status Bar */}
-          <div className="px-8 py-4 bg-black/40 border-t border-neutral-900 flex justify-between items-center">
-            <p className="text-[9px] font-bold text-neutral-700 uppercase tracking-widest">
-              Last Workforce Sync: {new Date().toLocaleTimeString()}
-            </p>
             <div className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-neutral-800" />
-                <div className="w-1.5 h-1.5 rounded-full bg-neutral-800" />
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+              {[1, 2, 3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-neutral-800" />)}
             </div>
           </div>
-        </div>
 
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-900/50">
+                  <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Employee ID</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Operational Stack</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Status</th>
+                  <th className="px-10 py-6 text-right text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Protocol</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-900/30">
+                {employees.map((emp) => (
+                  <tr key={emp.id} className="group hover:bg-teal-500/[0.02] transition-colors">
+                    <td className="px-10 py-8">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-bold text-neutral-100 group-hover:text-teal-500 transition-colors">/ {emp.name}</span>
+                        <span className="text-[10px] text-neutral-600 font-mono tracking-tighter">{emp.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-10 py-8">
+                      <div className="flex flex-wrap gap-2">
+                        {emp.stack.map((tech, idx) => (
+                          <span key={idx} className="bg-neutral-900 border border-neutral-800 text-[9px] font-bold px-2 py-1 rounded text-neutral-400">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-10 py-8">
+                      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${
+                        emp.status === "Available" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-500" : "bg-teal-500/5 border-teal-500/20 text-teal-500"
+                      }`}>
+                        <div className={`w-1 h-1 rounded-full ${emp.status === "Available" ? "bg-emerald-500" : "bg-teal-500 animate-pulse"}`} />
+                        <span className="text-[9px] font-black uppercase">{emp.status}</span>
+                      </div>
+                    </td>
+                    <td className="px-10 py-8 text-right">
+                      <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                        <button 
+                          onClick={() => handleAssignStack(emp.id)}
+                          className="flex items-center gap-2 px-4 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-[9px] font-bold uppercase text-teal-500 hover:bg-teal-500 hover:text-black transition-all"
+                        >
+                          <Code2 size={12} /> Assign Stack
+                        </button>
+                        <button 
+                          onClick={() => handleRemove(emp.id)}
+                          className="p-2 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-600 hover:text-red-500 hover:border-red-500/30 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <footer className="px-10 py-5 bg-black/50 border-t border-neutral-900 flex justify-between items-center">
+             <div className="flex items-center gap-4">
+                <Globe size={14} className="text-neutral-800" />
+                <p className="text-[9px] font-black text-neutral-700 uppercase tracking-[0.2em]">Regional Server: West-01 // Latency: 14ms</p>
+             </div>
+             <div className="text-[9px] font-black text-teal-900 uppercase">Ver 4.0.2-Alpha</div>
+          </footer>
+        </section>
       </main>
     </div>
   )
