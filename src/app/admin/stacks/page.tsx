@@ -4,10 +4,27 @@ import React, { useState } from "react"
 import { 
   Plus, Pencil, Trash2, X, Layers, 
   DollarSign, Activity, Hash, ArrowUpRight, Filter,
-  PlusCircle, MinusCircle, LayoutGrid
+  PlusCircle, MinusCircle, LayoutGrid, Power
 } from "lucide-react"
 
-import { Stack, Substack } from "@/src/types/admin"
+// Updated Type Definition within the file for clarity
+export type Substack = {
+  id: string
+  label: string
+  price: number
+  active: boolean // Added the boolean field
+}
+
+export type Stack = {
+  id: string
+  name: string
+  type: string
+  description: string
+  base_price: number
+  active: boolean
+  created_at: string
+  substacks: Substack[]
+}
 
 const MOCK_STACKS: Stack[] = [
   { 
@@ -19,8 +36,8 @@ const MOCK_STACKS: Stack[] = [
     active: true, 
     created_at: "2023-10-01", 
     substacks: [
-      { id: "s1", label: "Auth Module", price: 5000 }, 
-      { id: "s2", label: "DB Schema", price: 3000 }
+      { id: "s1", label: "Auth Module", price: 5000, active: true }, 
+      { id: "s2", label: "DB Schema", price: 3000, active: true }
     ] 
   },
   { id: "2", name: "Mobile App", type: "Mobile", description: "React Native & Expo", base_price: 32000, active: true, created_at: "2023-11-15", substacks: [] },
@@ -28,7 +45,7 @@ const MOCK_STACKS: Stack[] = [
 ]
 
 export default function AdminStacksPage() {
-  const [stacks] = useState<Stack[]>(MOCK_STACKS)
+  const [stacks, setStacks] = useState<Stack[]>(MOCK_STACKS)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingStack, setEditingStack] = useState<Stack | null>(null)
   
@@ -47,23 +64,23 @@ export default function AdminStacksPage() {
     setLocalSubstacks([])
   }
 
+  // Modified: Includes 'active: true' by default
   const addSubstack = () => {
-    setLocalSubstacks([...localSubstacks, { id: Date.now().toString(), label: "", price: 0 }])
+    setLocalSubstacks([...localSubstacks, { id: Date.now().toString(), label: "", price: 0, active: true }])
   }
 
   const removeSubstack = (id: string) => {
     setLocalSubstacks(localSubstacks.filter(s => s.id !== id))
   }
 
-  const updateSubstack = (id: string, field: keyof Substack, value: string | number) => {
+  // Modified: Accepts boolean values
+  const updateSubstack = (id: string, field: keyof Substack, value: string | number | boolean) => {
     setLocalSubstacks(localSubstacks.map(s => s.id === id ? { ...s, [field]: value } : s))
   }
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
       
-     
-
       <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
         
         {/* Header Section */}
@@ -116,7 +133,7 @@ export default function AdminStacksPage() {
                   <th className="px-8 py-5 text-[10px] font-black text-neutral-500 uppercase tracking-widest leading-none">
                     <div className="flex items-center gap-2"><Hash size={12}/> Stack Details</div>
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-neutral-500 uppercase tracking-widest leading-none">Stacks Name</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-neutral-500 uppercase tracking-widest leading-none">Type</th>
                   <th className="px-8 py-5 text-[10px] font-black text-neutral-500 uppercase tracking-widest leading-none">Base Price</th>
                   <th className="px-8 py-5 text-[10px] font-black text-neutral-500 uppercase tracking-widest leading-none">Status</th>
                   <th className="px-8 py-5"></th>
@@ -208,7 +225,7 @@ export default function AdminStacksPage() {
 
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Stacks Name</label>
+                      <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Stack Type</label>
                       <input defaultValue={editingStack?.type} className="w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-5 py-4 text-white focus:ring-1 ring-teal-500 outline-none transition-all" />
                     </div>
                     <div className="space-y-2">
@@ -218,7 +235,7 @@ export default function AdminStacksPage() {
                   </div>
                 </div>
 
-                {/* Architectural Substacks Section with Price */}
+                {/* Architectural Substacks Section */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between ml-1">
                     <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2">
@@ -235,12 +252,27 @@ export default function AdminStacksPage() {
                   
                   <div className="space-y-3">
                     {localSubstacks.map((sub) => (
-                      <div key={sub.id} className="flex gap-2 group animate-in fade-in zoom-in-95 duration-200">
+                      <div key={sub.id} className={`flex gap-2 group animate-in fade-in zoom-in-95 duration-200 transition-opacity ${!sub.active ? 'opacity-40' : 'opacity-100'}`}>
+                        
+                        {/* Status Toggle Button */}
+                        <button
+                          type="button"
+                          onClick={() => updateSubstack(sub.id, "active", !sub.active)}
+                          title={sub.active ? "Deactivate Node" : "Activate Node"}
+                          className={`px-3 flex items-center justify-center rounded-xl border transition-all ${
+                            sub.active 
+                              ? 'bg-teal-500/10 border-teal-500/50 text-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.1)]' 
+                              : 'bg-neutral-900 border-neutral-800 text-neutral-600'
+                          }`}
+                        >
+                          <Power size={14} className={sub.active ? "drop-shadow-[0_0_3px_#14b8a6]" : ""} />
+                        </button>
+
                         <div className="relative flex-[2]">
                           <input 
                             value={sub.label}
                             onChange={(e) => updateSubstack(sub.id, "label", e.target.value)}
-                            className="w-full bg-neutral-900/30 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:ring-1 ring-teal-500 outline-none"
+                            className="w-full bg-neutral-900/30 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 focus:ring-1 ring-teal-500 outline-none transition-all"
                             placeholder="Node Name (e.g. Auth)"
                           />
                         </div>
@@ -252,7 +284,7 @@ export default function AdminStacksPage() {
                             type="number"
                             value={sub.price}
                             onChange={(e) => updateSubstack(sub.id, "price", parseInt(e.target.value) || 0)}
-                            className="w-full bg-neutral-900/30 border border-neutral-800 rounded-xl pl-7 pr-4 py-3 text-sm text-neutral-200 font-mono focus:ring-1 ring-teal-500 outline-none"
+                            className="w-full bg-neutral-900/30 border border-neutral-800 rounded-xl pl-7 pr-4 py-3 text-sm text-neutral-200 font-mono focus:ring-1 ring-teal-500 outline-none transition-all"
                             placeholder="0"
                           />
                         </div>
@@ -275,7 +307,7 @@ export default function AdminStacksPage() {
                   </div>
                 </div>
 
-                {/* Status Toggle */}
+                {/* Main Status Toggle */}
                 <div className="p-6 rounded-[28px] bg-neutral-900/30 border border-neutral-800 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-white">Public Live Status</p>
