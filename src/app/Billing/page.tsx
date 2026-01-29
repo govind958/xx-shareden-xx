@@ -11,10 +11,12 @@ import {
   ExternalLink,
   ShieldCheck,
   Activity,
-  AlertTriangle,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import mixpanel from "mixpanel-browser";
+import { OrderWithStacks } from "@/src/types/billing";
+import { createClient } from "@/utils/supabase/client";
 
 // ────────────────────────────────────────────
 // MIXPANEL INITIALIZATION
@@ -27,44 +29,122 @@ if (typeof window !== "undefined") {
   });
 }
 
-// ────────────────────────────────────────────
-// MOCK DATA & TYPES
-// ────────────────────────────────────────────
-type BillingStatus = "Successful" | "Failed" | "Pending";
-
-interface Invoice {
-  id: string;
-  name: string;
-  amount: string;
-  date: string;
-  plan: string;
-  status: BillingStatus;
-}
-
-const INVOICE_HISTORY: Invoice[] = [
-  { id: "10", name: "INV-010_AUG_2023", amount: "648.00", date: "01 AUG 2023", plan: "PREMIUM PRO+", status: "Successful" },
-  { id: "09", name: "INV-009_JUL_2023", amount: "648.00", date: "01 JUL 2023", plan: "PREMIUM PRO+", status: "Failed" },
-  { id: "08", name: "INV-008_JUN_2023", amount: "648.00", date: "01 JUN 2023", plan: "PREMIUM PRO+", status: "Pending" },
-  { id: "07", name: "INV-007_MAY_2023", amount: "648.00", date: "01 MAY 2023", plan: "PREMIUM PRO+", status: "Successful" },
-  { id: "06", name: "INV-006_APR_2023", amount: "648.00", date: "01 APR 2023", plan: "PREMIUM PRO+", status: "Successful" },
-];
-
 const BillingPage: FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [purchasedOrders, setPurchasedOrders] = useState<OrderWithStacks[]>([]);
+
   useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
+      
+      try {
+        setLoading(true);
+        
+        // 1. Get User
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) throw new Error("User not authenticated");
+
+        // 2. Fetch Orders joined with Items and Stacks
+        const { data: ordersData, error: ordersError } = await supabase
+          .from("orders")
+          .select(`
+            id,
+            total_amount,
+            created_at,
+            order_items (
+              id,
+              stack_id,
+              status,
+              progress_percent,
+              created_at,
+              stacks (
+                id,
+                name,
+                type
+              )
+            )
+          `)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (ordersError) throw ordersError;
+
+        // 3. Transform Data for Display
+        const ordersWithStacks: OrderWithStacks[] = (ordersData || []).map((order) => {
+          const orderItems = (order.order_items as unknown) as Array<{
+            id: string;
+            stack_id: string;
+            status: string;
+            progress_percent: number;
+            created_at: string;
+            stacks: { id: string; name: string; type: string | null } | null;
+          }>;
+
+          return {
+            id: order.id,
+            total_amount: order.total_amount,
+            created_at: order.created_at,
+            stacks: (orderItems || []).map((item) => ({
+              id: item.id,
+              stack_id: item.stack_id,
+              stack_name: item.stacks?.name || "Unknown Stack",
+              stack_type: item.stacks?.type || null,
+              status: item.status || "pending",
+              progress_percent: item.progress_percent || 0,
+              created_at: item.created_at,
+              order_id: order.id,
+            })),
+          };
+        });
+
+        setPurchasedOrders(ordersWithStacks);
+
+      } catch (error) {
+        console.error("Error fetching billing data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
     mixpanel.track("Page Viewed", { page_name: "billing-settings" });
   }, []);
+
 
   const handleAction = (actionName: string) => {
     mixpanel.track("Billing Action", { action: actionName });
   };
 
-  const getStatusStyles = (status: BillingStatus) => {
-    switch (status) {
-      case "Successful": return "text-teal-500 border-teal-500/30 bg-teal-500/5";
-      case "Failed": return "text-red-400 border-red-400/30 bg-red-400/5";
-      case "Pending": return "text-zinc-500 border-zinc-500/30 bg-zinc-500/5";
-    }
+  const getStatusStyles = (status: string) => {
+    // Map your DB statuses to colors
+    const s = status.toLowerCase();
+    if (s === "successful" || s === "assigned" || s === "completed" || s === "done") return "text-teal-500 border-teal-500/30 bg-teal-500/5";
+    if (s === "failed" || s === "cancelled") return "text-red-400 border-red-400/30 bg-red-400/5";
+    if (s === "in_progress") return "text-blue-400 border-blue-400/30 bg-blue-400/5";
+    if (s === "under_review") return "text-purple-400 border-purple-400/30 bg-purple-400/5";
+    return "text-zinc-500 border-zinc-500/30 bg-zinc-500/5"; // pending, initiated, etc.
   };
+
+  const formatStackStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      initiated: 'Initiated',
+      in_progress: 'In Progress',
+      under_review: 'Under Review',
+      completed: 'Completed',
+      done: 'Done',
+      assigned: 'Assigned',
+      pending: 'Pending',
+    };
+    return statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen bg-[#020202] items-center justify-center text-zinc-400">
+        <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-col min-h-screen bg-[#020202] text-zinc-400 font-sans selection:bg-teal-500/30">
@@ -159,7 +239,7 @@ const BillingPage: FC = () => {
                 <h3 className="text-white font-bold text-lg mb-2">Cancel with loss of remaining period</h3>
                 <p className="text-sm text-zinc-500 leading-relaxed">
                   The publication will be hidden from users and placed in the archive as soon as the action is confirmed. 
-                  The remaining period of the publication's existence will be canceled.
+                  The remaining period of the publication&apos;s existence will be canceled.
                 </p>
               </div>
             </label>
@@ -173,7 +253,7 @@ const BillingPage: FC = () => {
                     <h3 className="text-white font-bold text-lg mb-2">Apply remaining period to another publication</h3>
                     <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
                       The publication will be hidden from users and placed in the archive as soon as the action is confirmed.
-                      The remaining period of the publication's existence will be applied to the publication you selected.
+                      The remaining period of the publication&apos;s existence will be applied to the publication you selected.
                     </p>
                   </div>
                 </label>
@@ -240,7 +320,7 @@ const BillingPage: FC = () => {
           </div>
         </section>
 
-        {/* 2. Billing History Table Section */}
+        {/* 2. Transaction Logs - Purchased Stacks */}
         <section className="bg-zinc-900/20 border border-white/5 rounded-[32px] overflow-hidden backdrop-blur-sm">
           <div className="p-8 border-b border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
             <h2 className="text-xs uppercase tracking-[0.5em] font-bold text-white">Transaction Logs</h2>
@@ -254,48 +334,88 @@ const BillingPage: FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 border-b border-white/5">
-                  <th className="px-8 py-6 font-bold">UID</th>
-                  <th className="px-8 py-6 font-bold">Registry</th>
-                  <th className="px-8 py-6 font-bold text-right">Credit</th>
-                  <th className="px-8 py-6 font-bold">Timestamp</th>
-                  <th className="px-8 py-6 font-bold text-center">Status</th>
-                  <th className="px-8 py-6 font-bold text-right">Access</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {INVOICE_HISTORY.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-teal-500/[0.02] transition-colors group">
-                    <td className="px-8 py-6 font-mono text-xs text-zinc-600">#{invoice.id}</td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-white tracking-tight">{invoice.name}</span>
-                        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-xs text-white font-mono text-right">USD {invoice.amount}</td>
-                    <td className="px-8 py-6 text-[10px] uppercase tracking-tighter text-zinc-500">{invoice.date}</td>
-                    <td className="px-8 py-6 text-center">
-                      <span className={`px-3 py-1 text-[9px] font-bold border uppercase tracking-widest transition-all ${getStatusStyles(invoice.status)}`}>
-                        {invoice.status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-600 hover:text-white transition-colors">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-600 hover:text-white">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
+            {purchasedOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-zinc-900/40 border border-white/5 flex items-center justify-center mb-4">
+                  <Download className="w-8 h-8 text-zinc-700" />
+                </div>
+                <h3 className="text-lg font-bold text-zinc-400 mb-2">No Transactions Yet</h3>
+                <p className="text-sm text-zinc-600">Your purchase history will appear here</p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-[0.3em] text-zinc-600 border-b border-white/5">
+                    <th className="px-8 py-6 font-bold">Order ID</th>
+                    <th className="px-8 py-6 font-bold">Stack Name</th>
+                    <th className="px-8 py-6 font-bold">Type</th>
+                    <th className="px-8 py-6 font-bold text-right">Amount</th>
+                    <th className="px-8 py-6 font-bold">Date</th>
+                    <th className="px-8 py-6 font-bold text-center">Progress</th>
+                    <th className="px-8 py-6 font-bold text-center">Status</th>
+                    <th className="px-8 py-6 font-bold text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {purchasedOrders.map((order) =>
+                    order.stacks.map((stack, index) => (
+                      <tr key={`${order.id}-${stack.id}`} className="hover:bg-teal-500/[0.02] transition-colors group">
+                        <td className="px-8 py-6 font-mono text-xs text-zinc-600">
+                          #{order.id.slice(0, 8).toUpperCase()}
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-white tracking-tight">{stack.stack_name}</span>
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="text-[10px] uppercase tracking-widest text-zinc-500">
+                            {stack.stack_type || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-xs text-white font-mono text-right">
+                          {index === 0 ? `$${order.total_amount.toFixed(2)}` : '-'}
+                        </td>
+                        <td className="px-8 py-6 text-[10px] uppercase tracking-tighter text-zinc-500">
+                          {new Date(order.created_at).toLocaleDateString('en-US', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          }).toUpperCase()}
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-teal-500 transition-all duration-500"
+                                style={{ width: `${stack.progress_percent}%` }}
+                              />
+                            </div>
+                            <span className="text-[9px] font-mono text-zinc-500 w-8 text-right">{stack.progress_percent}%</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <span className={`px-3 py-1 text-[9px] font-bold border uppercase tracking-widest transition-all ${getStatusStyles(stack.status)}`}>
+                            {formatStackStatus(stack.status)}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-600 hover:text-white transition-colors">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-600 hover:text-white">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
