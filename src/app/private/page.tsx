@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { logout } from "@/src/modules/logout/actions"
+import { useRouter, useSearchParams } from "next/navigation"
 
 // Icons
 import {
@@ -20,10 +21,13 @@ import ClientDashbordPage from "../ClientDashbord/page"
 import StacksPage from "../product_stacks/page"
 import StacksCartPage from "../Stacks_Cart/page"
 import StackboardPage from "../Stackboard/page"
+import BillingPage from "../Billing/page"
 import OrganizationSettingsPage from "../Setting/page"
 
 /* ---------------- SIDEBAR CONTENT COMPONENT ---------------- */
 function PrivatePanelContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [userEmail, setUserEmail] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const [isNavigating, setIsNavigating] = useState(false)
@@ -39,12 +43,20 @@ function PrivatePanelContent() {
     })
   }, [])
 
+  // Sync activeTab with URL query param
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
   const navLinks = [
     { id: "overview", icon: Home, label: "Dashboard" },
     { id: "stacks", icon: Code, label: "Stacks" },
     { id: "stacks_cart", icon: LucideShoppingCart, label: "Cart" },
     { id: "stackboard", icon: CircuitBoardIcon, label: "Stackboard" },
-    { id: "subscription", icon: CreditCardIcon, label: "Billing" },
+    { id: "billing", icon: CreditCardIcon, label: "Billing" },
     { id: "settings", icon: Settings, label: "Settings" },
   ]
 
@@ -52,6 +64,7 @@ function PrivatePanelContent() {
     if (id === activeTab) return
     setIsNavigating(true)
     setActiveTab(id)
+    router.push(`/private?tab=${id}`, { scroll: false })
     // Visual buffer for the "system loading" feel
     setTimeout(() => setIsNavigating(false), 500)
   }
@@ -62,7 +75,7 @@ function PrivatePanelContent() {
       case "stacks": return <StacksPage />
       case "stacks_cart": return <StacksCartPage />
       case "stackboard": return <StackboardPage />
-      case "subscription": return <div className="text-neutral-500 p-10 font-mono text-xs italic tracking-widest">// BILLING_MODULE_OFFLINE</div>
+      case "billing": return <BillingPage />
       case "settings": return <OrganizationSettingsPage />
       default: return <ClientDashbordPage />
     }
