@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { StackProgress, OrderItemRow, StackRow } from "@/src/types/stack_board";
+import { StackProgress, OrderItemRow, StackRow } from "./types";
 // -------------------------
 // MAIN FUNCTION
 // -------------------------

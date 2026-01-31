@@ -4,8 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Clock, Rocket, Sparkles, MessageCircle, User } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
-import { getOrderItemsWithProgress } from "@/src/modules/stack_board/action";
-import type { StackProgress } from "@/src/types/stack_board";
+import { getOrderItemsWithProgress, StackProgress } from "@/src/modules/stack_board";
 
 const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { CanvasNode, InteractionState } from '../types/canvas';
+import { CanvasNode, InteractionState } from '../types';
 
 export const useCanvasInteractions = (
   nodes: CanvasNode[],
