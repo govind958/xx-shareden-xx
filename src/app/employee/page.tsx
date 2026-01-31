@@ -134,6 +134,7 @@ export default function EmployeePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
       <div className="max-w-7xl mx-auto space-y-8">
+        
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold mb-2 text-neutral-50">

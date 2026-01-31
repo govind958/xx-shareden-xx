@@ -5,7 +5,7 @@ import {
   Users, Briefcase, AlertCircle, UserCheck, 
   Activity, Layers, Filter, ChevronRight, 
   X, Send, Mail, Trash2, Code2, ShieldAlert,
-  Terminal, Cpu, Globe
+  Terminal, Cpu, Globe, ExternalLink
 } from "lucide-react"
 
 // --- TYPES & DUMMY DATA ---
@@ -104,23 +104,38 @@ export default function AdminEmployeesPage() {
       <main className="max-w-[1600px] mx-auto p-8 lg:p-16 space-y-12">
         
         {/* 2. HEADER SECTION */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-              <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">System Operational</span>
-            </div>
-            <h1 className="text-5xl font-black text-white tracking-tighter">WORKFORCE <span className="text-neutral-800">INFRA</span></h1>
-          </div>
-          <div className="flex gap-4">
-            <button className="flex items-center gap-3 px-6 py-3 bg-neutral-900/50 border border-neutral-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
-              <Filter size={14} /> Filter Matrix
-            </button>
-            <button onClick={() => setIsPanelOpen(true)} className="flex items-center gap-3 px-8 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-400 transition-colors">
-              Add Employe
-            </button>
-          </div>
-        </header>
+       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+  <div className="space-y-2">
+    <div className="flex items-center gap-3">
+      <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+      <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">System Operational</span>
+    </div>
+    <h1 className="text-5xl font-black text-white tracking-tighter">WORKFORCE <span className="text-neutral-800">INFRA</span></h1>
+  </div>
+  
+  <div className="flex flex-wrap gap-4">
+    {/* Filter Button */}
+    <button className="flex items-center gap-3 px-6 py-3 bg-neutral-900/50 border border-neutral-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
+      <Filter size={14} /> Filter Matrix
+    </button>
+
+    {/* New Employee Portal Button */}
+    <button 
+      onClick={() => window.location.href = '/Employee_portal'} 
+      className="flex items-center gap-3 px-6 py-3 bg-neutral-900 border border-teal-500/30 text-teal-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-500/10 transition"
+    >
+      <ExternalLink size={14} /> Employee Portal
+    </button>
+
+    {/* Add Employee Button */}
+    <button 
+      onClick={() => setIsPanelOpen(true)} 
+      className="flex items-center gap-3 px-8 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-400 transition-colors"
+    >
+      Add Employee
+    </button>
+  </div>
+</header>
 
         {/* 3. ANALYTICS GRID (RE-ADDED & ENHANCED) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
