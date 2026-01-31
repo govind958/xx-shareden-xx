@@ -252,11 +252,31 @@ const BillingPage: FC = () => {
           </div>
 
           <div className="space-y-6 max-w-4xl">
-            <div className="p-6 rounded-2xl border border-white/5 bg-black/20">
-              <h3 className="text-white font-bold text-lg mb-2">Cancel Subscription</h3>
-              <p className="text-sm text-zinc-500 leading-relaxed mb-6">
-                Select a subscription from the table below and click cancel. The stack will be archived and the subscription will be removed immediately.
-              </p>
+            {/* Option 1: Full Cancellation */}
+            <label className="flex flex-col md:flex-row gap-6 p-6 rounded-2xl border border-white/5 bg-black/20 cursor-pointer hover:bg-zinc-800/20 transition-all group">
+              <input type="radio" name="cancel-logic" defaultChecked className="mt-1 w-5 h-5 accent-teal-500" />
+              <div className="flex-1">
+                <h3 className="text-white font-bold text-lg mb-2">Cancel with loss of remaining period</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed">
+                  The publication will be hidden from users and placed in the archive as soon as the action is confirmed. 
+                  The remaining period of the publication&apos;s existence will be canceled.
+                </p>
+              </div>
+            </label>
+
+            {/* Option 2: Transfer Credit (The Layout from image) */}
+            <div className="p-1 rounded-2xl bg-gradient-to-b from-teal-500/20 to-transparent">
+              <div className="flex flex-col gap-6 p-6 rounded-2xl border border-teal-500/30 bg-black/40">
+                <label className="flex gap-6 cursor-pointer">
+                  <input type="radio" name="cancel-logic" className="mt-1 w-5 h-5 accent-teal-500" />
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold text-lg mb-2">Apply remaining period to another publication</h3>
+                    <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
+                      The publication will be hidden from users and placed in the archive as soon as the action is confirmed.
+                      The remaining period of the publication&apos;s existence will be applied to the publication you selected.
+                    </p>
+                  </div>
+                </label>
 
                 {/* Sub-table for Publications */}
                 <div className="overflow-x-auto rounded-xl border border-white/5 bg-zinc-900/40">
@@ -328,6 +348,7 @@ const BillingPage: FC = () => {
                     </tbody>
                   </table>
                 </div>
+              </div>
             </div>
 
             {/* Action Buttons */}
