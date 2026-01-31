@@ -1,15 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getStacks } from '@/src/modules/product_stacks/actions';
+import { getStacks, Stack, SubStack } from '@/src/modules/product_stacks';
 import { createClient } from '@/utils/supabase/client';
-import { Stack, SubStack } from '@/src/types/product_stack';
-import { TopNav } from './components/TopNav';
-import { PageHeader } from './components/PageHeader';
-import { CanvasContainer } from './components/CanvasContainer';
-import { Footer } from './components/Footer';
-// 1. Import the new component
-import { PreMadeStacks } from './components/PreMadeStacks'; 
+import { TopNav, PageHeader, CanvasContainer, Footer, PreMadeStacks } from '@/src/components/product-stacks'; 
 
 export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([]);

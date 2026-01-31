@@ -1,0 +1,2 @@
+export { getIconForType } from './iconMapper';
+

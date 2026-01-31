@@ -2,8 +2,7 @@
 
 import { Sidebar } from './Sidebar';
 import { Canvas } from './Canvas';
-import { DnDProvider } from '../DnDContext';
-import { Stack, SubStack } from '@/src/types/product_stack';
+import { DnDProvider, Stack, SubStack } from '@/src/modules/product_stacks';
 
 interface CanvasContainerProps {
   stacks: Stack[];

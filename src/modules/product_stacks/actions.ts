@@ -1,5 +1,7 @@
+"use server";
+
 import { createClient } from "@/utils/supabase/client"
-import { Stack } from "@/src/types/product_stack"
+import { Stack } from "./types"
 
 // 📦 Fetch all active stacks *with* their sub_stacks
 export async function getStacks(): Promise<Stack[]> {

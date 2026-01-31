@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode } from 'react'
-import { Stack } from '@/src/types/product_stack'
+import { Stack } from '../types'
 
 interface DnDContextType {
   dragItem: Stack | null

@@ -2,12 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDnD } from '../DnDContext';
-import { CanvasNode } from '../types/canvas';
+import { useDnD, CanvasNode, useZoom, useCanvasInteractions } from '@/src/modules/product_stacks';
 import { CustomNode } from './CustomNode';
 import { ZoomControls } from './ZoomControls';
-import { useZoom } from '../hooks/useZoom';
-import { useCanvasInteractions } from '../hooks/useCanvasInteractions';
 import { createClient } from '@/utils/supabase/client';
 
 const STORAGE_KEY_CANVAS_NODES = 'product_stacks_canvas_nodes';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Stack } from '@/src/types/product_stack';
+import { Stack } from '@/src/modules/product_stacks';
 import { Search, Trash2 } from 'lucide-react'; 
 import { createClient } from '@/utils/supabase/client';
 
@@ -125,3 +125,4 @@ export function PreMadeStacks({ stacks , onDelete}: PreMadeStacksProps, ) {
     </section>
   );
 }
+

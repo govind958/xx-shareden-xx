@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { Terminal, LayoutGrid, Plus, Minus } from 'lucide-react';
-import { Stack } from '@/src/types/product_stack';
-import { useDnD } from '../DnDContext';
-import { getIconForType } from '../utils/iconMapper';
+import { Stack, useDnD, getIconForType } from '@/src/modules/product_stacks';
 
 interface SidebarProps {
   stacks: Stack[];
@@ -194,5 +192,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
     </aside>
   );
 };
-
 
