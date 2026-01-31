@@ -4,5 +4,6 @@ export type {
   SubStack,
   CanvasNode,
   InteractionState,
-  ZoomState
+  ZoomState,
+  SubscriptionLimit
 } from '@/src/types/product_stacks';

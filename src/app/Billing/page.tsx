@@ -15,8 +15,14 @@ import {
   Loader2,
 } from "lucide-react";
 import mixpanel from "mixpanel-browser";
-import { OrderWithStacks } from "@/src/types/billing";
+import { OrderWithStacks, PurchasedStack } from "@/src/types/billing";
 import { createClient } from "@/utils/supabase/client";
+import { 
+  calculateNextPayment, 
+  formatSubscriptionCycle,
+  cancelSubscription,
+  getOrdersWithStacks 
+} from "@/src/modules/billing";
 
 // ────────────────────────────────────────────
 // MIXPANEL INITIALIZATION
@@ -32,6 +38,9 @@ if (typeof window !== "undefined") {
 const BillingPage: FC = () => {
   const [loading, setLoading] = useState(true);
   const [purchasedOrders, setPurchasedOrders] = useState<OrderWithStacks[]>([]);
+  const [purchasedStacks, setPurchasedStacks] = useState<PurchasedStack[]>([]);
+  const [selectedStackToCancel, setSelectedStackToCancel] = useState<string>('');
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,60 +53,16 @@ const BillingPage: FC = () => {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) throw new Error("User not authenticated");
 
-        // 2. Fetch Orders joined with Items and Stacks
-        const { data: ordersData, error: ordersError } = await supabase
-          .from("orders")
-          .select(`
-            id,
-            total_amount,
-            created_at,
-            order_items (
-              id,
-              stack_id,
-              status,
-              progress_percent,
-              created_at,
-              stacks (
-                id,
-                name,
-                type
-              )
-            )
-          `)
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+        // 2. Fetch Orders and Stacks using module
+        const { orders, stacks } = await getOrdersWithStacks(user.id);
+        
+        setPurchasedOrders(orders);
+        setPurchasedStacks(stacks);
 
-        if (ordersError) throw ordersError;
-
-        // 3. Transform Data for Display
-        const ordersWithStacks: OrderWithStacks[] = (ordersData || []).map((order) => {
-          const orderItems = (order.order_items as unknown) as Array<{
-            id: string;
-            stack_id: string;
-            status: string;
-            progress_percent: number;
-            created_at: string;
-            stacks: { id: string; name: string; type: string | null } | null;
-          }>;
-
-          return {
-            id: order.id,
-            total_amount: order.total_amount,
-            created_at: order.created_at,
-            stacks: (orderItems || []).map((item) => ({
-              id: item.id,
-              stack_id: item.stack_id,
-              stack_name: item.stacks?.name || "Unknown Stack",
-              stack_type: item.stacks?.type || null,
-              status: item.status || "pending",
-              progress_percent: item.progress_percent || 0,
-              created_at: item.created_at,
-              order_id: order.id,
-            })),
-          };
-        });
-
-        setPurchasedOrders(ordersWithStacks);
+        // Set first stack as selected by default
+        if (stacks.length > 0 && !selectedStackToCancel) {
+          setSelectedStackToCancel(stacks[0].stack_id);
+        }
 
       } catch (error) {
         console.error("Error fetching billing data:", error);
@@ -108,6 +73,7 @@ const BillingPage: FC = () => {
 
     fetchData();
     mixpanel.track("Page Viewed", { page_name: "billing-settings" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -136,6 +102,60 @@ const BillingPage: FC = () => {
       pending: 'Pending',
     };
     return statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  // Handle cancel subscription
+  const handleCancelSubscription = async () => {
+    if (!selectedStackToCancel) {
+      alert('Please select a stack from the table');
+      return;
+    }
+
+    if (isCancelling) return;
+    
+    // Confirm before cancelling
+    if (!confirm('Are you sure you want to cancel this subscription? The stack will be archived.')) {
+      return;
+    }
+    
+    setIsCancelling(true);
+
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        alert('Please sign in to cancel subscription');
+        return;
+      }
+
+      // Use the module to cancel subscription
+      const result = await cancelSubscription(selectedStackToCancel, user.id);
+
+      if (result.success) {
+        alert(result.message);
+        
+        // Refresh data
+        const { orders, stacks } = await getOrdersWithStacks(user.id);
+        setPurchasedOrders(orders);
+        setPurchasedStacks(stacks);
+        
+        // Reset selection
+        if (stacks.length > 0) {
+          setSelectedStackToCancel(stacks[0].stack_id);
+        } else {
+          setSelectedStackToCancel('');
+        }
+      } else {
+        alert(result.message + (result.error ? `: ${result.error}` : ''));
+      }
+
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      alert('Failed to cancel subscription. Please try again.');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   if (loading) {
@@ -221,99 +241,110 @@ const BillingPage: FC = () => {
 
         
        {/* ──────────────────────────────────────────── */}
-        {/* NEW: SUBSCRIPTION MANAGEMENT / CANCEL SECTION */}
+        {/* SUBSCRIPTION MANAGEMENT / CANCEL SECTION */}
         {/* ──────────────────────────────────────────── */}
         <section className="bg-zinc-900/10 border border-white/5 rounded-[32px] p-8 md:p-12 mb-8 backdrop-blur-sm relative overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
             <span className="text-zinc-500 text-xs uppercase tracking-[0.3em]">Subscriptions & Payments</span>
             <ChevronRight className="w-4 h-4 text-zinc-700" />
-            <span className="text-white text-xs uppercase tracking-[0.3em] font-bold">Cancel Subscription</span>
+            <span className="text-white text-xs uppercase tracking-[0.3em] font-bold">Manage Subscriptions</span>
           </div>
 
           <div className="space-y-6 max-w-4xl">
-            {/* Option 1: Full Cancellation */}
-            <label className="flex flex-col md:flex-row gap-6 p-6 rounded-2xl border border-white/5 bg-black/20 cursor-pointer hover:bg-zinc-800/20 transition-all group">
-              <input type="radio" name="cancel-logic" className="mt-1 w-5 h-5 accent-teal-500" />
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-lg mb-2">Cancel with loss of remaining period</h3>
-                <p className="text-sm text-zinc-500 leading-relaxed">
-                  The publication will be hidden from users and placed in the archive as soon as the action is confirmed. 
-                  The remaining period of the publication&apos;s existence will be canceled.
-                </p>
-              </div>
-            </label>
-
-            {/* Option 2: Transfer Credit (The Layout from image) */}
-            <div className="p-1 rounded-2xl bg-gradient-to-b from-teal-500/20 to-transparent">
-              <div className="flex flex-col gap-6 p-6 rounded-2xl border border-teal-500/30 bg-black/40">
-                <label className="flex gap-6 cursor-pointer">
-                  <input type="radio" name="cancel-logic" defaultChecked className="mt-1 w-5 h-5 accent-teal-500" />
-                  <div className="flex-1">
-                    <h3 className="text-white font-bold text-lg mb-2">Apply remaining period to another publication</h3>
-                    <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
-                      The publication will be hidden from users and placed in the archive as soon as the action is confirmed.
-                      The remaining period of the publication&apos;s existence will be applied to the publication you selected.
-                    </p>
-                  </div>
-                </label>
+            <div className="p-6 rounded-2xl border border-white/5 bg-black/20">
+              <h3 className="text-white font-bold text-lg mb-2">Cancel Subscription</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed mb-6">
+                Select a subscription from the table below and click cancel. The stack will be archived and the subscription will be removed immediately.
+              </p>
 
                 {/* Sub-table for Publications */}
                 <div className="overflow-x-auto rounded-xl border border-white/5 bg-zinc-900/40">
                   <table className="w-full text-left min-w-[600px]">
                     <thead>
                       <tr className="text-[10px] uppercase tracking-widest text-zinc-600 border-b border-white/5">
-                        <th className="px-6 py-4">Publication Title</th>
+                        <th className="px-6 py-4">Stack Name</th>
                         <th className="px-6 py-4">Payment</th>
                         <th className="px-6 py-4">Next Payment</th>
                         <th className="px-6 py-4">Auto-renewal</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {[
-                        { id: '275-671-951', title: 'Opening locked doors', price: '$40,00', cycle: '3 months', next: 'November 21, 2023', days: 43, auto: false },
-                        { id: '254-904-156', title: 'Beauty Center', price: '$15,00', cycle: '1 month', next: 'October 21, 2023', days: 13, auto: true },
-                        { id: '121-475-289', title: 'Plumbing services', price: '$40,00', cycle: '3 months', next: 'December 2, 2023', days: 55, auto: false },
-                      ].map((pub, idx) => (
-                        <tr key={pub.id} className="group hover:bg-white/[0.02]">
-                          <td className="px-6 py-5">
-                            <div className="flex items-start gap-4">
-                              <input type="radio" name="pub-select" defaultChecked={idx === 0} className="mt-1 accent-teal-500" />
-                              <div>
-                                <div className="text-sm font-bold text-white">{pub.title}</div>
-                                <div className="text-[10px] text-zinc-600 font-mono">ID: {pub.id}</div>
+                      {purchasedStacks.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-12 text-center">
+                            <div className="flex flex-col items-center gap-3">
+                              <div className="w-12 h-12 rounded-full bg-zinc-900/40 border border-white/5 flex items-center justify-center">
+                                <Activity className="w-6 h-6 text-zinc-700" />
                               </div>
+                              <p className="text-sm text-zinc-600">No purchased stacks yet</p>
                             </div>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="text-sm text-white font-mono">{pub.price}</div>
-                            <div className="text-[10px] text-zinc-500">Every {pub.cycle}</div>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="text-sm text-white">{pub.next}</div>
-                            <div className="text-[10px] text-teal-500">{pub.days} days</div>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${pub.auto ? 'bg-teal-500' : 'bg-zinc-700'}`}>
-                               <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${pub.auto ? 'right-1' : 'left-1'}`} />
-                            </div>
-                            <span className="text-[10px] uppercase ml-2 text-zinc-500">{pub.auto ? 'On' : 'Off'}</span>
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        purchasedStacks.map((stack) => {
+                          const nextPayment = stack.subscription_duration 
+                            ? calculateNextPayment(stack.created_at, stack.subscription_duration)
+                            : { date: 'N/A', days: 0 };
+                          
+                          return (
+                            <tr key={stack.id} className="group hover:bg-white/[0.02]">
+                              <td className="px-6 py-5">
+                                <div className="flex items-start gap-4">
+                                  <input 
+                                    type="radio" 
+                                    name="pub-select" 
+                                    value={stack.stack_id}
+                                    checked={selectedStackToCancel === stack.stack_id}
+                                    onChange={(e) => setSelectedStackToCancel(e.target.value)}
+                                    className="mt-1 accent-teal-500" 
+                                  />
+                                  <div>
+                                    <div className="text-sm font-bold text-white">{stack.stack_name}</div>
+                                    <div className="text-[10px] text-zinc-600 font-mono">ID: {stack.stack_id.slice(0, 11).toUpperCase()}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="text-sm text-white font-mono">${stack.base_price.toFixed(2)}</div>
+                                <div className="text-[10px] text-zinc-500">
+                                  {stack.subscription_duration ? `Every ${formatSubscriptionCycle(stack.subscription_duration)}` : 'N/A'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="text-sm text-white">{nextPayment.date}</div>
+                                <div className="text-[10px] text-teal-500">{nextPayment.days} days</div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="w-10 h-5 rounded-full relative transition-colors cursor-pointer bg-zinc-700">
+                                  <div className="absolute top-1 w-3 h-3 bg-white rounded-full transition-all left-1" />
+                                </div>
+                                <span className="text-[10px] uppercase ml-2 text-zinc-500">Off</span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
-              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-8 border-t border-white/5">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-white/5">
               <Button 
-                onClick={() => handleAction('Confirm Cancel')}
-                className="bg-teal-500 hover:bg-teal-400 text-black font-bold uppercase tracking-widest text-[10px] px-10 h-12 rounded-none transition-all"
+                onClick={handleCancelSubscription}
+                disabled={isCancelling || !selectedStackToCancel}
+                className="bg-red-500 hover:bg-red-400 text-white font-bold uppercase tracking-widest text-[10px] px-10 h-12 rounded-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel Subscription
+                {isCancelling ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </span>
+                ) : (
+                  'Cancel Subscription'
+                )}
               </Button>
              
             </div>

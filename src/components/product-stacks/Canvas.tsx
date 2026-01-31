@@ -117,6 +117,7 @@ export const Canvas: React.FC = () => {
           base_price: totalPrice,
           author_id: authData.user.id,
           active: true,
+          subscription_duration: clusterNode?.subscriptionLimit || '6 month',
         })
         .select('id')
         .single();
@@ -181,6 +182,12 @@ export const Canvas: React.FC = () => {
     if (!selectedId) return;
     setNodes((prev) => prev.filter((n) => n.id !== selectedId));
     setSelectedId(null);
+  };
+
+  const handleSubscriptionChange = (id: string, limit: import('@/src/types/product_stacks').SubscriptionLimit) => {
+    setNodes((prev) => prev.map((n) => 
+      n.id === id ? { ...n, subscriptionLimit: limit } : n
+    ));
   };
 
   return (
@@ -250,9 +257,11 @@ export const Canvas: React.FC = () => {
                 height={node.height}
                 isSaved={node.isSaved}
                 price={nodePrice}
+                subscriptionLimit={node.subscriptionLimit}
                 onResizeStart={(e) => startResize(e, node.id)}
                 onConnectStart={() => {}}
                 onBuy={handlePurchaseCluster}
+                onSubscriptionChange={handleSubscriptionChange}
               />
             </div>
           );

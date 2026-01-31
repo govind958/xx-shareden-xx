@@ -1,4 +1,5 @@
 import { Stack } from "./Substack";
+import { SubscriptionLimit } from "./product_stacks";
 
 export interface UserOrder {
     id: string;
@@ -28,6 +29,8 @@ export interface PurchasedStack {
     progress_percent: number;
     created_at: string;
     order_id: string;
+    base_price: number;
+    subscription_duration?: SubscriptionLimit;
   }
 
 export interface OrderWithStacks {
