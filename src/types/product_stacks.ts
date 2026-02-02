@@ -10,6 +10,7 @@ export interface SubStack {
   is_free: boolean
   created_at: string
   author_id: string
+  type?: string
 }
 
 export interface Stack {
