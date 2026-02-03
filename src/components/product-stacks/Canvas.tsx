@@ -6,11 +6,13 @@ import { useDnD, CanvasNode, useZoom, useCanvasInteractions } from '@/src/module
 import { CustomNode } from './CustomNode';
 import { ZoomControls } from './ZoomControls';
 import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/src/context/AuthContext';
 
 const STORAGE_KEY_CANVAS_NODES = 'product_stacks_canvas_nodes';
 
 export const Canvas: React.FC = () => {
   const router = useRouter();
+  const { user } = useAuth();
   // Load nodes from localStorage on mount
   const [nodes, setNodes] = useState<CanvasNode[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -109,16 +111,20 @@ export const Canvas: React.FC = () => {
     const substacks = nodes.filter(n => n.parentId === clusterId);
     const totalPrice = substacks.reduce((sum, n) => sum + (n.base_price || 0), 0);
 
+    if (!user) {
+      alert('Please sign in to purchase this stack');
+      setPurchasingIds((prev) => prev.filter((id) => id !== clusterId));
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) throw new Error('Please sign in to purchase this stack');
 
       // Check for existing stack
       const { data: existingStacks } = await supabase
         .from('stacks')
         .select('id, name')
-        .eq('author_id', authData.user.id)
+        .eq('author_id', user.id)
         .eq('name', clusterNode.label)
         .eq('active', true);
 
@@ -164,7 +170,7 @@ export const Canvas: React.FC = () => {
             description: "Purchased from Infrastructure Stacks",
             type: 'custom',
             base_price: totalPrice,
-            author_id: authData.user.id,
+            author_id: user.id,
             active: true,
           })
           .select('id')
@@ -209,7 +215,7 @@ export const Canvas: React.FC = () => {
       // Based on typical flows, we just insert.
 
       const { error: cartError } = await supabase.from('cart_stacks').insert({
-        user_id: authData.user.id,
+        user_id: user.id,
         stack_id: stackId,
         sub_stack_ids: subStackIds,
         total_price: totalPrice,

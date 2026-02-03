@@ -16,14 +16,13 @@ import {
 } from "lucide-react";
 import mixpanel from "mixpanel-browser";
 import { OrderWithStacks, PurchasedStack } from "@/src/types/billing";
-import { createClient } from "@/utils/supabase/client";
 import { 
   calculateNextPayment, 
   formatSubscriptionCycle,
   cancelSubscription,
   getOrdersWithStacks 
 } from "@/src/modules/billing";
-
+import { useAuth } from "@/src/context/AuthContext";
 // ────────────────────────────────────────────
 // MIXPANEL INITIALIZATION
 // ────────────────────────────────────────────
@@ -36,6 +35,7 @@ if (typeof window !== "undefined") {
 }
 
 const BillingPage: FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [purchasedOrders, setPurchasedOrders] = useState<OrderWithStacks[]>([]);
   const [purchasedStacks, setPurchasedStacks] = useState<PurchasedStack[]>([]);
@@ -44,21 +44,19 @@ const BillingPage: FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const supabase = createClient();
+      if (authLoading || !user) {
+        setLoading(authLoading);
+        return;
+      }
       
       try {
         setLoading(true);
         
-        // 1. Get User
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) throw new Error("User not authenticated");
-
-        // 2. Fetch Orders and Stacks using module
+        // Fetch Orders and Stacks using module
         const { orders, stacks } = await getOrdersWithStacks(user.id);
         
         setPurchasedOrders(orders);
         setPurchasedStacks(stacks);
-
         // Set first stack as selected by default
         if (stacks.length > 0 && !selectedStackToCancel) {
           setSelectedStackToCancel(stacks[0].stack_id);
@@ -74,7 +72,7 @@ const BillingPage: FC = () => {
     fetchData();
     mixpanel.track("Page Viewed", { page_name: "billing-settings" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user, authLoading]);
 
 
   const handleAction = (actionName: string) => {
@@ -106,6 +104,10 @@ const BillingPage: FC = () => {
 
   // Handle cancel subscription
   const handleCancelSubscription = async () => {
+    if (!user) {
+      alert('Please sign in to cancel subscription');
+      return;
+    }
     if (!selectedStackToCancel) {
       alert('Please select a stack from the table');
       return;
@@ -121,14 +123,6 @@ const BillingPage: FC = () => {
     setIsCancelling(true);
 
     try {
-      const supabase = createClient();
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        alert('Please sign in to cancel subscription');
-        return;
-      }
-
       // Use the module to cancel subscription
       const result = await cancelSubscription(selectedStackToCancel, user.id);
 

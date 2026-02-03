@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { logout } from "@/src/modules/logout/actions"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useAuth } from "@/src/context/AuthContext"
 
 // Icons
 import {
@@ -28,20 +29,15 @@ import OrganizationSettingsPage from "../Setting/page"
 function PrivatePanelContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [userEmail, setUserEmail] = useState("")
+  const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [isNavigating, setIsNavigating] = useState(false)
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        window.location.href = "/login"
-      } else {
-        setUserEmail(data.user.email || "")
-      }
-    })
-  }, [])
+    if (!authLoading && !user) {
+      window.location.href = "/login"
+    }
+  }, [user, authLoading])
 
   // Sync activeTab with URL query param
   useEffect(() => {
@@ -147,11 +143,11 @@ function PrivatePanelContent() {
             </div>
             <div className="flex items-center gap-3 py-2 px-3 bg-black rounded-lg border border-neutral-800/50">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center font-bold text-black text-[10px]">
-                {userEmail ? userEmail.charAt(0).toUpperCase() : "U"}
+                {user?.email ? user.email.charAt(0).toUpperCase() : "U"}
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-neutral-300 font-bold truncate">
-                  {userEmail.split('@')[0] || "User"}
+                  {user?.email ? user.email.split('@')[0] : "User"}
                 </span>
                 <span className="text-[9px] text-neutral-600 font-mono truncate uppercase tracking-tighter">TLS 1.3 / AES-256</span>
               </div>

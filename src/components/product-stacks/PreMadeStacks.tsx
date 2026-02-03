@@ -10,6 +10,7 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/src/context/AuthContext';
 
 interface PreMadeStacksProps {
   stacks: Stack[];
@@ -37,24 +38,11 @@ const getIconForType = (type?: string) => {
 
 export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [viewingStack, setViewingStack] = useState<Stack | null>(null);
   const [loadingStackId, setLoadingStackId] = useState<string | null>(null);
   const [userCounts, setUserCounts] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setCurrentUserId(data.user?.id ?? null);
-      } catch {
-        setCurrentUserId(null);
-      }
-    };
-    loadUser();
-  }, []);
 
   useEffect(() => {
     const fetchUserCounts = async () => {
@@ -89,15 +77,15 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
 
   const handleLoadTemplate = async (stack: Stack) => {
     if (loadingStackId === stack.id) return;
+    
+    if (!user) {
+      alert('Please sign in to continue.');
+      return;
+    }
+    
     setLoadingStackId(stack.id);
     try {
       const supabase = createClient();
-      const { data: authData } = await supabase.auth.getUser();
-
-      if (!authData.user) {
-        alert('Please sign in to continue.');
-        return;
-      }
 
       let subStackIds: string[] = [];
       let totalPrice = stack.base_price || 0;
@@ -119,7 +107,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
       }
 
       const { error: cartError } = await supabase.from('cart_stacks').insert({
-        user_id: authData.user.id,
+        user_id: user.id,
         stack_id: stack.id,
         sub_stack_ids: subStackIds,
         total_price: totalPrice,
@@ -240,7 +228,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
                 {/* 4. Footer - Always Fixed at Bottom */}
                 <div className="p-6 pt-2 shrink-0">
                   <div className="flex items-center gap-2 mb-2 justify-end h-6">
-                    {stack.author_id === currentUserId && (
+                    {stack.author_id === user?.id && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDelete(stack.id); }}
                         className="p-2 text-neutral-300 hover:text-red-500 transition-colors"

@@ -4,6 +4,7 @@ import "./globals.css";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import mixpanel from "../lib/mixpanelClient";
+import { AuthProvider } from "@/src/context/AuthContext";
 
 export default function RootLayout({
   children,
@@ -21,7 +22,11 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

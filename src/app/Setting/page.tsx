@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import Image from 'next/image';
+import { useAuth } from '@/src/context/AuthContext';
 
 /* ---------------- TYPES ---------------- */
 
@@ -27,10 +28,10 @@ interface Organization {
 
 /* ---------------- SETTINGS PAGE ---------------- */
 export default function OrganizationSettingsPage() {
+  const { user, loading: authLoading } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
 
   // Mock Data State
   const [formData, setFormData] = useState<Organization>({
@@ -45,18 +46,12 @@ export default function OrganizationSettingsPage() {
   useEffect(() => {
     setMounted(true);
     const loadOrganization = async () => {
+      if (authLoading || !user) {
+        return;
+      }
+
       try {
         const supabase = createClient();
-        
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        if (!user) {
-          console.error('No user found');
-          return;
-        }
-        
-        setUserId(user.id);
         
         // Load organization for this user
         const { data, error } = await supabase
@@ -83,7 +78,7 @@ export default function OrganizationSettingsPage() {
       }
     };
     loadOrganization();
-  }, []);
+  }, [user, authLoading]);
 
   const handleChange = (field: keyof Organization, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -106,18 +101,18 @@ export default function OrganizationSettingsPage() {
             industry_type: formData.industry_type,
           })
           .eq('id', formData.id)
-          .eq('user_id', userId); // Ensure user can only update their own org
+          .eq('user_id', user.id); // Ensure user can only update their own org
         if (error) throw error;
       } else {
         // Create new organization with user_id
-        if (!userId) {
+        if (!user) {
           throw new Error('User not authenticated');
         }
         
         const { data, error } = await supabase
           .from('organizations')
           .insert({
-            user_id: userId, // ✅ Assign user_id to organization
+            user_id: user.id, // ✅ Assign user_id to organization
             org_name: formData.org_name,
             org_slug: formData.org_slug,
             company_logo: formData.company_logo,

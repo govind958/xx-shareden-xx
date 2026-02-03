@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Clock, User } from "lucide-react"
 import { Assignment } from "@/src/types/employee"
+import { useAuth } from "@/src/context/AuthContext"
 
 export default function EmployeePage() {
+  const { user, loading: authLoading } = useAuth()
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [employeeEmail, setEmployeeEmail] = useState<string>("")
@@ -15,22 +17,21 @@ export default function EmployeePage() {
 
   useEffect(() => {
     async function loadAssignments() {
+      if (authLoading) {
+        setIsLoading(true)
+        return
+      }
+
+      if (!user) {
+        console.error("User not authenticated")
+        setAssignments([])
+        setIsLoading(false)
+        return
+      }
+
       try {
         setIsLoading(true)
         const supabase = createClient()
-
-        // Get current user (employee)
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser()
-
-        if (authError || !user) {
-          console.error("Error getting user:", authError)
-          setAssignments([])
-          setIsLoading(false)
-          return
-        }
 
         setEmployeeEmail(user.email || "")
 

@@ -81,16 +81,13 @@ export async function getOrdersWithStacks(
 
   // Extract unique stacks for subscription table
   const uniqueStacks: PurchasedStack[] = [];
-  const seenStackIds = new Set<string>();
+  // const seenStackIds = new Set<string>();
 
   ordersWithStacks.forEach((order) => {
     order.stacks.forEach((stack) => {
-      if (!seenStackIds.has(stack.stack_id) && stack.subscription_duration) {
-        seenStackIds.add(stack.stack_id);
         uniqueStacks.push(stack);
-      }
+      })
     });
-  });
 
   return {
     orders: ordersWithStacks,

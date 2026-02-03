@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { Clock, Rocket, Sparkles, MessageCircle, User } from "lucide-react";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
+
 import { getOrderItemsWithProgress, StackProgress } from "@/src/modules/stack_board";
+import { useAuth } from "@/src/context/AuthContext";
 
 const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 
@@ -115,6 +116,7 @@ const ShimmerCard = ({ glass }: { glass: string }) => {
 
 
 export default function StackBoardPage() {
+  const { user, loading: authLoading } = useAuth();
   const [stacks, setStacks] = useState<StackProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -124,20 +126,21 @@ export default function StackBoardPage() {
 
   useEffect(() => {
     async function loadOrderItems() {
+      if (authLoading) {
+        setIsLoading(true);
+        return;
+      }
+
+      if (!user) {
+        console.error('User not authenticated');
+        setStacks([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setErrorMessage(null);
-        const supabase = createClient();
-        
-        // Get current user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError || !user) {
-          console.error('Error getting user:', authError);
-          setStacks([]);
-          setIsLoading(false);
-          return;
-        }
 
         // Fetch order items with progress
         const orderItemsData = await getOrderItemsWithProgress(user.id);
@@ -152,7 +155,7 @@ export default function StackBoardPage() {
     }
 
     loadOrderItems();
-  }, []);
+  }, [user, authLoading]);
 
   // Show shimmer effect while loading
   if (isLoading) {

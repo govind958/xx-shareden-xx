@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/src/context/AuthContext';
 import {
   Lock,
   Check,
@@ -35,6 +36,7 @@ interface CartStack {
 
 export default function TechNoirCheckout() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [cartStacks, setCartStacks] = useState<CartStack[]>([]);
   const [activeCartId, setActiveCartId] = useState<string | null>(null);
@@ -45,22 +47,27 @@ export default function TechNoirCheckout() {
 
   useEffect(() => {
     const fetchCartStacks = async () => {
+      if (authLoading) {
+        setLoading(true);
+        return;
+      }
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const supabase = createClient();
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) {
-          setLoading(false);
-          return;
-        }
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('name')
-          .eq('user_id', userData.user.id)
+          .eq('user_id', user.id)
           .single();
         const { data: organizationData, error: organizationError } = await supabase
           .from('organizations')
           .select('org_name')
-          .eq('user_id', userData.user.id)
+          .eq('user_id', user.id)
           .single();
         if (organizationError) {
           console.error('Error fetching organization:', organizationError);
@@ -71,7 +78,7 @@ export default function TechNoirCheckout() {
         
         // Combine profile data with email from auth
         setProfileData({
-          email: userData.user.email,
+          email: user.email || undefined,
           name: profileData?.name || ''
         });
         setOrganizationData({ name: organizationData?.org_name || '' });
@@ -91,7 +98,7 @@ export default function TechNoirCheckout() {
               description
             )
           `)
-          .eq('user_id', userData.user.id)
+          .eq('user_id', user.id)
           .eq('status', 'active');
 
         if (cartItems) {
@@ -132,7 +139,7 @@ export default function TechNoirCheckout() {
     };
 
     fetchCartStacks();
-  }, []);
+  }, [user, authLoading]);
 
   // Set active cart item to first item when cart loads
   useEffect(() => {
@@ -167,14 +174,14 @@ export default function TechNoirCheckout() {
     if (isCheckingOut || cartStacks.length === 0) return;
     setIsCheckingOut(true);
     
+    if (!user) {
+      alert('Please sign in to checkout');
+      setIsCheckingOut(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      
-      if (!userData.user) {
-        alert('Please sign in to checkout');
-        return;
-      }
 
       // Calculate total
       const totalAmount = cartStacks.reduce((sum, item) => sum + item.price, 0);
@@ -183,7 +190,7 @@ export default function TechNoirCheckout() {
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: userData.user.id,
+          user_id: user.id,
           total_amount: totalAmount,
         })
         .select('id')
@@ -194,7 +201,7 @@ export default function TechNoirCheckout() {
       // Create order items
       const orderItems = cartStacks.map((item) => ({
         order_id: order.id,
-        user_id: userData.user.id,
+        user_id: user.id,
         stack_id: item.stack_id,
         sub_stack_ids: item.sub_stacks.map((sub) => sub.id),
         status: 'initiated',
@@ -212,7 +219,7 @@ export default function TechNoirCheckout() {
       const { error: clearError } = await supabase
         .from('cart_stacks')
         .delete()
-        .eq('user_id', userData.user.id)
+        .eq('user_id', user.id)
         .eq('status', 'active');
 
       if (clearError) throw clearError;
