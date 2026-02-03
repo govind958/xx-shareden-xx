@@ -35,8 +35,8 @@ function PrivatePanelContent() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      window.location.href = "/login"
-    }
+        window.location.href = "/login"
+      }
   }, [user, authLoading])
 
   // Sync activeTab with URL query param

@@ -19,6 +19,7 @@ export async function getOrdersWithStacks(
       id,
       total_amount,
       created_at,
+      is_active,
       order_items (
         id,
         stack_id,
@@ -36,6 +37,7 @@ export async function getOrdersWithStacks(
     `
     )
     .eq("user_id", userId)
+    .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   if (ordersError) {
@@ -64,6 +66,7 @@ export async function getOrdersWithStacks(
       id: order.id,
       total_amount: order.total_amount,
       created_at: order.created_at,
+      is_active: order.is_active,
       stacks: (orderItems || []).map((item) => ({
         id: item.id,
         stack_id: item.stack_id,

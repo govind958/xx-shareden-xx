@@ -179,7 +179,7 @@ export default function TechNoirCheckout() {
       setIsCheckingOut(false);
       return;
     }
-
+    
     try {
       const supabase = createClient();
 

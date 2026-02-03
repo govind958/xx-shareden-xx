@@ -20,7 +20,21 @@ export interface BillingTransaction {
     rawDate: string;
   }
 
-export interface PurchasedStack {
+export interface PurchasedOrder {
+    id: string;
+    total_amount: number;
+    created_at: string;
+    stacks: PurchasedStack[];
+  }
+
+export interface OrderWithStacks {
+    id: string;
+    total_amount: number;
+    created_at: string;
+    stacks: PurchasedStack[];
+  } 
+
+  export interface PurchasedStack {
     id: string;
     stack_id: string;
     stack_name: string;
@@ -32,10 +46,3 @@ export interface PurchasedStack {
     base_price: number;
     subscription_duration?: SubscriptionLimit;
   }
-
-export interface OrderWithStacks {
-    id: string;
-    total_amount: number;
-    created_at: string;
-    stacks: PurchasedStack[];
-  } 

@@ -12,12 +12,13 @@ import {
   ShieldCheck,
   Activity,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Loader2,
 } from "lucide-react";
 import mixpanel from "mixpanel-browser";
 import { OrderWithStacks, PurchasedStack } from "@/src/types/billing";
 import { 
-  calculateNextPayment, 
   formatSubscriptionCycle,
   cancelSubscription,
   getOrdersWithStacks 
@@ -39,8 +40,10 @@ const BillingPage: FC = () => {
   const [loading, setLoading] = useState(true);
   const [purchasedOrders, setPurchasedOrders] = useState<OrderWithStacks[]>([]);
   const [purchasedStacks, setPurchasedStacks] = useState<PurchasedStack[]>([]);
-  const [selectedStackToCancel, setSelectedStackToCancel] = useState<string>('');
+  const [selectedOrderToCancel, setSelectedOrderToCancel] = useState<string>('');
+  const [cancelOption, setCancelOption] = useState<'cancel' | 'transfer'>('cancel');
   const [isCancelling, setIsCancelling] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,8 +61,8 @@ const BillingPage: FC = () => {
         setPurchasedOrders(orders);
         setPurchasedStacks(stacks);
         // Set first stack as selected by default
-        if (stacks.length > 0 && !selectedStackToCancel) {
-          setSelectedStackToCancel(stacks[0].stack_id);
+        if (orders.length > 0 && !selectedOrderToCancel) {
+          setSelectedOrderToCancel(orders[0].id);
         }
 
       } catch (error) {
@@ -108,15 +111,15 @@ const BillingPage: FC = () => {
       alert('Please sign in to cancel subscription');
       return;
     }
-    if (!selectedStackToCancel) {
-      alert('Please select a stack from the table');
+    if (!selectedOrderToCancel) {
+      alert('Please select a order from the table');
       return;
     }
 
     if (isCancelling) return;
     
     // Confirm before cancelling
-    if (!confirm('Are you sure you want to cancel this subscription? The stack will be archived.')) {
+    if (!confirm('Are you sure you want to cancel this subscription? The order will be archived.')) {
       return;
     }
     
@@ -124,7 +127,7 @@ const BillingPage: FC = () => {
 
     try {
       // Use the module to cancel subscription
-      const result = await cancelSubscription(selectedStackToCancel, user.id);
+      const result = await cancelSubscription(selectedOrderToCancel, user.id);
 
       if (result.success) {
         alert(result.message);
@@ -136,9 +139,9 @@ const BillingPage: FC = () => {
         
         // Reset selection
         if (stacks.length > 0) {
-          setSelectedStackToCancel(stacks[0].stack_id);
+          setSelectedOrderToCancel(orders[0].id);
         } else {
-          setSelectedStackToCancel('');
+          setSelectedOrderToCancel('');
         }
       } else {
         alert(result.message + (result.error ? `: ${result.error}` : ''));
@@ -248,7 +251,20 @@ const BillingPage: FC = () => {
           <div className="space-y-6 max-w-4xl">
             {/* Option 1: Full Cancellation */}
             <label className="flex flex-col md:flex-row gap-6 p-6 rounded-2xl border border-white/5 bg-black/20 cursor-pointer hover:bg-zinc-800/20 transition-all group">
-              <input type="radio" name="cancel-logic" defaultChecked className="mt-1 w-5 h-5 accent-teal-500" />
+              <input 
+                type="radio" 
+                name="cancel-logic" 
+                value="cancel"
+                checked={cancelOption === 'cancel'}
+                onChange={() => {
+                  setCancelOption('cancel');
+                  // Clear selection when switching to cancel option
+                  if (purchasedStacks.length > 0) {
+                    setSelectedOrderToCancel(purchasedOrders[0].id);
+                  }
+                }}
+                className="mt-1 w-5 h-5 accent-teal-500" 
+              />
               <div className="flex-1">
                 <h3 className="text-white font-bold text-lg mb-2">Cancel with loss of remaining period</h3>
                 <p className="text-sm text-zinc-500 leading-relaxed">
@@ -262,7 +278,20 @@ const BillingPage: FC = () => {
             <div className="p-1 rounded-2xl bg-gradient-to-b from-teal-500/20 to-transparent">
               <div className="flex flex-col gap-6 p-6 rounded-2xl border border-teal-500/30 bg-black/40">
                 <label className="flex gap-6 cursor-pointer">
-                  <input type="radio" name="cancel-logic" className="mt-1 w-5 h-5 accent-teal-500" />
+                  <input 
+                    type="radio" 
+                    name="cancel-logic" 
+                    value="transfer"
+                    checked={cancelOption === 'transfer'}
+                    onChange={() => {
+                      setCancelOption('transfer');
+                      // Set first stack as selected when switching to transfer option
+                      if (purchasedOrders.length > 0 && !selectedOrderToCancel) {
+                        setSelectedOrderToCancel(purchasedOrders[0].id);
+                      }
+                    }}
+                    className="mt-1 w-5 h-5 accent-teal-500" 
+                  />
                   <div className="flex-1">
                     <h3 className="text-white font-bold text-lg mb-2">Apply remaining period to another publication</h3>
                     <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
@@ -272,73 +301,137 @@ const BillingPage: FC = () => {
                   </div>
                 </label>
 
-                {/* Sub-table for Publications */}
+                {/* Sub-table for Orders */}
                 <div className="overflow-x-auto rounded-xl border border-white/5 bg-zinc-900/40">
                   <table className="w-full text-left min-w-[600px]">
                     <thead>
                       <tr className="text-[10px] uppercase tracking-widest text-zinc-600 border-b border-white/5">
-                        <th className="px-6 py-4">Stack Name</th>
-                        <th className="px-6 py-4">Payment</th>
-                        <th className="px-6 py-4">Next Payment</th>
+                        <th className="px-6 py-4">Order ID</th>
+                        <th className="px-6 py-4">Total Amount</th>
+                        <th className="px-6 py-4">Stacks Count</th>
                         <th className="px-6 py-4">Auto-renewal</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {purchasedStacks.length === 0 ? (
+                      {purchasedOrders.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="px-6 py-12 text-center">
                             <div className="flex flex-col items-center gap-3">
                               <div className="w-12 h-12 rounded-full bg-zinc-900/40 border border-white/5 flex items-center justify-center">
                                 <Activity className="w-6 h-6 text-zinc-700" />
                               </div>
-                              <p className="text-sm text-zinc-600">No purchased stacks yet</p>
+                              <p className="text-sm text-zinc-600">No orders yet</p>
                             </div>
                           </td>
                         </tr>
                       ) : (
-                        purchasedStacks.map((stack) => {
-                          const nextPayment = stack.subscription_duration 
-                            ? calculateNextPayment(stack.created_at, stack.subscription_duration)
-                            : { date: 'N/A', days: 0 };
-                          
+                        purchasedOrders.map((order) => {
+                          const isExpanded = expandedOrders.has(order.id);
+                          const toggleExpand = () => {
+                            setExpandedOrders(prev => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(order.id)) {
+                                newSet.delete(order.id);
+                              } else {
+                                newSet.add(order.id);
+                              }
+                              return newSet;
+                            });
+                          };
+
                           return (
-                            <tr key={stack.id} className="group hover:bg-white/[0.02]">
-                              <td className="px-6 py-5">
-                                <div className="flex items-start gap-4">
-                                  <input 
-                                    type="radio" 
-                                    name="pub-select" 
-                                    value={stack.stack_id}
-                                    checked={selectedStackToCancel === stack.stack_id}
-                                    onChange={(e) => setSelectedStackToCancel(e.target.value)}
-                                    className="mt-1 accent-teal-500" 
-                                  />
-                                  <div>
-                                    <div className="text-sm font-bold text-white">{stack.stack_name}</div>
-                                    <div className="text-[10px] text-zinc-600 font-mono">ID: {stack.stack_id.slice(0, 11).toUpperCase()}</div>
+                            <React.Fragment key={order.id}>
+                              <tr className="group hover:bg-white/[0.02]">
+                                <td className="px-6 py-5">
+                                  <div className="flex items-start gap-4">
+                                    <input 
+                                      type="radio" 
+                                      name="pub-select" 
+                                      value={order.id}
+                                      checked={selectedOrderToCancel === order.id}
+                                      onChange={(e) => setSelectedOrderToCancel(e.target.value)}
+                                      disabled={cancelOption !== 'transfer'}
+                                      className="mt-1 accent-teal-500 disabled:opacity-50 disabled:cursor-not-allowed" 
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                          <div className="text-sm font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</div>
+                                          <div className="text-[10px] text-zinc-600 font-mono">ID: {order.id}</div>
+                                        </div>
+                                        <button
+                                          onClick={toggleExpand}
+                                          className="p-1 hover:bg-white/5 rounded transition-colors"
+                                          aria-label={isExpanded ? "Collapse" : "Expand"}
+                                        >
+                                          {isExpanded ? (
+                                            <ChevronUp className="w-4 h-4 text-zinc-400" />
+                                          ) : (
+                                            <ChevronDown className="w-4 h-4 text-zinc-400" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                <div className="text-sm text-white font-mono">${stack.base_price.toFixed(2)}</div>
-                                <div className="text-[10px] text-zinc-500">
-                                  {stack.subscription_duration ? `Every ${formatSubscriptionCycle(stack.subscription_duration)}` : 'N/A'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                <div className="text-sm text-white">{nextPayment.date}</div>
-                                <div className="text-[10px] text-teal-500">{nextPayment.days} days</div>
-                              </td>
-                              <td className="px-6 py-5">
-                                <div className="w-10 h-5 rounded-full relative transition-colors cursor-pointer bg-zinc-700">
-                                  <div className="absolute top-1 w-3 h-3 bg-white rounded-full transition-all left-1" />
-                                </div>
-                                <span className="text-[10px] uppercase ml-2 text-zinc-500">Off</span>
-                              </td>
-                            </tr>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <div className="text-sm text-white font-mono">${order.total_amount.toFixed(2)}</div>
+                                  <div className="text-[10px] text-zinc-500">
+                                    {order.stacks.length > 0 && order.stacks[0].subscription_duration 
+                                      ? `Every ${formatSubscriptionCycle(order.stacks[0].subscription_duration)}` 
+                                      : 'N/A'}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <div className="text-sm text-white">{order.stacks.length}</div>
+                                  <div className="text-[10px] text-zinc-500">
+                                    {order.stacks.length === 1 ? 'stack' : 'stacks'}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <div className="w-10 h-5 rounded-full relative transition-colors cursor-pointer bg-zinc-700">
+                                    <div className="absolute top-1 w-3 h-3 bg-white rounded-full transition-all left-1" />
+                                  </div>
+                                  <span className="text-[10px] uppercase ml-2 text-zinc-500">Off</span>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={4} className="px-6 py-4 bg-zinc-900/20">
+                                    <div className="space-y-3">
+                                      <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-3">Stacks in this order:</div>
+                                      <div className="space-y-2">
+                                        {order.stacks.map((stack) => (
+                                          <div 
+                                            key={stack.id} 
+                                            className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-white/5"
+                                          >
+                                            <div className="flex-1">
+                                              <div className="text-sm font-medium text-white">{stack.stack_name}</div>
+                                              <div className="text-[10px] text-zinc-500 font-mono mt-1">
+                                                Stack ID: {stack.stack_id.slice(0, 11).toUpperCase()}
+                                              </div>
+                                            </div>
+                                            <div className="text-right">
+                                              <div className="text-sm text-white font-mono">${stack.base_price.toFixed(2)}</div>
+                                              <div className="text-[10px] text-zinc-500">
+                                                {stack.subscription_duration 
+                                                  ? formatSubscriptionCycle(stack.subscription_duration) 
+                                                  : 'N/A'}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })
                       )}
+                    
                     </tbody>
                   </table>
                 </div>
@@ -349,7 +442,7 @@ const BillingPage: FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-white/5">
               <Button 
                 onClick={handleCancelSubscription}
-                disabled={isCancelling || !selectedStackToCancel}
+                disabled={isCancelling || !selectedOrderToCancel}
                 className="bg-red-500 hover:bg-red-400 text-white font-bold uppercase tracking-widest text-[10px] px-10 h-12 rounded-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isCancelling ? (

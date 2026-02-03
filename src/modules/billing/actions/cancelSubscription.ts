@@ -5,24 +5,23 @@ import { CancelSubscriptionResult } from "../types";
 
 /**
  * Cancel a subscription
- * Archives the stack and removes subscription
+ * Archives the order by setting is_active to false
  */
 export async function cancelSubscription(
-  stackId: string,
+  orderId: string,
   userId: string
 ): Promise<CancelSubscriptionResult> {
   try {
     const supabase = await createClient();
 
-    // Update stack to archive it and remove subscription
+    // Update order to archive it by setting is_active to false
     const { error: updateError } = await supabase
-      .from("stacks")
+      .from("orders")
       .update({
-        active: false,
-        subscription_duration: null,
+        is_active: false, 
       })
-      .eq("id", stackId)
-      .eq("author_id", userId);
+      .eq("id", orderId)
+      .eq("user_id", userId);
 
     if (updateError) {
       console.error("Error cancelling subscription:", updateError);
@@ -35,7 +34,7 @@ export async function cancelSubscription(
 
     return {
       success: true,
-      message: "Subscription cancelled successfully. The stack has been archived.",
+      message: "Subscription cancelled successfully. The order has been archived.",
     };
   } catch (error) {
     console.error("Error in cancelSubscription:", error);
