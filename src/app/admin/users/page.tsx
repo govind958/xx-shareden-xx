@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createClient } from '@/utils/supabase/client';
 import { 
   Search, Filter, Clock, CheckCircle2, 
@@ -9,7 +9,7 @@ import {
   ArrowUpRight, Calendar, Layers, Hash
 } from "lucide-react";
 
-// --- Types & Configuration ---
+// --- Configuration ---
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: "Pending Review", color: "text-amber-400", bg: "bg-amber-400/10 border-amber-400/20" },
   processing: { label: "Processing", color: "text-teal-400", bg: "bg-teal-400/10 border-teal-400/20" },
@@ -18,13 +18,40 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default function OrderCommandCenter() {
+  const supabase = createClient();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
-  const orders = [
-    { id: "ORD-9928", customer: "Anuj Pal", email: "anuj@gmail.com", stack: "FullStack Pro", amount: 15048, status: "processing", date: "Dec 23, 2025" },
-    { id: "ORD-9927", customer: "Govind Anand", email: "govind@gmail.com", stack: "SaaS Starter", amount: 2029, status: "completed", date: "Dec 22, 2025" },
-    { id: "ORD-9925", customer: "Ashok Singh", email: "ashok@gmail.com", stack: "AI Module", amount: 8500, status: "pending", date: "Dec 21, 2025" },
-  ];
+  // --- Real Database Fetch ---
+  useEffect(() => {
+    async function fetchOrders() {
+      // Fetching orders and joining with order_items to get the 'stack'
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          total_amount,
+          created_at,
+          user_id,
+          order_items (
+            stack_id,
+            status,
+            progress_percent
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching orders:", error);
+      } else {
+        setOrders(data || []);
+      }
+      setLoading(false);
+    }
+
+    fetchOrders();
+  }, []);
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
@@ -34,11 +61,6 @@ export default function OrderCommandCenter() {
       {/* 1. TOP GLOBAL NAVIGATION */}
       <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-            
-            
-          </div>
-          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">
             <button className="text-teal-400 border-b-2 border-teal-500 py-7">Orders</button>
             <button className="hover:text-neutral-200 transition py-7">Customers</button>
@@ -51,7 +73,7 @@ export default function OrderCommandCenter() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-teal-500 transition-colors" size={16} />
             <input 
               type="text" 
-              placeholder="Search ID, email, or stack..." 
+              placeholder="Search ID or Customer..." 
               className="bg-neutral-900/50 border border-neutral-800 rounded-xl pl-10 pr-4 py-2 text-sm w-72 focus:ring-1 ring-teal-500 outline-none transition-all"
             />
           </div>
@@ -82,12 +104,12 @@ export default function OrderCommandCenter() {
           </div>
         </div>
 
-        {/* High-Level Overview Cards */}
+        {/* Overview Cards (Static logic for now) */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
-            { label: "Total Revenue", value: "₹24,850", icon: CreditCard, change: "+14%" },
-            { label: "Pending", value: "08", icon: Clock, change: "Low" },
-            { label: "Deployed", value: "1,240", icon: CheckCircle2, change: "99%" },
+            { label: "Total Revenue", value: `₹${orders.reduce((acc, curr) => acc + curr.total_amount, 0).toLocaleString()}`, icon: CreditCard, change: "Live" },
+            { label: "Active Orders", value: orders.length.toString(), icon: Clock, change: "Current" },
+            { label: "Deployed", value: "99%", icon: CheckCircle2, change: "Health" },
             { label: "Stack Health", value: "Perfect", icon: ShieldCheck, change: "Active" },
           ].map((item, i) => (
             <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] relative overflow-hidden group hover:border-teal-500/30 transition-all duration-500">
@@ -118,55 +140,66 @@ export default function OrderCommandCenter() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-900">
-                {orders.map((order) => (
-                  <tr 
-                    key={order.id} 
-                    onClick={() => setSelectedOrderId(order.id)}
-                    className="group hover:bg-teal-500/[0.03] transition-all cursor-pointer"
-                  >
-                    <td className="px-8 py-7">
-                      <p className="text-white font-mono font-bold text-sm">{order.id}</p>
-                      <p className="text-[11px] text-neutral-600 mt-1 flex items-center gap-1"><Calendar size={10}/> {order.date}</p>
-                    </td>
-                    <td className="px-8 py-7">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neutral-800 to-black border border-neutral-800 flex items-center justify-center text-xs font-bold text-teal-500 group-hover:border-teal-500/50 transition-colors">
-                          {order.customer.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-neutral-200">{order.customer}</p>
-                          <p className="text-xs text-neutral-500 lowercase">{order.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-7">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-lg text-[11px] font-bold text-neutral-300">
-                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                        {order.stack}
-                      </div>
-                    </td>
-                    <td className="px-8 py-7">
-                      <p className="text-sm font-bold text-white font-mono tracking-tight">₹{order.amount.toLocaleString()}</p>
-                    </td>
-                    <td className="px-8 py-7">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[order.status].bg} ${statusConfig[order.status].color}`}>
-                        {statusConfig[order.status].label}
-                      </span>
-                    </td>
-                    <td className="px-8 py-7 text-right">
-                      <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center group-hover:bg-teal-500 transition-all group-hover:text-black">
-                        <ArrowUpRight size={14} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <tr><td colSpan={6} className="p-20 text-center animate-pulse">Loading secure data...</td></tr>
+                ) : (
+                  orders.map((order) => {
+                    const firstItem = order.order_items?.[0];
+                    const statusKey = firstItem?.status || 'pending';
+                    
+                    return (
+                      <tr 
+                        key={order.id} 
+                        onClick={() => setSelectedOrderId(order.id)}
+                        className="group hover:bg-teal-500/[0.03] transition-all cursor-pointer"
+                      >
+                        <td className="px-8 py-7">
+                          <p className="text-white font-mono font-bold text-sm">{order.id.slice(0, 8)}</p>
+                          <p className="text-[11px] text-neutral-600 mt-1 flex items-center gap-1">
+                            <Calendar size={10}/> {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                        </td>
+                        <td className="px-8 py-7">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neutral-800 to-black border border-neutral-800 flex items-center justify-center text-xs font-bold text-teal-500 group-hover:border-teal-500/50 transition-colors">
+                              U
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-neutral-200">User ID</p>
+                              <p className="text-xs text-neutral-500 lowercase">{order.user_id.slice(0, 15)}...</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-7">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-lg text-[11px] font-bold text-neutral-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                            {firstItem?.stack_id || "Standard Stack"}
+                          </div>
+                        </td>
+                        <td className="px-8 py-7">
+                          <p className="text-sm font-bold text-white font-mono tracking-tight">₹{order.total_amount.toLocaleString()}</p>
+                        </td>
+                        <td className="px-8 py-7">
+                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[statusKey]?.bg || statusConfig.pending.bg} ${statusConfig[statusKey]?.color || statusConfig.pending.color}`}>
+                            {statusConfig[statusKey]?.label || "Pending"}
+                          </span>
+                        </td>
+                        <td className="px-8 py-7 text-right">
+                          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center group-hover:bg-teal-500 transition-all group-hover:text-black">
+                            <ArrowUpRight size={14} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </main>
 
-      {/* 3. ORDER DETAIL DRAWER */}
+      {/* 3. ORDER iteam DETAIL DRAWER */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setSelectedOrderId(null)} />
@@ -175,7 +208,7 @@ export default function OrderCommandCenter() {
             <div className="p-8 border-b border-neutral-900 flex justify-between items-center bg-[#0a0a0a]">
               <div>
                 <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.3em]">Deployment Profile</span>
-                <h3 className="text-2xl font-bold text-white mt-1">{selectedOrder.id}</h3>
+                <h3 className="text-2xl font-bold text-white mt-1">{selectedOrder.id.slice(0, 8)}</h3>
               </div>
               <button onClick={() => setSelectedOrderId(null)} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
                 <X size={20} />
@@ -183,53 +216,33 @@ export default function OrderCommandCenter() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-10 space-y-12">
-              
-              {/* Timeline Progress */}
               <section>
                 <div className="flex items-center justify-between mb-8">
-                  <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Provisioning Status</h5>
-                  <span className="text-[10px] bg-teal-500/10 text-teal-400 px-2 py-1 rounded font-bold">75% Complete</span>
+                  <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Live Status</h5>
+                  <span className="text-[10px] bg-teal-500/10 text-teal-400 px-2 py-1 rounded font-bold">{selectedOrder.order_items?.[0]?.progress_percent || 0}% Complete</span>
                 </div>
                 <div className="h-2 w-full bg-neutral-900 rounded-full mb-8 overflow-hidden">
-                  <div className="h-full bg-teal-500 w-3/4 shadow-[0_0_15px_rgba(20,184,166,0.5)]" />
-                </div>
-                <div className="space-y-6">
-                  {[
-                    { label: "Payment Verification", status: "Success", time: "10:02 AM" },
-                    { label: "Infrastructure Build", status: "Success", time: "10:15 AM" },
-                    { label: "SSL & Domain Mapping", status: "Running", time: "In Progress" },
-                  ].map((step, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-3">
-                        {step.status === "Success" ? <CheckCircle2 size={16} className="text-teal-500" /> : <div className="w-4 h-4 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />}
-                        <span className={step.status === "Success" ? "text-neutral-300" : "text-white font-bold"}>{step.label}</span>
-                      </div>
-                      <span className="text-xs text-neutral-600 font-mono">{step.time}</span>
-                    </div>
-                  ))}
+                  <div 
+                    className="h-full bg-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)] transition-all duration-1000" 
+                    style={{ width: `${selectedOrder.order_items?.[0]?.progress_percent || 0}%` }}
+                  />
                 </div>
               </section>
 
-              {/* Order Breakdown */}
               <section className="bg-neutral-900/30 border border-neutral-800 rounded-[28px] p-8 space-y-6">
-                <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Invoice Breakdown</h5>
+                <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Billing Details</h5>
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-neutral-500">{selectedOrder.stack}</span>
-                    <span className="text-white font-mono">₹12,000.00</span>
+                    <span className="text-neutral-500">Order Reference</span>
+                    <span className="text-white font-mono">{selectedOrder.id}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-neutral-500">Add-on: AI Engine</span>
-                    <span className="text-white font-mono">₹3,048.00</span>
-                  </div>
-                  <div className="pt-6 border-t border-neutral-800 flex justify-between items-center">
-                    <span className="text-white font-bold">Total Disbursed</span>
-                    <span className="text-3xl font-bold text-teal-400 font-mono tracking-tighter">₹{selectedOrder.amount.toLocaleString()}</span>
+                  <div className="pt-6 border-t border-neutral-900 flex justify-between items-center">
+                    <span className="text-white font-bold">Total Amount</span>
+                    <span className="text-3xl font-bold text-teal-400 font-mono tracking-tighter">₹{selectedOrder.total_amount.toLocaleString()}</span>
                   </div>
                 </div>
               </section>
 
-              {/* Admin Actions */}
               <div className="grid grid-cols-2 gap-4">
                 <button className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition">
                   <UserPlus size={16} /> Assign Team
@@ -238,26 +251,12 @@ export default function OrderCommandCenter() {
                   <MoreVertical size={16} /> Order Actions
                 </button>
               </div>
-
-              {/* Internal Messaging */}
-              <section className="space-y-4">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                  <MessageSquare size={14} /> Internal Communication
-                </label>
-                <div className="relative group">
-                  <textarea 
-                    placeholder="Type a message to the customer or internal team..." 
-                    className="w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl p-5 text-sm outline-none focus:ring-1 ring-teal-500 min-h-[120px] transition-all"
-                  />
-                  <button className="absolute bottom-4 right-4 px-4 py-2 bg-teal-600 text-black font-bold rounded-xl text-xs hover:bg-teal-500 transition">
-                    Send Update
-                  </button>
-                </div>
-              </section>
-
             </div>
           </aside>
         </div>
+
+
+
       )}
     </div>
   );
