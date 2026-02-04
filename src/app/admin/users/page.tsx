@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createClient } from '@/utils/supabase/client';
 import { 
   Search, Filter, Clock, CheckCircle2, 
   User, MessageSquare, UserPlus, X, Download, 
