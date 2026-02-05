@@ -4,23 +4,23 @@ import { createClient } from "@/utils/supabase/server";
 import { CancelSubscriptionResult } from "../types";
 
 /**
- * Cancel a subscription
- * Archives the order by setting is_active to false
+ * Cancel a subscription for a specific order item
+ * Archives the order item by setting is_active to false
  */
 export async function cancelSubscription(
-  orderId: string,
+  orderItemId: string,
   userId: string
 ): Promise<CancelSubscriptionResult> {
   try {
     const supabase = await createClient();
 
-    // Update order to archive it by setting is_active to false
+    // Update order_item to archive it by setting is_active to false
     const { error: updateError } = await supabase
-      .from("orders")
+      .from("order_items")
       .update({
-        is_active: false, 
+        is_active: false,
       })
-      .eq("id", orderId)
+      .eq("id", orderItemId)
       .eq("user_id", userId);
 
     if (updateError) {
@@ -34,7 +34,7 @@ export async function cancelSubscription(
 
     return {
       success: true,
-      message: "Subscription cancelled successfully. The order has been archived.",
+      message: "Subscription cancelled successfully. The item has been archived.",
     };
   } catch (error) {
     console.error("Error in cancelSubscription:", error);
@@ -45,5 +45,6 @@ export async function cancelSubscription(
     };
   }
 }
+
 
 

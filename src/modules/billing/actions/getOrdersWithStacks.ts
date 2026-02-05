@@ -19,13 +19,13 @@ export async function getOrdersWithStacks(
       id,
       total_amount,
       created_at,
-      is_active,
       order_items (
         id,
         stack_id,
         status,
         progress_percent,
         created_at,
+        is_active,
         stacks (
           id,
           name,
@@ -37,7 +37,6 @@ export async function getOrdersWithStacks(
     `
     )
     .eq("user_id", userId)
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   if (ordersError) {
@@ -53,6 +52,7 @@ export async function getOrdersWithStacks(
       status: string;
       progress_percent: number;
       created_at: string;
+      is_active: boolean;
       stacks: {
         id: string;
         name: string;
@@ -62,12 +62,14 @@ export async function getOrdersWithStacks(
       } | null;
     }>;
 
+    // Filter only active order items
+    const activeOrderItems = (orderItems || []).filter((item) => item.is_active !== false);
+
     return {
       id: order.id,
       total_amount: order.total_amount,
       created_at: order.created_at,
-      is_active: order.is_active,
-      stacks: (orderItems || []).map((item) => ({
+      stacks: activeOrderItems.map((item) => ({
         id: item.id,
         stack_id: item.stack_id,
         stack_name: item.stacks?.name || "Unknown Stack",
@@ -88,9 +90,9 @@ export async function getOrdersWithStacks(
 
   ordersWithStacks.forEach((order) => {
     order.stacks.forEach((stack) => {
-        uniqueStacks.push(stack);
-      })
-    });
+      uniqueStacks.push(stack);
+    })
+  });
 
   return {
     orders: ordersWithStacks,
