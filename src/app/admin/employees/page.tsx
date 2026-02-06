@@ -1,67 +1,77 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
+import { createClient } from '@/utils/supabase/client'
 import { 
-  Users, Briefcase, AlertCircle, UserCheck, 
-  Activity, Layers, Filter, ChevronRight, 
-  X, Send, Mail, Trash2, Code2, ShieldAlert,
+  Users, UserCheck, Activity, Filter, 
+  ChevronRight, X, Mail, Trash2, Code2, 
   Terminal, Cpu, Globe, ExternalLink
 } from "lucide-react"
 
-// --- TYPES & DUMMY DATA ---
-const INITIAL_EMPLOYEES = [
-  { id: "1", name: "Alex Rivet", role: "Frontend Engineer", status: "Available", email: "alex@nexus.io", stack: ["React", "Tailwind"] },
-  { id: "2", name: "Jordan Byte", role: "Systems Architect", status: "Assigned", email: "j.byte@nexus.io", stack: ["Rust", "gRPC"] },
-  { id: "3", name: "Sam Syntax", role: "UI Designer", status: "Available", email: "sam@nexus.io", stack: ["Figma", "Framer"] },
-]
-
-const STACK_OPTIONS = ["React", "Next.js", "Node.js", "Python", "Rust", "TypeScript", "PostgreSQL"];
+// --- TYPES ---
+type Employee = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  specialization: string | null;
+  is_active: boolean;
+  created_at: string;
+}
 
 export default function AdminEmployeesPage() {
-  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+  const supabase = createClient();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [email, setEmail] = useState("");
 
+  // --- DATA FETCHING ---
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  async function fetchEmployees() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching employees:", error);
+    } else {
+      setEmployees(data || []);
+    }
+    setLoading(false);
+  }
+
   // --- ANALYTICS CALCULATIONS ---
-  const activeDeployments = employees.filter(e => e.status === "Assigned").length;
-  const availableUnits = employees.filter(e => e.status === "Available").length;
-  const loadFactor = ((activeDeployments / employees.length) * 100).toFixed(1);
+  const activeCount = employees.filter(e => e.is_active).length;
+  const inactiveCount = employees.length - activeCount;
+  const loadFactor = employees.length > 0 ? ((activeCount / employees.length) * 100).toFixed(1) : "0";
 
   const stats = [
-    { label: "Deployment Load", val: `${loadFactor}%`, icon: Cpu, status: "Active", trend: "up" },
-    { label: "Active Deployments", val: activeDeployments, icon: UserCheck, status: "Live", trend: "stable" },
-    { label: "Staff Bandwidth", val: availableUnits, icon: Users, status: "Available", trend: "stable" },
+    { label: "Deployment Load", val: `${loadFactor}%`, icon: Cpu, status: "Active" },
+    { label: "Active Deployments", val: activeCount, icon: UserCheck, status: "Live" },
+    { label: "Staff Bandwidth", val: inactiveCount, icon: Users, status: "Standby" },
   ];
 
   // --- CORE ACTIONS ---
-  const handleRemove = (id: string) => {
-    setEmployees(prev => prev.filter(emp => emp.id !== id));
+  const handleRemove = async (id: string) => {
+    const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (!error) {
+      setEmployees(prev => prev.filter(emp => emp.id !== id));
+    }
   };
 
-  const handleAssignStack = (id: string) => {
-    const randomStack = STACK_OPTIONS[Math.floor(Math.random() * STACK_OPTIONS.length)];
-    setEmployees(prev => prev.map(emp => 
-      emp.id === id ? { 
-        ...emp, 
-        status: "Assigned", 
-        stack: Array.from(new Set([...emp.stack, randomStack])) 
-      } : emp
-    ));
-  };
-
-  const handleSendInvite = (e: React.FormEvent) => {
+  const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newEmp = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: email.split('@')[0].toUpperCase(),
-      role: "Core Developer",
-      status: "Available",
-      email: email,
-      stack: ["Pending..."]
-    };
-    setEmployees([newEmp, ...employees]);
+    // In a real app, you'd insert into Supabase here
+    // For now, we'll simulate the UI addition
     setIsPanelOpen(false);
     setEmail("");
+    fetchEmployees(); // Refresh list
   };
 
   return (
@@ -104,40 +114,35 @@ export default function AdminEmployeesPage() {
       <main className="max-w-[1600px] mx-auto p-8 lg:p-16 space-y-12">
         
         {/* 2. HEADER SECTION */}
-       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-  <div className="space-y-2">
-    <div className="flex items-center gap-3">
-      <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-      <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">System Operational</span>
-    </div>
-    <h1 className="text-5xl font-black text-white tracking-tighter">WORKFORCE <span className="text-neutral-800">INFRA</span></h1>
-  </div>
-  
-  <div className="flex flex-wrap gap-4">
-    {/* Filter Button */}
-    <button className="flex items-center gap-3 px-6 py-3 bg-neutral-900/50 border border-neutral-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
-      <Filter size={14} /> Filter Matrix
-    </button>
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+              <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">System Operational</span>
+            </div>
+            <h1 className="text-5xl font-black text-white tracking-tighter">WORKFORCE <span className="text-neutral-800">INFRA</span></h1>
+          </div>
+          
+          <div className="flex flex-wrap gap-4">
+            <button className="flex items-center gap-3 px-6 py-3 bg-neutral-900/50 border border-neutral-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition">
+              <Filter size={14} /> Filter Matrix
+            </button>
+            <button 
+              onClick={() => window.location.href = '/Employee_portal'} 
+              className="flex items-center gap-3 px-6 py-3 bg-neutral-900 border border-teal-500/30 text-teal-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-500/10 transition"
+            >
+              <ExternalLink size={14} /> Employee Portal
+            </button>
+            <button 
+              onClick={() => setIsPanelOpen(true)} 
+              className="flex items-center gap-3 px-8 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-400 transition-colors"
+            >
+              Add Employee
+            </button>
+          </div>
+        </header>
 
-    {/* New Employee Portal Button */}
-    <button 
-      onClick={() => window.location.href = '/Employee_portal'} 
-      className="flex items-center gap-3 px-6 py-3 bg-neutral-900 border border-teal-500/30 text-teal-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-500/10 transition"
-    >
-      <ExternalLink size={14} /> Employee Portal
-    </button>
-
-    {/* Add Employee Button */}
-    <button 
-      onClick={() => setIsPanelOpen(true)} 
-      className="flex items-center gap-3 px-8 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-400 transition-colors"
-    >
-      Add Employee
-    </button>
-  </div>
-</header>
-
-        {/* 3. ANALYTICS GRID (RE-ADDED & ENHANCED) */}
+        {/* 3. ANALYTICS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {stats.map((item, i) => (
             <div key={i} className="bg-neutral-900/20 border border-neutral-800/40 p-8 rounded-[32px] relative overflow-hidden group hover:border-teal-500/20 transition-all">
@@ -163,22 +168,22 @@ export default function AdminEmployeesPage() {
               <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Personnel Stack Allocation</h2>
             </div>
             <div className="flex gap-2">
-              {[1, 2, 3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-neutral-800" />)}
+              {[1, 2, 3].map(i => <div key={i} className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-teal-500 animate-bounce' : 'bg-neutral-800'}`} />)}
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[400px]">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-neutral-900/50">
                   <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Employee ID</th>
-                  <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Operational Stack</th>
+                  <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Role / Specialization</th>
                   <th className="px-10 py-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Status</th>
                   <th className="px-10 py-6 text-right text-[9px] font-black uppercase tracking-[0.3em] text-neutral-600">Protocol</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-900/30">
-                {employees.map((emp) => (
+                {!loading && employees.map((emp) => (
                   <tr key={emp.id} className="group hover:bg-teal-500/[0.02] transition-colors">
                     <td className="px-10 py-8">
                       <div className="flex flex-col gap-1">
@@ -187,29 +192,29 @@ export default function AdminEmployeesPage() {
                       </div>
                     </td>
                     <td className="px-10 py-8">
-                      <div className="flex flex-wrap gap-2">
-                        {emp.stack.map((tech, idx) => (
-                          <span key={idx} className="bg-neutral-900 border border-neutral-800 text-[9px] font-bold px-2 py-1 rounded text-neutral-400">
-                            {tech}
-                          </span>
-                        ))}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-bold text-white uppercase tracking-tighter">{emp.role}</span>
+                        <div className="flex flex-wrap gap-2">
+                          {emp.specialization?.split(',').map((tech, idx) => (
+                            <span key={idx} className="bg-neutral-900 border border-neutral-800 text-[9px] font-bold px-2 py-1 rounded text-neutral-400">
+                              {tech.trim()}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </td>
                     <td className="px-10 py-8">
                       <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${
-                        emp.status === "Available" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-500" : "bg-teal-500/5 border-teal-500/20 text-teal-500"
+                        emp.is_active ? "bg-teal-500/5 border-teal-500/20 text-teal-500" : "bg-neutral-500/5 border-neutral-500/20 text-neutral-500"
                       }`}>
-                        <div className={`w-1 h-1 rounded-full ${emp.status === "Available" ? "bg-emerald-500" : "bg-teal-500 animate-pulse"}`} />
-                        <span className="text-[9px] font-black uppercase">{emp.status}</span>
+                        <div className={`w-1 h-1 rounded-full ${emp.is_active ? "bg-teal-500 animate-pulse" : "bg-neutral-800"}`} />
+                        <span className="text-[9px] font-black uppercase">{emp.is_active ? "Assigned" : "Standby"}</span>
                       </div>
                     </td>
                     <td className="px-10 py-8 text-right">
                       <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                        <button 
-                          onClick={() => handleAssignStack(emp.id)}
-                          className="flex items-center gap-2 px-4 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-[9px] font-bold uppercase text-teal-500 hover:bg-teal-500 hover:text-black transition-all"
-                        >
-                          <Code2 size={12} /> Assign Stack
+                        <button className="flex items-center gap-2 px-4 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-[9px] font-bold uppercase text-teal-500 hover:bg-teal-500 hover:text-black transition-all">
+                          <Code2 size={12} /> Update Stack
                         </button>
                         <button 
                           onClick={() => handleRemove(emp.id)}
@@ -223,6 +228,11 @@ export default function AdminEmployeesPage() {
                 ))}
               </tbody>
             </table>
+            {loading && (
+              <div className="flex items-center justify-center h-64 text-[10px] font-black uppercase tracking-[0.5em] text-neutral-700 animate-pulse">
+                Synchronizing Database...
+              </div>
+            )}
           </div>
 
           <footer className="px-10 py-5 bg-black/50 border-t border-neutral-900 flex justify-between items-center">

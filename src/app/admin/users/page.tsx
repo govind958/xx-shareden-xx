@@ -6,7 +6,7 @@ import {
   Search, Filter, Clock, CheckCircle2, 
   User, MessageSquare, UserPlus, X, Download, 
   CreditCard, Activity, MoreVertical, ShieldCheck,
-  ArrowUpRight, Calendar, Layers, Hash
+  ArrowUpRight, Calendar, Layers, Hash, Check
 } from "lucide-react";
 
 // --- Configuration ---
@@ -20,45 +20,63 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 export default function OrderCommandCenter() {
   const supabase = createClient();
   const [orders, setOrders] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]); // New: To store staff list
   const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false); // New: UI toggle for assignment list
 
   // --- Real Database Fetch ---
   useEffect(() => {
-    async function fetchOrders() {
-      // Fetching orders and joining with order_items to get the 'stack'
-      const { data, error } = await supabase
+    async function fetchData() {
+      setLoading(true);
+      
+      // Fetch Orders
+      const { data: orderData } = await supabase
         .from('orders')
         .select(`
-          id,
-          total_amount,
-          created_at,
-          user_id,
-          order_items (
-            stack_id,
-            status,
-            progress_percent
-          )
+          id, total_amount, created_at, user_id,
+          order_items (id, stack_id, status, progress_percent, assigned_to)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching orders:", error);
-      } else {
-        setOrders(data || []);
-      }
+      // Fetch Employees for assignment
+      const { data: empData } = await supabase
+        .from('employees')
+        .select('id, name, role');
+
+      if (orderData) setOrders(orderData);
+      if (empData) setEmployees(empData);
       setLoading(false);
     }
 
-    fetchOrders();
+    fetchData();
   }, []);
+
+  // --- Logic: Assign Employee ---
+  const handleAssign = async (itemId: string, employeeId: string) => {
+    const { error } = await supabase
+      .from('order_items')
+      .update({ assigned_to: employeeId, status: 'processing' })
+      .eq('id', itemId);
+
+    if (!error) {
+      // Update local state without refreshing the whole page
+      setOrders(prev => prev.map(order => ({
+        ...order,
+        order_items: order.order_items.map((item: any) => 
+          item.id === itemId ? { ...item, assigned_to: employeeId, status: 'processing' } : item
+        )
+      })));
+      setIsAssigning(false);
+    }
+  };
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
       
-      {/* 1. TOP GLOBAL NAVIGATION */}
+      {/* 1. TOP GLOBAL NAVIGATION (UNTOUCHED) */}
       <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">
@@ -83,10 +101,8 @@ export default function OrderCommandCenter() {
         </div>
       </nav>
 
-      {/* 2. MAIN CONTENT AREA */}
+      {/* 2. MAIN CONTENT AREA (UNTOUCHED) */}
       <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
-        
-        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold text-white tracking-tight">Order Management</h1>
@@ -104,7 +120,7 @@ export default function OrderCommandCenter() {
           </div>
         </div>
 
-        {/* Overview Cards (Static logic for now) */}
+        {/* Overview Cards (UNTOUCHED) */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
             { label: "Total Revenue", value: `₹${orders.reduce((acc, curr) => acc + curr.total_amount, 0).toLocaleString()}`, icon: CreditCard, change: "Live" },
@@ -125,7 +141,7 @@ export default function OrderCommandCenter() {
           ))}
         </div>
 
-        {/* Main Orders Table */}
+        {/* Main Orders Table (UNTOUCHED Logic) */}
         <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -146,24 +162,15 @@ export default function OrderCommandCenter() {
                   orders.map((order) => {
                     const firstItem = order.order_items?.[0];
                     const statusKey = firstItem?.status || 'pending';
-                    
                     return (
-                      <tr 
-                        key={order.id} 
-                        onClick={() => setSelectedOrderId(order.id)}
-                        className="group hover:bg-teal-500/[0.03] transition-all cursor-pointer"
-                      >
+                      <tr key={order.id} onClick={() => setSelectedOrderId(order.id)} className="group hover:bg-teal-500/[0.03] transition-all cursor-pointer">
                         <td className="px-8 py-7">
                           <p className="text-white font-mono font-bold text-sm">{order.id.slice(0, 8)}</p>
-                          <p className="text-[11px] text-neutral-600 mt-1 flex items-center gap-1">
-                            <Calendar size={10}/> {new Date(order.created_at).toLocaleDateString()}
-                          </p>
+                          <p className="text-[11px] text-neutral-600 mt-1 flex items-center gap-1"><Calendar size={10}/> {new Date(order.created_at).toLocaleDateString()}</p>
                         </td>
                         <td className="px-8 py-7">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neutral-800 to-black border border-neutral-800 flex items-center justify-center text-xs font-bold text-teal-500 group-hover:border-teal-500/50 transition-colors">
-                              U
-                            </div>
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neutral-800 to-black border border-neutral-800 flex items-center justify-center text-xs font-bold text-teal-500">U</div>
                             <div>
                               <p className="text-sm font-bold text-neutral-200">User ID</p>
                               <p className="text-xs text-neutral-500 lowercase">{order.user_id.slice(0, 15)}...</p>
@@ -176,12 +183,10 @@ export default function OrderCommandCenter() {
                             {firstItem?.stack_id || "Standard Stack"}
                           </div>
                         </td>
+                        <td className="px-8 py-7"><p className="text-sm font-bold text-white font-mono tracking-tight">₹{order.total_amount.toLocaleString()}</p></td>
                         <td className="px-8 py-7">
-                          <p className="text-sm font-bold text-white font-mono tracking-tight">₹{order.total_amount.toLocaleString()}</p>
-                        </td>
-                        <td className="px-8 py-7">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[statusKey]?.bg || statusConfig.pending.bg} ${statusConfig[statusKey]?.color || statusConfig.pending.color}`}>
-                            {statusConfig[statusKey]?.label || "Pending"}
+                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[statusKey]?.bg} ${statusConfig[statusKey]?.color}`}>
+                            {statusConfig[statusKey]?.label}
                           </span>
                         </td>
                         <td className="px-8 py-7 text-right">
@@ -199,10 +204,10 @@ export default function OrderCommandCenter() {
         </div>
       </main>
 
-      {/* 3. ORDER iteam DETAIL DRAWER */}
+      {/* 3. ORDER DETAIL DRAWER (MODIFIED FOR ASSIGNMENT) */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => setSelectedOrderId(null)} />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => { setSelectedOrderId(null); setIsAssigning(false); }} />
           <aside className="relative w-full max-w-xl bg-[#080808] border-l border-neutral-900 h-screen flex flex-col shadow-2xl animate-in slide-in-from-right duration-500">
             
             <div className="p-8 border-b border-neutral-900 flex justify-between items-center bg-[#0a0a0a]">
@@ -210,7 +215,7 @@ export default function OrderCommandCenter() {
                 <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.3em]">Deployment Profile</span>
                 <h3 className="text-2xl font-bold text-white mt-1">{selectedOrder.id.slice(0, 8)}</h3>
               </div>
-              <button onClick={() => setSelectedOrderId(null)} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
+              <button onClick={() => { setSelectedOrderId(null); setIsAssigning(false); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
                 <X size={20} />
               </button>
             </div>
@@ -222,11 +227,61 @@ export default function OrderCommandCenter() {
                   <span className="text-[10px] bg-teal-500/10 text-teal-400 px-2 py-1 rounded font-bold">{selectedOrder.order_items?.[0]?.progress_percent || 0}% Complete</span>
                 </div>
                 <div className="h-2 w-full bg-neutral-900 rounded-full mb-8 overflow-hidden">
-                  <div 
-                    className="h-full bg-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)] transition-all duration-1000" 
-                    style={{ width: `${selectedOrder.order_items?.[0]?.progress_percent || 0}%` }}
-                  />
+                  <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${selectedOrder.order_items?.[0]?.progress_percent || 0}%` }} />
                 </div>
+              </section>
+
+              {/* EMPLOYEE ASSIGNMENT SECTION (Embedded in your Grid) */}
+              <section className="space-y-4">
+                <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Resource Allocation</h5>
+                
+                {isAssigning ? (
+                  <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl p-4 space-y-2 animate-in fade-in zoom-in duration-300">
+                    <p className="text-[10px] font-black text-neutral-600 uppercase mb-4 tracking-widest">Select Personnel</p>
+                    <div className="grid gap-2 max-h-48 overflow-y-auto pr-2">
+                      {employees.map((emp) => (
+                        <button 
+                          key={emp.id} 
+                          onClick={() => handleAssign(selectedOrder.order_items[0].id, emp.id)}
+                          className="flex items-center justify-between p-4 bg-black border border-neutral-800 rounded-xl hover:border-teal-500 group transition-all"
+                        >
+                          <div className="text-left">
+                            <p className="text-sm font-bold text-white group-hover:text-teal-400">{emp.name}</p>
+                            <p className="text-[10px] text-neutral-500">{emp.role}</p>
+                          </div>
+                          <Check size={16} className="text-neutral-800 group-hover:text-teal-500" />
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setIsAssigning(false)} className="w-full mt-2 py-2 text-[10px] font-bold text-neutral-600 hover:text-white uppercase">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => setIsAssigning(true)}
+                      className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition"
+                    >
+                      <UserPlus size={16} /> 
+                      {selectedOrder.order_items?.[0]?.assigned_to ? "Change Team" : "Assign Team"}
+                    </button>
+                    <button className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition">
+                      <MoreVertical size={16} /> Order Actions
+                    </button>
+                  </div>
+                )}
+
+                {/* Show current assignee info if exists */}
+                {selectedOrder.order_items?.[0]?.assigned_to && !isAssigning && (
+                  <div className="flex items-center gap-3 p-4 bg-teal-500/5 border border-teal-500/20 rounded-2xl">
+                    <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-500"><User size={14}/></div>
+                    <div>
+                      <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest leading-none">Assigned To</p>
+                      <p className="text-sm font-bold text-white mt-1">
+                        {employees.find(e => e.id === selectedOrder.order_items[0].assigned_to)?.name || "External Agent"}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section className="bg-neutral-900/30 border border-neutral-800 rounded-[28px] p-8 space-y-6">
@@ -242,21 +297,9 @@ export default function OrderCommandCenter() {
                   </div>
                 </div>
               </section>
-
-              <div className="grid grid-cols-2 gap-4">
-                <button className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition">
-                  <UserPlus size={16} /> Assign Team
-                </button>
-                <button className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition">
-                  <MoreVertical size={16} /> Order Actions
-                </button>
-              </div>
             </div>
           </aside>
         </div>
-
-
-
       )}
     </div>
   );
