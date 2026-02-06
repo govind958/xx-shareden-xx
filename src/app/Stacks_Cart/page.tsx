@@ -26,12 +26,16 @@ import {
 
 interface CartStack {
   cart_id: string;
-  stack_id: string;
+  stack_id: string | null; // null for unsaved clusters
   name: string;
   type: string;
   price: number;
-  description:string;
-  sub_stacks: Array<{ id: string; name: string; price: number }>;
+  description: string;
+  sub_stacks: Array<{ id?: string; name: string; price: number }>;
+  // For unsaved clusters (new flow)
+  cluster_name?: string;
+  cluster_data?: Array<{ name: string; price: number; is_free: boolean }>;
+  isUnsaved?: boolean; // true if stack hasn't been created yet
 }
 
 export default function TechNoirCheckout() {
@@ -43,7 +47,7 @@ export default function TechNoirCheckout() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [profileData, setProfileData] = useState<{ email?: string; name?: string } | null>(null);
-  const [organizationData,setOrganizationData] = useState<{ name?: string } | null>(null);
+  const [organizationData, setOrganizationData] = useState<{ name?: string } | null>(null);
 
   useEffect(() => {
     const fetchCartStacks = async () => {
@@ -75,14 +79,15 @@ export default function TechNoirCheckout() {
         if (profileError) {
           console.error('Error fetching profile:', profileError);
         }
-        
+
         // Combine profile data with email from auth
         setProfileData({
           email: user.email || undefined,
           name: profileData?.name || ''
         });
         setOrganizationData({ name: organizationData?.org_name || '' });
-        // Fetch cart items with stack details
+
+        // Fetch cart items - now includes cluster_name and cluster_data for unsaved clusters
         const { data: cartItems } = await supabase
           .from('cart_stacks')
           .select(`
@@ -90,6 +95,8 @@ export default function TechNoirCheckout() {
             stack_id,
             total_price,
             sub_stack_ids,
+            cluster_name,
+            cluster_data,
             stacks (
               id,
               name,
@@ -102,31 +109,53 @@ export default function TechNoirCheckout() {
           .eq('status', 'active');
 
         if (cartItems) {
-          // Fetch sub_stacks for each cart item
+          // Process cart items - handle both saved stacks and unsaved clusters
           const formattedStacks: CartStack[] = await Promise.all(
             cartItems.map(async (item) => {
               const stack = Array.isArray(item.stacks) ? item.stacks[0] : item.stacks;
-              
-              // Fetch sub_stacks if sub_stack_ids exist
-              let subStacks: Array<{ id: string; name: string; price: number }> = [];
-              if (item.sub_stack_ids && item.sub_stack_ids.length > 0) {
-                const { data: subStacksData } = await supabase
-                  .from('sub_stacks')
-                  .select('id, name, price')
-                  .in('id', item.sub_stack_ids);
-                
-                subStacks = subStacksData || [];
-              }
+              const isUnsaved = !item.stack_id; // No stack_id means it's an unsaved cluster
 
-              return {
-                cart_id: item.id,
-                stack_id: stack?.id || item.stack_id,
-                name: stack?.name || 'Unknown Stack',
-                type: stack?.type?.toUpperCase().replace(/_/g, ' ') || 'CUSTOM',
-                price: item.total_price || stack?.base_price || 0,
-                description: stack?.description || '',
-                sub_stacks: subStacks,
-              };
+              if (isUnsaved) {
+                // Unsaved cluster - use cluster_name and cluster_data
+                const clusterData = (item.cluster_data as Array<{ name: string; price: number; is_free: boolean }>) || [];
+                return {
+                  cart_id: item.id,
+                  stack_id: null,
+                  name: item.cluster_name || 'Custom Stack',
+                  type: 'CUSTOM',
+                  price: item.total_price || 0,
+                  description: 'Custom infrastructure stack',
+                  sub_stacks: clusterData.map((sub) => ({
+                    name: sub.name,
+                    price: sub.price,
+                  })),
+                  cluster_name: item.cluster_name,
+                  cluster_data: clusterData,
+                  isUnsaved: true,
+                };
+              } else {
+                // Saved stack - fetch sub_stacks from DB
+                let subStacks: Array<{ id?: string; name: string; price: number }> = [];
+                if (item.sub_stack_ids && item.sub_stack_ids.length > 0) {
+                  const { data: subStacksData } = await supabase
+                    .from('sub_stacks')
+                    .select('id, name, price')
+                    .in('id', item.sub_stack_ids);
+
+                  subStacks = subStacksData || [];
+                }
+
+                return {
+                  cart_id: item.id,
+                  stack_id: stack?.id || item.stack_id,
+                  name: stack?.name || 'Unknown Stack',
+                  type: stack?.type?.toUpperCase().replace(/_/g, ' ') || 'CUSTOM',
+                  price: item.total_price || stack?.base_price || 0,
+                  description: stack?.description || '',
+                  sub_stacks: subStacks,
+                  isUnsaved: false,
+                };
+              }
             })
           );
           setCartStacks(formattedStacks);
@@ -151,16 +180,16 @@ export default function TechNoirCheckout() {
   const handleRemoveFromCart = async (cartId: string) => {
     if (removingId) return;
     setRemovingId(cartId);
-    
+
     try {
       const supabase = createClient();
       const { error } = await supabase
         .from('cart_stacks')
         .delete()
         .eq('id', cartId);
-      
+
       if (error) throw error;
-      
+
       setCartStacks((prev) => prev.filter((item) => item.cart_id !== cartId));
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -173,18 +202,123 @@ export default function TechNoirCheckout() {
   const handleCheckout = async () => {
     if (isCheckingOut || cartStacks.length === 0) return;
     setIsCheckingOut(true);
-    
+
     if (!user) {
       alert('Please sign in to checkout');
       setIsCheckingOut(false);
       return;
     }
-    
+
     try {
       const supabase = createClient();
 
       // Calculate total
       const totalAmount = cartStacks.reduce((sum, item) => sum + item.price, 0);
+
+      // Process each cart item - create stacks for unsaved clusters
+      const processedItems: Array<{ stack_id: string; sub_stack_ids: string[]; cart_id: string }> = [];
+
+      for (const item of cartStacks) {
+        if (item.isUnsaved && item.cluster_data) {
+          // First, check if a matching stack with same substacks already exists
+          const clusterName = item.cluster_name || item.name;
+          const currentSubstackNames = item.cluster_data.map(s => s.name).sort();
+
+          // Check for existing active stacks (ignore name, only match by substacks)
+          const { data: existingStacks } = await supabase
+            .from('stacks')
+            .select('id, name')
+            .eq('active', true);
+
+          let foundStackId: string | null = null;
+          let foundSubStackIds: string[] = [];
+
+          if (existingStacks && existingStacks.length > 0) {
+            // Check substacks for each stack - find one with matching substacks
+            for (const stack of existingStacks) {
+              const { data: existingSubStacks } = await supabase
+                .from('sub_stacks')
+                .select('id, name')
+                .eq('stack_id', stack.id);
+
+              if (existingSubStacks) {
+                const existingNames = existingSubStacks.map(s => s.name).sort();
+
+                // Compare: same count and same substack names (ignore stack name)
+                const isMatch = currentSubstackNames.length === existingNames.length &&
+                  currentSubstackNames.every((val, index) => val === existingNames[index]);
+
+                if (isMatch) {
+                  foundStackId = stack.id;
+                  foundSubStackIds = existingSubStacks.map(s => s.id);
+                  break;
+                }
+              }
+            }
+          }
+
+
+          if (foundStackId) {
+            // Reuse existing stack - don't create duplicate
+            processedItems.push({
+              stack_id: foundStackId,
+              sub_stack_ids: foundSubStackIds,
+              cart_id: item.cart_id,
+            });
+          } else {
+            // No matching stack found - create new one
+            const { data: stackRow, error: stackError } = await supabase
+              .from('stacks')
+              .insert({
+                name: clusterName,
+                description: 'Custom infrastructure stack',
+                type: 'custom',
+                base_price: item.price,
+                author_id: user.id,
+                active: true,
+              })
+              .select('id')
+              .single();
+
+            if (stackError || !stackRow) {
+              throw new Error(`Failed to create stack: ${stackError?.message || 'Unknown error'}`);
+            }
+
+            // Create sub_stacks
+            const subStackPayload = item.cluster_data.map((sub) => ({
+              stack_id: stackRow.id,
+              name: sub.name,
+              price: sub.price,
+              is_free: sub.is_free,
+            }));
+
+            const { data: subRows, error: subError } = await supabase
+              .from('sub_stacks')
+              .insert(subStackPayload)
+              .select('id');
+
+            if (subError) {
+              throw new Error(`Failed to create sub_stacks: ${subError.message}`);
+            }
+
+            const subStackIds = (subRows || []).map((row: { id: string }) => row.id);
+
+            processedItems.push({
+              stack_id: stackRow.id,
+              sub_stack_ids: subStackIds,
+              cart_id: item.cart_id,
+            });
+          }
+        } else {
+          // Already saved stack - use existing IDs
+          processedItems.push({
+            stack_id: item.stack_id!,
+            sub_stack_ids: item.sub_stacks.filter(s => s.id).map(s => s.id!),
+            cart_id: item.cart_id,
+          });
+        }
+      }
+
 
       // Create order
       const { data: order, error: orderError } = await supabase
@@ -198,12 +332,12 @@ export default function TechNoirCheckout() {
 
       if (orderError || !order) throw orderError;
 
-      // Create order items
-      const orderItems = cartStacks.map((item) => ({
+      // Create order items with the processed stack IDs
+      const orderItems = processedItems.map((item) => ({
         order_id: order.id,
         user_id: user.id,
         stack_id: item.stack_id,
-        sub_stack_ids: item.sub_stacks.map((sub) => sub.id),
+        sub_stack_ids: item.sub_stack_ids,
         status: 'initiated',
         step: 1,
         progress_percent: 0,
@@ -241,7 +375,7 @@ export default function TechNoirCheckout() {
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30 overflow-x-hidden">
-      
+
       {/* ATMOSPHERIC GRADIENTS */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-5%] right-[-5%] w-[40%] h-[40%] bg-teal-500/5 blur-[160px] rounded-full" />
@@ -249,77 +383,76 @@ export default function TechNoirCheckout() {
       </div>
 
       {/* --- REFINED NAV SECTION (ACTIVE MODULES) --- */}
-     <div className="sticky top-0 z-20 rounded-2xl border border-neutral-900 bg-[#020202]/80 backdrop-blur-md shadow-lg">
-  <nav>
-    <div className="max-w-[1700px] mx-auto px-6 py-4 flex items-center justify-between gap-8">
-      {/* Cart Icon */}
-          <div
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900/60"
-            aria-label="Cart"
-          >
-            <ShieldCheck size={18} className="text-teal-500" />
-            {cartStacks.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-teal-500 text-[10px] font-bold text-black flex items-center justify-center">
-                {cartStacks.length}
-              </span>
-            )}
-          </div>
-      
-      {/* Horizontal Scroll Area for StackCards */}
-      <div className="flex-1 flex gap-4 overflow-x-auto no-scrollbar py-2">
-        {cartStacks.length > 0 ? (
-          cartStacks.map((stack) => (
-            <div 
-              key={stack.cart_id} 
-              onClick={() => setActiveCartId(stack.cart_id)}
-              className={`relative flex-shrink-0 w-48 p-4 rounded-xl transition-all cursor-pointer ${
-                activeCartId === stack.cart_id
-                  ? 'bg-teal-500/10 border-2 border-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.2)]'
-                  : 'bg-neutral-900/40 border border-neutral-800 hover:border-teal-500/40'
-              }`}
+      <div className="sticky top-0 z-20 rounded-2xl border border-neutral-900 bg-[#020202]/80 backdrop-blur-md shadow-lg">
+        <nav>
+          <div className="max-w-[1700px] mx-auto px-6 py-4 flex items-center justify-between gap-8">
+            {/* Cart Icon */}
+            <div
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900/60"
+              aria-label="Cart"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="text-[10px] font-bold text-teal-500 uppercase tracking-wider">{stack.type}</div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveFromCart(stack.cart_id);
-                  }}
-                  disabled={removingId === stack.cart_id}
-                  className="text-neutral-600 hover:text-red-500 transition-colors disabled:opacity-50"
-                  title="Remove from cart"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <h3 className="text-sm font-bold text-white mb-2">{stack.name}</h3>
-              <p className="text-xs text-neutral-500">{stack.sub_stacks.length} modules</p>
-              <div className="mt-3 pt-3 border-t border-neutral-800">
-                <p className="text-lg font-mono font-bold text-teal-500">₹{stack.price.toLocaleString()}</p>
-              </div>
+              <ShieldCheck size={18} className="text-teal-500" />
+              {cartStacks.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-teal-500 text-[10px] font-bold text-black flex items-center justify-center">
+                  {cartStacks.length}
+                </span>
+              )}
             </div>
-          ))
-        ) : (
-          <div className="flex-1 text-center py-4">
-            <p className="text-neutral-600 text-sm">Your cart is empty</p>
+
+            {/* Horizontal Scroll Area for StackCards */}
+            <div className="flex-1 flex gap-4 overflow-x-auto no-scrollbar py-2">
+              {cartStacks.length > 0 ? (
+                cartStacks.map((stack) => (
+                  <div
+                    key={stack.cart_id}
+                    onClick={() => setActiveCartId(stack.cart_id)}
+                    className={`relative flex-shrink-0 w-48 p-4 rounded-xl transition-all cursor-pointer ${activeCartId === stack.cart_id
+                      ? 'bg-teal-500/10 border-2 border-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.2)]'
+                      : 'bg-neutral-900/40 border border-neutral-800 hover:border-teal-500/40'
+                      }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="text-[10px] font-bold text-teal-500 uppercase tracking-wider">{stack.type}</div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFromCart(stack.cart_id);
+                        }}
+                        disabled={removingId === stack.cart_id}
+                        className="text-neutral-600 hover:text-red-500 transition-colors disabled:opacity-50"
+                        title="Remove from cart"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-2">{stack.name}</h3>
+                    <p className="text-xs text-neutral-500">{stack.sub_stacks.length} modules</p>
+                    <div className="mt-3 pt-3 border-t border-neutral-800">
+                      <p className="text-lg font-mono font-bold text-teal-500">₹{stack.price.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex-1 text-center py-4">
+                  <p className="text-neutral-600 text-sm">Your cart is empty</p>
+                </div>
+              )}
+            </div>
+
           </div>
-        )}
+        </nav>
+
+
+
       </div>
-
-    </div>
-  </nav>
-
-
-
-</div>
 
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
-        
-      
+
+
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-          
+
           {/* LEFT COLUMN: PLAN SUMMARY */}
           <section className="lg:col-span-5 space-y-10">
             <div className="space-y-4">
@@ -417,8 +550,8 @@ export default function TechNoirCheckout() {
                   <label className="block">
                     <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em] ml-1">Geographic_Node</span>
                     <div className="relative">
-                    <input type="text" placeholder="Country" className="mt-2 w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-6 py-4 text-white focus:outline-none" />
-                      
+                      <input type="text" placeholder="Country" className="mt-2 w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-6 py-4 text-white focus:outline-none" />
+
                     </div>
                   </label>
                   <label className="block">
@@ -430,14 +563,14 @@ export default function TechNoirCheckout() {
 
               <div className="flex gap-4 p-5 rounded-3xl bg-teal-500/5 border border-teal-500/10">
                 <div className="pt-1">
-                    <input type="checkbox" className="w-4 h-4 accent-teal-500 bg-black border-neutral-800 rounded" />
+                  <input type="checkbox" className="w-4 h-4 accent-teal-500 bg-black border-neutral-800 rounded" />
                 </div>
                 <p className="text-[11px] leading-relaxed text-neutral-500">
                   By clicking Subscribe, you agree to the <span className="text-teal-500">Terms of Decryption</span> and authorize monthly protocol charges. Cancel anytime via the dashboard.
                 </p>
               </div>
 
-              <button 
+              <button
                 onClick={handleCheckout}
                 disabled={isCheckingOut || cartStacks.length === 0}
                 className="w-full bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-black py-6 rounded-2xl transition-all duration-300 uppercase tracking-[0.3em] shadow-[0_0_40px_rgba(20,184,166,0.15)] active:scale-[0.98]"
@@ -447,7 +580,7 @@ export default function TechNoirCheckout() {
               {cartStacks.length === 0 && (
                 <p className="text-[10px] text-neutral-600 italic text-center mt-4">Add stacks to your cart to checkout</p>
               )}
-              
+
               <div className="flex items-center justify-center gap-8 opacity-30 grayscale hover:opacity-60 transition-opacity">
                 <ShieldCheck size={18} />
                 <Globe size={18} />
@@ -465,13 +598,13 @@ export default function TechNoirCheckout() {
 function BootSequence() {
   return (
     <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center font-mono">
-       <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
-          <div className="absolute inset-0 bg-teal-500 animate-loading" />
-       </div>
-       <div className="flex flex-col items-center gap-2">
-          <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Syncing Active Modules</p>
-       </div>
-       <style jsx>{`
+      <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
+        <div className="absolute inset-0 bg-teal-500 animate-loading" />
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Syncing Active Modules</p>
+      </div>
+      <style jsx>{`
           @keyframes loading {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }

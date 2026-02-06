@@ -120,104 +120,21 @@ export const Canvas: React.FC = () => {
     try {
       const supabase = createClient();
 
-      // Check for existing stack
-      const { data: existingStacks } = await supabase
-        .from('stacks')
-        .select('id, name')
-        .eq('author_id', user.id)
-        .eq('name', clusterNode.label)
-        .eq('active', true);
+      // Prepare cluster data as JSON for cart storage
+      // Stack will be created during checkout, not now
+      const clusterData = substacks.map((node) => ({
+        name: node.label,
+        price: node.base_price || 0,
+        is_free: (node.base_price || 0) === 0,
+      }));
 
-      let foundStackId: string | null = null;
-      let foundSubStackIds: string[] = [];
-
-      if (existingStacks && existingStacks.length > 0) {
-        // Check substacks for each candidate
-        for (const stack of existingStacks) {
-          const { data: existingSubStacks } = await supabase
-            .from('sub_stacks')
-            .select('id, name')
-            .eq('stack_id', stack.id);
-
-          if (existingSubStacks) {
-            // Compare logic: check if every substack in current cluster exists in db stack
-            // and same counts.
-            // Simple set comparison by sorting names?
-
-            const currentNames = substacks.map(s => s.label).sort();
-            const existingNames = existingSubStacks.map(s => s.name).sort();
-
-            const isMatch = currentNames.length === existingNames.length &&
-              currentNames.every((val, index) => val === existingNames[index]);
-
-            if (isMatch) {
-              foundStackId = stack.id;
-              foundSubStackIds = existingSubStacks.map(s => s.id);
-              break;
-            }
-          }
-        }
-      }
-
-      let stackId = foundStackId;
-      let subStackIds = foundSubStackIds;
-
-      if (!stackId) {
-        // 1) Save stack
-        const { data: stackRow, error: stackError } = await supabase.from('stacks')
-          .insert({
-            name: clusterNode.label || 'Custom Stack',
-            description: "Purchased from Infrastructure Stacks",
-            type: 'custom',
-            base_price: totalPrice,
-            author_id: user.id,
-            active: true,
-          })
-          .select('id')
-          .single();
-
-        if (stackError || !stackRow) {
-          const details = stackError
-            ? `${stackError.message}${stackError.details ? ` (${stackError.details})` : ''}`
-            : 'No stack row returned.';
-          throw new Error(`Failed to save stack: ${details}`);
-        }
-        stackId = stackRow.id;
-
-        // 2) Save sub_stacks
-        const subStackPayload = substacks.map((node) => ({
-          stack_id: stackId,
-          name: node.label,
-          price: node.base_price || 0,
-          is_free: (node.base_price || 0) === 0,
-        }));
-
-        const { data: subRows, error: subError } = await supabase
-          .from('sub_stacks')
-          .insert(subStackPayload)
-          .select('id');
-
-        if (subError) {
-          throw subError;
-        }
-
-        subStackIds = (subRows || []).map((row: { id: string }) => row.id);
-      }
-
-      // 3) Add to cart for checkout
-      // First check if already in cart? 
-      // The logic says "do not create new cluster in db". 
-      // It doesn't explicitly say "don't add to cart if already in cart", but usually that's desirable.
-      // However, if the user clicks buy again, maybe they want qty 2? 
-      // But let's assume valid flow is just adding to cart.
-
-      // We will perform the insert. If there is a constraint it might fail, but usually carts allow duplicates or separate entries.
-      // Based on typical flows, we just insert.
-
+      // Add to cart with cluster data (no stack_id yet - will be created at checkout)
       const { error: cartError } = await supabase.from('cart_stacks').insert({
         user_id: user.id,
-        stack_id: stackId,
-        sub_stack_ids: subStackIds,
+        stack_id: null, // Will be set during checkout
+        sub_stack_ids: null, // Will be set during checkout
+        cluster_name: clusterNode.label || 'Custom Stack',
+        cluster_data: clusterData,
         total_price: totalPrice,
         status: 'active',
       });
@@ -225,7 +142,8 @@ export const Canvas: React.FC = () => {
       if (cartError) {
         throw cartError;
       }
-      // Mark cluster and ALL children as purchased
+
+      // Mark cluster and ALL children as added to cart (visual feedback only)
       setNodes(prev => prev.map(n => {
         if (n.id === clusterId) return { ...n, isSaved: true };
         if (n.parentId === clusterId) return { ...n, isSaved: true };
@@ -234,12 +152,13 @@ export const Canvas: React.FC = () => {
 
       router.push('/private?tab=stacks_cart');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Purchase failed.';
+      const message = error instanceof Error ? error.message : 'Failed to add to cart.';
       alert(message);
     } finally {
       setPurchasingIds((prev) => prev.filter((id) => id !== clusterId));
     }
   };
+
 
   // Connection logic is not yet implemented in this modular canvas version.
 
