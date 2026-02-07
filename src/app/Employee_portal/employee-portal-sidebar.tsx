@@ -6,7 +6,8 @@ import { createClient } from '@/utils/supabase/client';
 import { 
   LayoutDashboard, Users, FolderTree, Settings, 
   LogOut, ChevronLeft, ChevronRight, Sun, Moon, LucideIcon,
-  User as UserIcon
+  User as UserIcon,
+  BugIcon
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -72,8 +73,9 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
         <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/Employee_portal/Dashboard" isCollapsed={isCollapsed} />
         <SidebarItem icon={Users} label="Requests" to="/Employee_portal/Requests" isCollapsed={isCollapsed} />
         <SidebarItem icon={FolderTree} label="Projects" to="/Employee_portal/Project" isCollapsed={isCollapsed} />
-        <SidebarItem icon={Settings} label="Task" to="/Employee_portal/Task" isCollapsed={isCollapsed} />
+        <SidebarItem icon={BugIcon} label="Task" to="/Employee_portal/Task" isCollapsed={isCollapsed} />
         <SidebarItem icon={Moon} label="Employee_Task" to="/Employee_portal/Task_Working_Space" isCollapsed={isCollapsed} />
+         <SidebarItem icon={Settings} label="Employee_Settings" to="/Employee_portal/Setting" isCollapsed={isCollapsed} />
       </nav>
 
       {/* Footer Section: User Profile & Controls */}

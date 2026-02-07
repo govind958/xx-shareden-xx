@@ -1,126 +1,249 @@
 "use client"
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
-  ChevronLeft, Activity, Cpu, Shield, Zap, 
-  Send, Paperclip, FileText, User, Hash, MoreHorizontal 
+  Terminal, Send, Check, ChevronLeft, Zap, 
+  Box, ArrowRight, LayoutGrid, Activity 
 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 
-export default function ProjectDetail() {
-  const [message, setMessage] = useState("");
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
-  // Sample data for the message feed
-  const messages = [
-    { id: 1, user: "SYSTEM", text: "Project_Matrix initialized. Secure channel open.", type: "system" },
-    { id: 2, user: "OPERATOR_01", text: "I've uploaded the latest architecture specs for the Aegis node.", type: "user" },
-    { id: 3, user: "DOC_ATTACHMENT", text: "Architecture_Final_v2.pdf", type: "file", size: "2.4MB" },
-    { id: 4, user: "LEAD_ARCHITECT", text: "Reviewing now. Latency spikes detected in sector 7G.", type: "user" },
-  ];
+function ClientDashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderItemId = searchParams.get('id'); // The "Room ID"
+  const supabase = createClient();
+
+  const [orders, setOrders] = useState<any[]>([]);
+  const [activeStack, setActiveStack] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 1. Initial Data Fetch: Get all Cart Items (Order Items)
+  useEffect(() => {
+    async function initDashboard() {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      setUser(authUser);
+
+      if (authUser) {
+        const { data: cartItems } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('created_at', { ascending: false });
+        
+        setOrders(cartItems || []);
+
+        // If an ID is in URL, fetch that specific stack's details
+        if (orderItemId) {
+          const { data: currentTask } = await supabase
+            .from('order_items')
+            .select('*')
+            .eq('id', orderItemId)
+            .single();
+          setActiveStack(currentTask);
+
+          const { data: history } = await supabase
+            .from('project_messages')
+            .select('*')
+            .eq('order_item_id', orderItemId)
+            .order('created_at', { ascending: true });
+          setMessages(history || []);
+        }
+      }
+      setLoading(false);
+    }
+    initDashboard();
+  }, [orderItemId, supabase]);
+
+  // 2. Real-time Listeners (Messages & Progress)
+  useEffect(() => {
+    if (!orderItemId) return;
+
+    const channel = supabase.channel(`nexus_${orderItemId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'project_messages', 
+        filter: `order_item_id=eq.${orderItemId}` 
+      }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'order_items', 
+        filter: `id=eq.${orderItemId}` 
+      }, (payload) => {
+        setActiveStack(payload.new);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [orderItemId, supabase]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !user || !orderItemId) return;
+
+    const { error } = await supabase.from('project_messages').insert({
+      order_item_id: orderItemId,
+      content: input,
+      sender_id: user.id,
+      sender_role: 'client' 
+    });
+    if (!error) setInput("");
+  };
+
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-teal-500 font-mono animate-pulse">BOOTING_NEXUS_OS...</div>;
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 md:p-12 font-sans selection:bg-teal-500 selection:text-black">
-      
-      {/* Top Navigation */}
-     
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans p-6 md:p-10 selection:bg-teal-500/30">
+      <div className="max-w-[1600px] mx-auto space-y-8">
         
-        {/* Left Column: Core Info & Messaging */}
-        <div className="lg:col-span-2 space-y-8 flex flex-col">
-          
-
-          {/* Stats Bar */}
-         
-
-          {/* MESSAGE UI (Replaced Matrix Visualization) */}
-          <div className="flex-1 border border-neutral-800 bg-neutral-950 flex flex-col min-h-[500px]">
-            {/* Message Header */}
-            <div className="p-4 border-b border-neutral-800 flex justify-between items-center bg-zinc-900/50">
-              <div className="flex items-center gap-3">
-                <Hash size={16} className="text-teal-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Global_Project_Comm_Link</span>
-              </div>
-              <MoreHorizontal size={16} className="text-neutral-600" />
+        {/* HEADER */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-teal-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_20px_rgba(20,184,166,0.2)]">
+              <Zap size={24} fill="currentColor" />
             </div>
+            <div>
+              <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">NEXUS_DASHBOARD</h1>
+              <p className="text-[10px] font-bold text-neutral-600 uppercase tracking-[0.4em]">Authorized_Client_Access</p>
+            </div>
+          </div>
+          <div className="flex gap-6 text-right">
+             <div className="hidden sm:block">
+               <p className="text-[9px] font-black text-neutral-700 uppercase tracking-widest">Active_Nodes</p>
+               <p className="text-xl font-mono text-white font-bold">{orders.length}</p>
+             </div>
+          </div>
+        </header>
 
-            {/* Message Feed */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-6 max-h-[400px]">
-              {messages.map((msg) => (
-                <div key={msg.id} className="group">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[9px] font-black uppercase tracking-tighter ${msg.type === 'system' ? 'text-teal-500' : 'text-neutral-400'}`}>
-                      {msg.user}
-                    </span>
-                    <span className="text-[8px] text-neutral-700 font-mono">14:02:44</span>
+        <div className="grid grid-cols-12 gap-8">
+          
+          {/* LEFT COLUMN: THE CART (Node Registry) */}
+          <aside className="col-span-12 lg:col-span-4 space-y-6">
+            <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] p-6 flex flex-col max-h-[800px]">
+              <div className="flex items-center justify-between mb-8 px-2">
+                <div className="flex items-center gap-2">
+                  <LayoutGrid size={16} className="text-teal-500" />
+                  <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Ordered_Items_Registry</h2>
+                </div>
+              </div>
+
+              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                {orders.map((item) => {
+                  const isActive = item.id === orderItemId;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => router.push(`?id=${item.id}`)}
+                      className={cn(
+                        "w-full text-left p-5 rounded-2xl border transition-all duration-300 group",
+                        isActive 
+                          ? "bg-teal-500/10 border-teal-500/50 shadow-[0_0_20px_rgba(20,184,166,0.05)]" 
+                          : "bg-black border-neutral-900 hover:border-neutral-700"
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest", isActive ? "text-teal-500" : "text-neutral-500")}>
+                          {item.stack_id || "Standard_Build"}
+                        </span>
+                        <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-teal-500 animate-pulse" : "bg-neutral-800")} />
+                      </div>
+                      <h3 className="text-white font-bold text-sm mb-4 truncate uppercase">NODE_{item.id.slice(0, 12)}</h3>
+                      <div className="flex items-end justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[8px] text-neutral-600 uppercase font-black">Progress</p>
+                          <p className="text-lg font-mono text-white leading-none">{item.progress_percent}%</p>
+                        </div>
+                        <ArrowRight size={16} className={cn("transition-transform group-hover:translate-x-1", isActive ? "text-teal-500" : "text-neutral-800")} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+
+          {/* RIGHT COLUMN: COMMUNICATION CONSOLE */}
+          <main className="col-span-12 lg:col-span-8">
+            {orderItemId ? (
+              <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[800px]">
+                {/* Chat Header */}
+                <div className="p-6 border-b border-neutral-900 flex justify-between items-center bg-zinc-900/10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
+                      <Terminal size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Node_Uplink_Channel</h3>
+                      <p className="text-[9px] font-mono text-neutral-600 uppercase mt-0.5">Status: {activeStack?.status || 'Active'}</p>
+                    </div>
                   </div>
+                </div>
 
-                  {msg.type === 'file' ? (
-                    <div className="inline-flex items-center gap-4 p-3 border border-neutral-800 bg-black hover:border-teal-500 transition-colors cursor-pointer">
-                      <FileText size={20} className="text-teal-500" />
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest">{msg.text}</p>
-                        <p className="text-[8px] text-neutral-500">{msg.size}</p>
+                {/* Messages Area */}
+                <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
+                  {messages.length > 0 ? messages.map((m, i) => (
+                    <div key={m.id || i} className={cn("flex flex-col gap-1.5", m.sender_role === 'client' ? "items-end" : "items-start")}>
+                      <span className="text-[8px] font-black text-neutral-700 uppercase tracking-widest">
+                        {m.sender_role === 'client' ? 'You (Authorized)' : 'Node_Operative'}
+                      </span>
+                      <div className={cn(
+                        "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight uppercase leading-relaxed shadow-lg",
+                        m.sender_role === 'client' 
+                          ? "bg-teal-500 text-black rounded-tr-none" 
+                          : "bg-neutral-900 text-white border border-neutral-800 rounded-tl-none"
+                      )}>
+                        {m.content}
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-neutral-300 font-medium leading-relaxed max-w-2xl border-l-2 border-transparent group-hover:border-teal-500 pl-4 transition-all">
-                      {msg.text}
-                    </p>
+                  )) : (
+                    <div className="h-full flex flex-col items-center justify-center opacity-20 italic text-[10px] tracking-[0.5em] uppercase">
+                      Awaiting_Initial_Handshake...
+                    </div>
                   )}
                 </div>
-              ))}
-            </div>
 
-            {/* Message Input */}
-            <div className="p-4 border-t border-neutral-800 bg-black">
-              <div className="flex items-center gap-4 bg-neutral-900/50 border border-neutral-800 p-2 focus-within:border-teal-500 transition-all">
-                <button className="p-2 text-neutral-500 hover:text-white transition-colors">
-                  <Paperclip size={18} />
-                </button>
-                <input 
-                  type="text" 
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="EXECUTE_MESSAGE_SEQUENCE..."
-                  className="bg-transparent flex-1 text-[11px] font-bold uppercase tracking-widest outline-none"
-                />
-                <button className="bg-teal-500 p-2 text-black hover:bg-white transition-all">
-                  <Send size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Active Members & Logs */}
-        <div className="space-y-6">
-          <div className="border border-neutral-800 bg-neutral-950 p-6 flex flex-col">
-            <h2 className="text-[10px] font-black uppercase tracking-widest mb-6 border-b border-neutral-800 pb-4">Authorized_Personnel</h2>
-            <div className="space-y-4">
-              {['User_Alpha', 'User_Delta', 'System_Admin'].map((person) => (
-                <div key={person} className="flex items-center gap-3 group cursor-pointer">
-                  <div className="w-8 h-8 bg-neutral-900 border border-neutral-800 flex items-center justify-center group-hover:border-teal-500">
-                    <User size={14} className="text-neutral-500 group-hover:text-teal-500" />
+                {/* Input Area */}
+                <form onSubmit={sendMessage} className="p-8 bg-black/40 border-t border-neutral-900">
+                  <div className="relative">
+                    <input 
+                      value={input} 
+                      onChange={(e) => setInput(e.target.value)} 
+                      placeholder="ENTER_SIGNAL_ENCODING..." 
+                      className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white focus:border-teal-500 focus:outline-none transition-all" 
+                    />
+                    <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 text-teal-500 hover:text-white transition-colors">
+                      <Send size={18} />
+                    </button>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 group-hover:text-white">
-                    {person}
-                  </span>
-                  <div className="ml-auto w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border border-neutral-800 bg-neutral-950 p-6 flex flex-col">
-            <h2 className="text-[10px] font-black uppercase tracking-widest mb-6 border-b border-neutral-800 pb-4">Live_Neural_Logs</h2>
-            <div className="space-y-4 font-mono text-[10px] text-neutral-500">
-              <p><span className="text-teal-500">[OK]</span> Comm_Link established</p>
-              <p><span className="text-teal-500">[OK]</span> Handshake verified</p>
-              <p className="animate-pulse">_ Waiting for input...</p>
-            </div>
-          </div>
+                </form>
+              </div>
+            ) : (
+              <div className="h-[800px] border border-neutral-900 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 text-neutral-800">
+                <Box size={48} className="opacity-10" />
+                <p className="text-[10px] font-black uppercase tracking-[0.8em]">Select_Node_To_Communicate</p>
+              </div>
+            )}
+          </main>
         </div>
       </div>
     </div>
   );
+}
+
+export default function TechNoirDashboard() {
+  return <Suspense fallback={null}><ClientDashboardContent /></Suspense>;
 }
