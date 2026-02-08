@@ -1,51 +1,16 @@
-// Order Item Types
-export interface OrderItemRow {
+
+
+export interface PURCHASED_STACKS {
   id: string;
-  order_id: string;
-  user_id: string;
   stack_id: string;
-  sub_stack_ids: string[] | null;
-  status: string;
-  step: number;
-  progress_percent: number;
-  eta: string | null;
-  user_note: string | null;
-  admin_note: string | null;
-  assigned_to: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-// Stack Row Types
-export interface StackRow {
-  id: string;
   name: string;
   type: string;
-  description: string | null;
-  base_price: number;
-  active: boolean;
-}
-
-// Stack Progress Display
-export interface StackProgress {
-  id: string;
-  order_item_id: string;
-  order_id: string;
-  name: string;
-  type: string;
-  description: string;
-  progress: number;
+  price: number;
   status: string;
-  statusDisplay: string;
-  step: number;
-  eta: string | null;
-  created_at: string;
-  updated_at: string;
-  assigned_employee?: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  } | null;
+  icon?: any; // Optional icon component
 }
 
+export interface PURCHASED_SUBSTACKS {
+  label: string;
+  status: 'completed' | 'current' | 'pending';
+}

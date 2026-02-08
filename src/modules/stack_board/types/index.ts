@@ -1,6 +1,7 @@
 // Re-export types from global types folder
 export type {
-  OrderItemRow,
-  StackRow,
-  StackProgress
+  PURCHASED_STACKS,
+  PURCHASED_SUBSTACKS
 } from '@/src/types/stack_board';
+
+

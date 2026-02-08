@@ -23,24 +23,9 @@ import {
   Globe,
   Command
 } from 'lucide-react';
-
-/* ---------------- MOCK DATA ---------------- */
-const PURCHASED_STACKS = [
-  { id: 'stk-1', name: 'AUTH_PROTOCOL', type: 'SECURITY_CORE', price: 299.00, status: 'ENCRYPTED', icon: Lock },
-  { id: 'stk-2', name: 'STRIPE_GATEWAY', type: 'PAYMENT_ENGINE', price: 450.00, status: 'SYNCING', icon: Zap },
-  { id: 'stk-3', name: 'AWS_NODE_CLUSTER', type: 'INFRA_STRUCTURE', price: 1200.00, status: 'STABLE', icon: Server },
-  { id: 'stk-4', name: 'EDGE_DATABASE', type: 'STORAGE_LAYER', price: 150.00, status: 'ACTIVE', icon: Database },
-];
-
-const SYSTEM_PROGRESS = [
-  { label: 'Role_Identification', desc: 'Activist, Partner', status: 'completed' },
-  { label: 'Value_Alignment', desc: 'Alertness Protocol', status: 'completed' },
-  { label: 'Principles_Engine', desc: 'Recovery cycles for optimal cognitive performance.', status: 'completed' },
-  { label: 'Conduct_Code', desc: 'Circadian rhythm synchronization established.', status: 'completed' },
-  { label: 'Purpose_Logic', desc: 'Define primary impact vectors.', status: 'current' },
-  { label: 'Vision_Matrix', desc: 'Target architectural life state.', status: 'pending' },
-];
-
+import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
+import { getPurchasedStacks, getPurchasedSubStacks } from '@/src/modules/stack_board/action';
+import { useAuth } from '@/src/context/AuthContext';
 /* ---------------- UTILS ---------------- */
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
@@ -49,6 +34,11 @@ const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filt
 export default function TechNoirDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [purchasedStacks, setPurchasedStacks] = useState<PURCHASED_STACKS[]>([]);
+  const [purchasedSubStacks, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
+  const [selectedStackId, setSelectedStackId] = useState<string | null>(null);
+  const [selectedStackName, setSelectedStackName] = useState<string>('Select a Stack');
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -59,13 +49,55 @@ export default function TechNoirDashboard() {
     };
   }, []);
 
-  if (loading) return <BootSequence />;
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.id) return;
+      try {
+        const stacks = await getPurchasedStacks(user.id);
+        setPurchasedStacks(stacks);
 
-  const progressPercent = 65; 
+        // Auto-select first stack if available
+        if (stacks && stacks.length > 0) {
+          setSelectedStackId(stacks[0].id);
+          setSelectedStackName(stacks[0].name);
+          const substacks = await getPurchasedSubStacks(stacks[0].id);
+          setPurchasedSubStacks(substacks);
+        }
+      } catch (error) {
+        console.error("Error fetching data: ", error);
+      }
+    };
+    if (!authLoading && user) {
+      fetchData();
+    }
+  }, [user, authLoading]);
+
+  // Handler for when user clicks on a stack card
+  const handleStackSelect = async (stack: PURCHASED_STACKS) => {
+    if (selectedStackId === stack.id) return; // Already selected
+
+    setSelectedStackId(stack.id);
+    setSelectedStackName(stack.name);
+    setPurchasedSubStacks([]); // Clear while loading
+
+    try {
+      const substacks = await getPurchasedSubStacks(stack.id);
+      setPurchasedSubStacks(substacks);
+    } catch (error) {
+      console.error("Error fetching substacks:", error);
+    }
+  };
+
+  if (loading || authLoading) return <BootSequence />;
+
+  // Calculate progress based on completed substacks
+  const progressPercent = purchasedSubStacks.length > 0
+    ? Math.round((purchasedSubStacks.filter(s => s.status === 'completed').length / purchasedSubStacks.length) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-500 font-sans selection:bg-teal-500/30 overflow-x-hidden p-4 lg:p-10">
-      
+
       {/* ATMOSPHERIC GRADIENT BLURS */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-teal-500/5 blur-[160px] rounded-full" />
@@ -73,7 +105,7 @@ export default function TechNoirDashboard() {
       </div>
 
       <div className="relative z-10 w-full max-w-[1700px] mx-auto space-y-8">
-        
+
         {/* --- INDUSTRIAL HEADER --- */}
         <header className="flex flex-col md:flex-row items-center justify-between bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] shadow-2xl">
           <div className="flex flex-col gap-3">
@@ -93,51 +125,68 @@ export default function TechNoirDashboard() {
               <span className="text-[10px] font-mono text-teal-500/70">14ms</span>
               <span className="text-[10px] font-mono text-white">{currentTime.toLocaleTimeString('en-GB')}</span>
             </div>
-            
+
             <button className="group relative overflow-hidden bg-white text-black px-10 py-4 rounded-full text-[11px] font-black uppercase tracking-[0.3em] transition-all hover:pr-14">
-               <span className="relative z-10">Initialize_Deploy</span>
-               <ArrowUpRight className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all" size={18} />
+              <span className="relative z-10">Initialize_Deploy</span>
+              <ArrowUpRight className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all" size={18} />
             </button>
           </div>
         </header>
 
         {/* --- TECH-STACK HORIZONTAL SCROLL / GRID --- */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {PURCHASED_STACKS.map((stack) => (
-            <StackCard key={stack.id} stack={stack} />
-          ))}
+          {purchasedStacks.length > 0 ? (
+            purchasedStacks.map((stack) => (
+              <StackCard
+                key={stack.id}
+                stack={stack}
+                isSelected={selectedStackId === stack.id}
+                onClick={() => handleStackSelect(stack)}
+              />
+            ))
+          ) : (
+            <div className="col-span-4 text-center py-12 text-neutral-600">
+              <p className="text-sm">No purchased stacks found</p>
+            </div>
+          )}
         </section>
 
         {/* --- PRIMARY DATA INTERFACE --- */}
         <main className="grid grid-cols-12 gap-8 items-start">
-          
+
           {/* LEFT: PROGRESS ARCHITECTURE */}
           <aside className="col-span-12 lg:col-span-4 bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col">
             <div className="p-8 border-b border-neutral-900">
               <div className="flex items-center justify-between mb-8">
-                 <div className="space-y-1">
-                    <p className="text-[9px] font-black text-neutral-600 uppercase tracking-[0.5em]">Global_Status</p>
-                    <h2 className="text-white text-lg font-bold tracking-tight">System Initialization</h2>
-                 </div>
-                 <div className="text-right">
-                    <p className="text-[10px] font-mono text-teal-500 font-bold">{progressPercent}%</p>
-                    <div className="w-24 h-1 bg-neutral-900 mt-2 overflow-hidden">
-                       <div className="h-full bg-teal-500" style={{ width: `${progressPercent}%` }} />
-                    </div>
-                 </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black text-neutral-600 uppercase tracking-[0.5em]">Stack_Progress</p>
+                  <h2 className="text-white text-lg font-bold tracking-tight">{selectedStackName}</h2>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-mono text-teal-500 font-bold">{progressPercent}%</p>
+                  <div className="w-24 h-1 bg-neutral-900 mt-2 overflow-hidden">
+                    <div className="h-full bg-teal-500" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-10 relative">
                 <div className="absolute left-[21px] top-2 bottom-2 w-[1px] bg-neutral-900" />
-                {SYSTEM_PROGRESS.map((step, idx) => (
-                  <ProgressStep key={idx} step={step} />
-                ))}
+                {purchasedSubStacks.length > 0 ? (
+                  purchasedSubStacks.map((step, idx) => (
+                    <ProgressStep key={idx} step={step} />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-neutral-600">
+                    <p className="text-xs">No progress data available</p>
+                  </div>
+                )}
               </div>
             </div>
-            
+
             <div className="p-6 bg-neutral-900/20 flex items-center gap-4">
-               <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
-               <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-[0.4em]">Kernel_Stream: Online</span>
+              <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
+              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-[0.4em]">Kernel_Stream: Online</span>
             </div>
           </aside>
 
@@ -148,25 +197,44 @@ export default function TechNoirDashboard() {
 
         </main>
       </div>
-    </div>
+    </div >
   );
 }
 
 /* ---------------- REFINED SUB-COMPONENTS ---------------- */
 
-function StackCard({ stack }: { stack: any }) {
-  const Icon = stack.icon;
+function StackCard({ stack, isSelected, onClick }: { stack: PURCHASED_STACKS; isSelected?: boolean; onClick?: () => void }) {
+  // Default icon based on stack type
+  const getIconForType = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case 'security': return Lock;
+      case 'payment': return Zap;
+      case 'infrastructure': return Server;
+      case 'storage': return Database;
+      default: return Layers;
+    }
+  };
+  const Icon = stack.icon || getIconForType(stack.type);
+
   return (
-    <div className="group bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] hover:border-teal-500/30 transition-all duration-500 relative overflow-hidden">
+    <div
+      className={`group bg-[#0a0a0a] border p-8 rounded-[32px] transition-all duration-500 relative overflow-hidden cursor-pointer
+        ${isSelected
+          ? 'border-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.2)]'
+          : 'border-neutral-900 hover:border-teal-500/30'
+        }
+      `}
+      onClick={onClick}
+    >
       <div className="flex justify-between items-start mb-12">
-        <div className="p-3 bg-neutral-900 rounded-2xl group-hover:bg-teal-500 transition-colors duration-500 group-hover:text-black text-neutral-400">
+        <div className={`p-3 rounded-2xl transition-colors duration-500 ${isSelected ? 'bg-teal-500 text-black' : 'bg-neutral-900 group-hover:bg-teal-500 group-hover:text-black text-neutral-400'}`}>
           <Icon size={20} />
         </div>
         <div className="text-[9px] font-bold text-neutral-600 border border-neutral-800 px-3 py-1 rounded-full uppercase tracking-widest">
           {stack.status}
         </div>
       </div>
-      
+
       <div className="space-y-1">
         <p className="text-[9px] font-black text-teal-500/60 uppercase tracking-[0.4em]">{stack.type}</p>
         <h3 className="text-white font-black text-lg tracking-tighter uppercase">{stack.name}</h3>
@@ -175,7 +243,7 @@ function StackCard({ stack }: { stack: any }) {
       <div className="mt-8 pt-8 border-t border-neutral-900 flex items-end justify-between">
         <div>
           <p className="text-[8px] font-bold text-neutral-700 uppercase tracking-[0.3em] mb-1">Architecture_Value</p>
-          <p className="text-2xl font-mono text-white font-bold tracking-tighter">${stack.price.toFixed(2)}</p>
+          <p className="text-2xl font-mono text-white font-bold tracking-tighter">₹{stack.price.toFixed(2)}</p>
         </div>
         <div className="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-600 group-hover:text-white group-hover:bg-neutral-800 transition-all">
           <ArrowUpRight size={18} />
@@ -185,7 +253,7 @@ function StackCard({ stack }: { stack: any }) {
   );
 }
 
-function ProgressStep({ step }: { step: any }) {
+function ProgressStep({ step }: { step: PURCHASED_SUBSTACKS }) {
   const isCompleted = step.status === 'completed';
   const isCurrent = step.status === 'current';
 
@@ -199,7 +267,7 @@ function ProgressStep({ step }: { step: any }) {
       </div>
       <div className="space-y-1.5 pt-1">
         <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", isCurrent ? "text-teal-500" : "text-white")}>{step.label}</p>
-        <p className="text-[11px] text-neutral-500 leading-relaxed font-medium">{step.desc}</p>
+        {/* <p className="text-[11px] text-neutral-500 leading-relaxed font-medium">{step.desc}</p> */}
       </div>
     </div>
   );
@@ -254,14 +322,14 @@ function MessageDashboard() {
 
       <div className="p-8 bg-neutral-900/30">
         <div className="relative">
-          <input 
-            type="text" 
-            placeholder="EXECUTE COMMAND..." 
+          <input
+            type="text"
+            placeholder="EXECUTE COMMAND..."
             className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 transition-all placeholder:text-neutral-800"
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-3 text-neutral-600">
-             <Command size={16} />
-             <span className="text-[10px] font-bold">ENTER</span>
+            <Command size={16} />
+            <span className="text-[10px] font-bold">ENTER</span>
           </div>
         </div>
       </div>
@@ -272,14 +340,14 @@ function MessageDashboard() {
 function BootSequence() {
   return (
     <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center font-mono">
-       <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
-          <div className="absolute inset-0 bg-teal-500 animate-loading" />
-       </div>
-       <div className="flex flex-col items-center gap-2">
-          <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Initializing Nexus.OS</p>
-          <p className="text-[8px] tracking-[0.2em] text-neutral-700 uppercase">Kernel Revision 4.2.0-Alpha</p>
-       </div>
-       <style jsx>{`
+      <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
+        <div className="absolute inset-0 bg-teal-500 animate-loading" />
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Initializing Nexus.OS</p>
+        <p className="text-[8px] tracking-[0.2em] text-neutral-700 uppercase">Kernel Revision 4.2.0-Alpha</p>
+      </div>
+      <style jsx>{`
           @keyframes loading {
             0% { transform: translateX(-100%); }
             50% { transform: translateX(0%); }
