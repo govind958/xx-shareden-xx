@@ -1,6 +1,6 @@
-'use client'
+"use client"
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Activity,
   Cpu,
@@ -23,32 +23,27 @@ import {
   Globe,
   Command
 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
 import { getPurchasedStacks, getPurchasedSubStacks } from '@/src/modules/stack_board/action';
 import { useAuth } from '@/src/context/AuthContext';
+
 /* ---------------- UTILS ---------------- */
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
-
-/* ---------------- MAIN COMPONENT ---------------- */
 
 export default function TechNoirDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [purchasedStacks, setPurchasedStacks] = useState<PURCHASED_STACKS[]>([]);
   const [purchasedSubStacks, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
+
+  // State for the active chat room
   const [selectedStackId, setSelectedStackId] = useState<string | null>(null);
   const [selectedStackName, setSelectedStackName] = useState<string>('Select a Stack');
+
   const { user, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    const loader = setTimeout(() => setLoading(false), 1500);
-    return () => {
-      clearInterval(timer);
-      clearTimeout(loader);
-    };
-  }, []);
-
+  // 1. Initial Data Fetch
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) return;
@@ -65,16 +60,29 @@ export default function TechNoirDashboard() {
         }
       } catch (error) {
         console.error("Error fetching data: ", error);
+      } finally {
+        setLoading(false);
       }
     };
+
     if (!authLoading && user) {
       fetchData();
+    } else if (!authLoading && !user) {
+      setLoading(false);
     }
   }, [user, authLoading]);
 
-  // Handler for when user clicks on a stack card
+  // 2. Time Update
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 3. Handle Stack Selection
   const handleStackSelect = async (stack: PURCHASED_STACKS) => {
-    if (selectedStackId === stack.id) return; // Already selected
+    if (selectedStackId === stack.id) return;
 
     setSelectedStackId(stack.id);
     setSelectedStackName(stack.name);
@@ -90,7 +98,7 @@ export default function TechNoirDashboard() {
 
   if (loading || authLoading) return <BootSequence />;
 
-  // Calculate progress based on completed substacks
+  // Calculate progress
   const progressPercent = purchasedSubStacks.length > 0
     ? Math.round((purchasedSubStacks.filter(s => s.status === 'completed').length / purchasedSubStacks.length) * 100)
     : 0;
@@ -133,19 +141,20 @@ export default function TechNoirDashboard() {
           </div>
         </header>
 
-        {/* --- TECH-STACK HORIZONTAL SCROLL / GRID --- */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* --- TECH-STACK HORIZONTAL SCROLL --- */}
+        <section className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
           {purchasedStacks.length > 0 ? (
             purchasedStacks.map((stack) => (
-              <StackCard
-                key={stack.id}
-                stack={stack}
-                isSelected={selectedStackId === stack.id}
-                onClick={() => handleStackSelect(stack)}
-              />
+              <div key={stack.id} className="flex-shrink-0 w-[320px]">
+                <StackCard
+                  stack={stack}
+                  isSelected={selectedStackId === stack.id}
+                  onClick={() => handleStackSelect(stack)}
+                />
+              </div>
             ))
           ) : (
-            <div className="col-span-4 text-center py-12 text-neutral-600">
+            <div className="w-full text-center py-12 text-neutral-600">
               <p className="text-sm">No purchased stacks found</p>
             </div>
           )}
@@ -192,19 +201,217 @@ export default function TechNoirDashboard() {
 
           {/* RIGHT: COMMAND CENTER / MESSAGING */}
           <div className="col-span-12 lg:col-span-8 flex flex-col gap-8">
-            <MessageDashboard />
+            {/* PASSING DATA TO MESSAGE DASHBOARD */}
+            <MessageDashboard
+              activeStackId={selectedStackId}
+              activeStackName={selectedStackName}
+              user={user}
+            />
           </div>
-
         </main>
       </div>
-    </div >
+    </div>
   );
 }
 
-/* ---------------- REFINED SUB-COMPONENTS ---------------- */
+/* ---------------- SUB-COMPONENTS ---------------- */
+
+// Create supabase client outside component to prevent recreation on each render
+const supabase = createClient();
+
+function MessageDashboard({
+  activeStackId,
+  activeStackName,
+  user
+}: {
+  activeStackId: string | null,
+  activeStackName: string,
+  user: any
+}) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // 1. Fetch & Subscribe to Messages
+  useEffect(() => {
+    if (!activeStackId) return;
+
+    const fetchMessages = async () => {
+      setLoadingMessages(true);
+      const { data } = await supabase
+        .from('project_messages')
+        .select('*')
+        .eq('order_item_id', activeStackId)
+        .order('created_at', { ascending: true });
+
+      if (data) setMessages(data);
+      setLoadingMessages(false);
+    };
+
+    fetchMessages();
+
+    // Real-time Subscription
+    const channel = supabase.channel(`client_view_${activeStackId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'project_messages',
+        filter: `order_item_id=eq.${activeStackId}`
+      }, (payload) => {
+        setMessages(prev => {
+          // Prevent duplicates if we already added it optimistically
+          const exists = prev.find(m => m.id === payload.new.id);
+          return exists ? prev : [...prev, payload.new];
+        });
+      })
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime: Connected to channel (Stackboard)');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Realtime: Channel error', err);
+        } else if (status === 'TIMED_OUT') {
+          console.error('Realtime: Connection timed out');
+        }
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, [activeStackId]);
+
+  // 2. Auto-scroll
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loadingMessages]);
+
+  // 3. Send Message Handler
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !user || !activeStackId) return;
+
+    const content = input.trim();
+    const tempId = Date.now(); // Temp ID for optimistic UI
+
+    // Optimistic Update
+    const optimisticMsg = {
+      id: tempId,
+      content: content,
+      sender_id: user.id,
+      sender_role: 'client',
+      created_at: new Date().toISOString(),
+      order_item_id: activeStackId
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+    setInput("");
+
+    // DB Insert
+    const { data, error } = await supabase.from('project_messages').insert({
+      order_item_id: activeStackId,
+      content: content,
+      sender_id: user.id,
+      sender_role: 'client'
+    }).select().single();
+
+    if (error) {
+      console.error("Failed to send", error);
+      // Rollback
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    } else {
+      // Replace temp ID with real ID
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+    }
+  };
+
+  if (!activeStackId) {
+    return (
+      <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] h-[700px] flex items-center justify-center text-neutral-700">
+        <div className="flex flex-col items-center gap-4">
+          <Terminal size={48} strokeWidth={1} />
+          <p className="text-[10px] font-black uppercase tracking-[0.5em]">Select_Node_To_Initialize_Uplink</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[700px]">
+
+      {/* Header */}
+      <div className="p-6 border-b border-neutral-900 flex items-center justify-between bg-neutral-900/10">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
+            <Terminal size={18} />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Deployment_Console</h3>
+            <p className="text-[9px] font-mono text-neutral-600 uppercase mt-0.5">Target: {activeStackName}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className={`w-2 h-2 rounded-full ${loadingMessages ? 'bg-yellow-500' : 'bg-teal-500'} animate-pulse`} />
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
+        {messages.length === 0 && !loadingMessages ? (
+          <div className="h-full flex flex-col items-center justify-center opacity-30">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-500">Channel_Open_No_Traffic</p>
+          </div>
+        ) : (
+          messages.map((m) => {
+            const isMe = m.sender_role === 'client';
+            return (
+              <div key={m.id} className={`flex flex-col gap-2 max-w-[450px] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
+                <span className={`text-[9px] font-bold uppercase tracking-widest ${isMe ? 'mr-1 text-teal-500/50' : 'ml-1 text-neutral-700'}`}>
+                  {isMe ? 'User_Auth' : 'System_Admin'}
+                </span>
+
+                <div className={cn(
+                  "p-5 text-[13px] font-bold leading-relaxed shadow-lg relative",
+                  isMe
+                    ? "bg-teal-500 text-black rounded-[24px] rounded-tr-none"
+                    : "bg-neutral-900/80 border border-neutral-800 text-neutral-300 rounded-[24px] rounded-tl-none"
+                )}>
+                  {m.content}
+                </div>
+
+                <span className="text-[8px] font-mono text-neutral-800 uppercase">
+                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Input Area */}
+      <div className="p-8 bg-neutral-900/20 border-t border-neutral-900">
+        <form onSubmit={handleSendMessage} className="relative">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="EXECUTE TRANSMISSION..."
+            className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 focus:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all placeholder:text-neutral-800"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-neutral-600 hover:text-teal-500 transition-colors disabled:opacity-50"
+          >
+            <span className="text-[10px] font-bold hidden sm:block">SEND</span>
+            <Send size={16} />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function StackCard({ stack, isSelected, onClick }: { stack: PURCHASED_STACKS; isSelected?: boolean; onClick?: () => void }) {
-  // Default icon based on stack type
   const getIconForType = (type: string) => {
     switch (type?.toLowerCase()) {
       case 'security': return Lock;
@@ -267,71 +474,6 @@ function ProgressStep({ step }: { step: PURCHASED_SUBSTACKS }) {
       </div>
       <div className="space-y-1.5 pt-1">
         <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", isCurrent ? "text-teal-500" : "text-white")}>{step.label}</p>
-        {/* <p className="text-[11px] text-neutral-500 leading-relaxed font-medium">{step.desc}</p> */}
-      </div>
-    </div>
-  );
-}
-
-function MessageDashboard() {
-  return (
-    <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[700px]">
-      <div className="p-6 border-b border-neutral-900 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
-            <Terminal size={18} />
-          </div>
-          <div>
-            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Deployment_Console</h3>
-            <p className="text-[9px] font-mono text-neutral-600 uppercase mt-0.5">Vector: 40.7128 • 74.0060</p>
-          </div>
-        </div>
-        <MoreHorizontal className="text-neutral-700" />
-      </div>
-
-      <div className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
-        {/* Incoming File */}
-        <div className="flex flex-col gap-3 max-w-[400px]">
-          <span className="text-[9px] font-bold text-neutral-700 uppercase tracking-widest ml-1">System_Output</span>
-          <div className="bg-neutral-900/40 border border-neutral-800 p-5 rounded-3xl rounded-tl-none flex items-center gap-4">
-            <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center text-teal-500">
-              <FileText size={20} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] text-white font-bold">CORE_MANIFEST.JSON</p>
-              <p className="text-[10px] text-neutral-600 font-mono mt-0.5">12.8 KB • READY</p>
-            </div>
-            <button className="text-[10px] font-black text-teal-500 tracking-tighter hover:text-white transition-colors">DECODE</button>
-          </div>
-        </div>
-
-        {/* Action Prompt */}
-        <div className="flex flex-col gap-3 max-w-[460px] ml-auto items-end">
-          <span className="text-[9px] font-bold text-neutral-700 uppercase tracking-widest mr-1">User_Auth_Required</span>
-          <div className="bg-neutral-900 border border-teal-500/20 p-8 rounded-[32px] rounded-tr-none text-right">
-            <p className="text-sm text-neutral-400 leading-relaxed mb-6">
-              Primary architecture requires <span className="text-white font-bold">manual override</span> for Region_Sub_04 cluster deployment. Review logic gates before execution.
-            </p>
-            <div className="flex gap-4 justify-end">
-              <button className="px-8 py-3 bg-teal-500 text-black text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all">Authorize</button>
-              <button className="px-8 py-3 bg-transparent border border-neutral-800 text-neutral-500 text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-neutral-800 transition-all">Abort</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-8 bg-neutral-900/30">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="EXECUTE COMMAND..."
-            className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 transition-all placeholder:text-neutral-800"
-          />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-3 text-neutral-600">
-            <Command size={16} />
-            <span className="text-[10px] font-bold">ENTER</span>
-          </div>
-        </div>
       </div>
     </div>
   );

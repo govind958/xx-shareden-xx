@@ -79,31 +79,7 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
       
       {/* 1. TOP GLOBAL NAVIGATION */}
-      <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center text-black">
-                <Zap size={18} fill="currentColor" />
-             </div>
-             <span className="text-white font-bold tracking-tighter text-xl">CloudConsole</span>
-          </div>
-          <div className="h-6 w-px bg-neutral-800 hidden md:block" />
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <button className="text-teal-400 border-b-2 border-teal-500 py-7">Overview</button>
-            <button className="hover:text-neutral-200 transition py-7 text-neutral-500">Analytics</button>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 bg-neutral-900/50 border border-neutral-800 px-3 py-1.5 rounded-xl mr-4">
-            <Search size={14} className="text-neutral-600" />
-            <input type="text" placeholder="Search system..." className="bg-transparent border-none outline-none text-xs w-32" />
-          </div>
-          <button className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center relative">
-            <Bell size={18} />
-          </button>
-        </div>
-      </nav>
+     
 
       <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
         
@@ -208,13 +184,7 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
         </div>
 
         {/* Footer Logs View */}
-        <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden">
-          <div className="px-8 py-4 bg-black/40 flex justify-between items-center">
-            <p className="text-[10px] font-medium text-neutral-700 font-mono tracking-tighter">
-                LAST_SYNC: {mounted ? new Date().toISOString() : "CALIBRATING..."}
-            </p>
-          </div>
-        </div>
+        
       </main>
     </div>
   )
