@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { 
-  LayoutDashboard, Users, FolderTree, Settings, 
+import {
+  LayoutDashboard, Users, FolderTree, Settings,
   LogOut, ChevronLeft, ChevronRight, Sun, Moon, LucideIcon,
   User as UserIcon,
   BugIcon
@@ -22,12 +22,12 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, isCollapse
   const isActive = pathname === to;
 
   return (
-    <Link 
+    <Link
       href={to}
       className={`w-full flex items-center transition-all duration-200 group relative
         ${isCollapsed ? 'justify-center px-0 py-4' : 'px-4 py-4 gap-4'}
-        ${isActive 
-          ? 'bg-teal-500 text-black' 
+        ${isActive
+          ? 'bg-teal-500 text-black'
           : 'text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-900 hover:text-black dark:hover:text-white'}`}
     >
       <Icon size={20} className={isActive ? 'text-black' : 'group-hover:text-teal-500'} />
@@ -75,12 +75,12 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
         <SidebarItem icon={FolderTree} label="Projects" to="/Employee_portal/Project" isCollapsed={isCollapsed} />
         <SidebarItem icon={BugIcon} label="Task" to="/Employee_portal/Task" isCollapsed={isCollapsed} />
         <SidebarItem icon={Moon} label="Employee_Task" to="/Employee_portal/Task_Working_Space" isCollapsed={isCollapsed} />
-         <SidebarItem icon={Settings} label="Employee_Settings" to="/Employee_portal/Setting" isCollapsed={isCollapsed} />
+        <SidebarItem icon={Settings} label="Employee_Settings" to="/Employee_portal/Setting" isCollapsed={isCollapsed} />
       </nav>
 
       {/* Footer Section: User Profile & Controls */}
       <div className="p-4 border-t border-neutral-100 dark:border-neutral-900 space-y-2">
-        
+
         {/* Current User Display */}
         {user && (
           <div className={`flex items-center mb-4 p-2 rounded-xl bg-zinc-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800/50 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>

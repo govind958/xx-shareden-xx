@@ -237,13 +237,13 @@ function ClientDashboardContent() {
                 {/* Messages Area */}
                 <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
                   {messages.length > 0 ? messages.map((m, i) => (
-                    <div key={m.id || i} className={cn("flex flex-col gap-1.5", m.sender_role === 'client' ? "items-end" : "items-start")}>
+                    <div key={m.id || i} className={cn("flex flex-col gap-1.5", m.sender_role === 'employee' ? "items-end" : "items-start")}>
                       <span className="text-[8px] font-black text-neutral-700 uppercase tracking-widest">
-                        {m.sender_role === 'client' ? 'You (Authorized)' : 'Node_Operative'}
+                        {m.sender_role === 'employee' ? 'You (Operative)' : 'Client_Auth'}
                       </span>
                       <div className={cn(
                         "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight uppercase leading-relaxed shadow-lg",
-                        m.sender_role === 'client'
+                        m.sender_role === 'employee'
                           ? "bg-teal-500 text-black rounded-tr-none"
                           : "bg-neutral-900 text-white border border-neutral-800 rounded-tl-none"
                       )}>
