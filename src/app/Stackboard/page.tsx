@@ -51,8 +51,8 @@ export default function TechNoirDashboard() {
         const stacks = await getPurchasedStacks(user.id);
         setPurchasedStacks(stacks);
 
-        // Auto-select first stack if available
-        if (stacks && stacks.length > 0) {
+        // Auto-select first stack only if nothing is selected yet
+        if (stacks && stacks.length > 0 && !selectedStackId) {
           setSelectedStackId(stacks[0].id);
           setSelectedStackName(stacks[0].name);
           const substacks = await getPurchasedSubStacks(stacks[0].id);

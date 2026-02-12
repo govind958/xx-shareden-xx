@@ -7,6 +7,7 @@ import {
   Box, ArrowRight, LayoutGrid, Activity
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { verifyEmployeeSession } from '@/src/modules/employee/actions';
 
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
@@ -30,49 +31,43 @@ function ClientDashboardContent() {
   // 1. Initial Data Fetch: Get all Cart Items (Order Items)
   useEffect(() => {
     async function initDashboard() {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      setUser(authUser);
+      // Use custom employee session instead of Supabase Auth
+      const sessionResult = await verifyEmployeeSession();
 
-      if (authUser) {
-        // Look up employee record by email to get employee.id
-        const { data: employee } = await supabase
-          .from('employees')
-          .select('id')
-          .eq('email', authUser.email)
-          .single();
+      if (!sessionResult.isValid || !sessionResult.employee) {
+        console.error('No valid employee session found');
+        setLoading(false);
+        return;
+      }
 
-        if (!employee) {
-          console.error('No employee record found for this user');
-          setLoading(false);
-          return;
-        }
-        setEmployeeId(employee.id);
+      const emp = sessionResult.employee;
+      setUser({ id: emp.id, email: emp.email }); // For message sender_id
+      setEmployeeId(emp.id);
 
-        // Fetch order_items assigned to this employee
-        const { data: cartItems } = await supabase
+      // Fetch order_items assigned to this employee
+      const { data: cartItems } = await supabase
+        .from('order_items')
+        .select('*, stacks(name)')
+        .eq('assigned_to', emp.id)
+        .order('created_at', { ascending: false });
+
+      setOrders(cartItems || []);
+
+      // If an ID is in URL, fetch that specific stack's details
+      if (orderItemId) {
+        const { data: currentTask } = await supabase
           .from('order_items')
-          .select('*, stacks(name)')
-          .eq('assigned_to', employee.id)
-          .order('created_at', { ascending: false });
+          .select('*')
+          .eq('id', orderItemId)
+          .single();
+        setActiveStack(currentTask);
 
-        setOrders(cartItems || []);
-
-        // If an ID is in URL, fetch that specific stack's details
-        if (orderItemId) {
-          const { data: currentTask } = await supabase
-            .from('order_items')
-            .select('*')
-            .eq('id', orderItemId)
-            .single();
-          setActiveStack(currentTask);
-
-          const { data: history } = await supabase
-            .from('project_messages')
-            .select('*')
-            .eq('order_item_id', orderItemId)
-            .order('created_at', { ascending: true });
-          setMessages(history || []);
-        }
+        const { data: history } = await supabase
+          .from('project_messages')
+          .select('*')
+          .eq('order_item_id', orderItemId)
+          .order('created_at', { ascending: true });
+        setMessages(history || []);
       }
       setLoading(false);
     }
@@ -238,11 +233,11 @@ function ClientDashboardContent() {
                 <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
                   {messages.length > 0 ? messages.map((m, i) => (
                     <div key={m.id || i} className={cn("flex flex-col gap-1.5", m.sender_role === 'employee' ? "items-end" : "items-start")}>
-                      <span className="text-[8px] font-black text-neutral-700 uppercase tracking-widest">
+                      <span className="text-[8px] font-black text-neutral-700  tracking-widest">
                         {m.sender_role === 'employee' ? 'You (Operative)' : 'Client_Auth'}
                       </span>
                       <div className={cn(
-                        "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight uppercase leading-relaxed shadow-lg",
+                        "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight  leading-relaxed shadow-lg",
                         m.sender_role === 'employee'
                           ? "bg-teal-500 text-black rounded-tr-none"
                           : "bg-neutral-900 text-white border border-neutral-800 rounded-tl-none"
@@ -275,7 +270,7 @@ function ClientDashboardContent() {
             ) : (
               <div className="h-[800px] border border-neutral-900 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 text-neutral-800">
                 <Box size={48} className="opacity-10" />
-                <p className="text-[10px] font-black uppercase tracking-[0.8em]">Select_Node_To_Communicate</p>
+                <p className="text-[10px] font-black  tracking-[0.8em]">Select_Node_To_Communicate</p>
               </div>
             )}
           </main>

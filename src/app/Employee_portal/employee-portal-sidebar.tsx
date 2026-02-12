@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
 import {
   LayoutDashboard, Users, FolderTree, Settings,
   LogOut, ChevronLeft, ChevronRight, Sun, Moon, LucideIcon,
   User as UserIcon,
   BugIcon
 } from 'lucide-react';
+import { employeeLogout, verifyEmployeeSession } from '@/src/modules/employee/actions';
 
 interface SidebarItemProps {
   icon: LucideIcon;
@@ -47,15 +47,16 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const supabase = createClient();
+  const [employee, setEmployee] = useState<{ id: string; email: string; name: string; role: string } | null>(null);
 
   useEffect(() => {
-    async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+    async function getEmployee() {
+      const result = await verifyEmployeeSession();
+      if (result.isValid && result.employee) {
+        setEmployee(result.employee);
+      }
     }
-    getUser();
+    getEmployee();
   }, []);
 
   return (
@@ -82,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
       <div className="p-4 border-t border-neutral-100 dark:border-neutral-900 space-y-2">
 
         {/* Current User Display */}
-        {user && (
+        {employee && (
           <div className={`flex items-center mb-4 p-2 rounded-xl bg-zinc-50 dark:bg-neutral-900/50 border border-neutral-100 dark:border-neutral-800/50 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
             <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-500 shrink-0">
               <UserIcon size={16} />
@@ -90,10 +91,10 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <p className="text-[10px] font-black uppercase tracking-tight text-black dark:text-white truncate">
-                  {user.user_metadata?.name || 'Agent_Active'}
+                  {employee.name || 'Agent_Active'}
                 </p>
                 <p className="text-[8px] font-bold text-neutral-500 uppercase truncate">
-                  {user.email}
+                  {employee.email}
                 </p>
               </div>
             )}
@@ -112,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
         </button>
 
         {/* Logout */}
-        <button className={`flex items-center text-red-500 hover:bg-red-500/10 rounded-xl transition-all w-full py-4 ${isCollapsed ? 'justify-center' : 'px-4 gap-4'}`}>
+        <button onClick={() => employeeLogout()} className={`flex items-center text-red-500 hover:bg-red-500/10 rounded-xl transition-all w-full py-4 ${isCollapsed ? 'justify-center' : 'px-4 gap-4'}`}>
           <LogOut size={20} />
           {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-[0.2em]">Terminate</span>}
         </button>

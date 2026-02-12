@@ -39,10 +39,15 @@ export async function updateSession(request: NextRequest) {
 
   // Skip auth check for admin routes (handled separately)
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
-  
+  // Skip auth check for employee portal auth routes (handled via employee sessions)
+  const isEmployeeAuthRoute =
+    request.nextUrl.pathname.startsWith('/Employee_portal/login') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/signup')
+
   if (
     !user &&
     !isAdminRoute &&
+    !isEmployeeAuthRoute &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/error')
