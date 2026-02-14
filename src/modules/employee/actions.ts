@@ -3,33 +3,22 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
-import { createHash, randomBytes } from 'crypto'
+import { createAdminClient } from '@/utils/supabase/admin'
 
-// Helper to hash values (password, etc.)
-function hashValue(value: string): string {
-    return createHash('sha256').update(value).digest('hex')
-}
-
-// Helper to generate session token
-function generateSessionToken(): string {
-    return randomBytes(48).toString('hex')
-}
-
-// Employee signup
+// Employee signup - Uses Supabase Auth with auto-confirmed email
 export async function employeeSignup(formData: FormData) {
     const supabase = await createClient()
 
     const name = formData.get('name') as string
     const email = formData.get('email') as string
     const password = formData.get('password') as string
-    const role = formData.get('role') as string
+    const employeeRole = formData.get('role') as string
 
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password || !employeeRole) {
         redirect('/Employee_portal/signup?error=missing_fields')
     }
 
-    // Check if employee already exists
+    // Check if email already exists in employees table
     const { data: existing } = await supabase
         .from('employees')
         .select('id')
@@ -40,58 +29,54 @@ export async function employeeSignup(formData: FormData) {
         redirect('/Employee_portal/signup?error=already_exists')
     }
 
-    // Hash password
-    const passwordHash = hashValue(password)
+    // Use admin client to create user with auto-confirmed email
+    const adminClient = createAdminClient()
+    
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+        email: email.toLowerCase().trim(),
+        password: password,
+        email_confirm: true, // Auto-confirm email for employees
+        user_metadata: {
+            name: name.trim(),
+            user_type: 'employee',
+            employee_role: employeeRole.trim(),
+        }
+    })
 
-    // Create employee
-    const { data: employee, error: insertError } = await supabase
+    if (authError || !authData.user) {
+        console.error('Auth signup error:', authError)
+        redirect('/Employee_portal/signup?error=auth_failed')
+    }
+
+    // Create employee record linked to auth user
+    const { error: insertError } = await adminClient
         .from('employees')
         .insert({
+            id: authData.user.id,
             name: name.trim(),
             email: email.toLowerCase().trim(),
-            password_hash: passwordHash,
-            role: role.trim(),
+            role: employeeRole.trim(),
             is_active: true,
         })
-        .select('id')
-        .single()
 
-    if (insertError || !employee) {
+    if (insertError) {
+        console.error('Employee insert error:', insertError)
+        // Clean up auth user if employee creation fails
+        await adminClient.auth.admin.deleteUser(authData.user.id).catch(() => {})
         redirect('/Employee_portal/signup?error=creation_failed')
     }
 
-    // Generate session
-    const sessionToken = generateSessionToken()
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7)
-
-    const { error: sessionError } = await supabase
-        .from('employee_sessions')
-        .insert({
-            employee_id: employee.id,
-            session_token: sessionToken,
-            expires_at: expiresAt.toISOString(),
-        })
-
-    if (sessionError) {
-        redirect('/Employee_portal/signup?error=session_error')
-    }
-
-    // Set cookie
-    const cookieStore = await cookies()
-    cookieStore.set('employee_session_token', sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
+    // Sign in the user after signup
+    await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: password,
     })
 
     revalidatePath('/Employee_portal', 'layout')
     redirect('/Employee_portal')
 }
 
-// Employee login
+// Employee login - Uses Supabase Auth and verifies employee role
 export async function employeeLogin(formData: FormData) {
     const supabase = await createClient()
 
@@ -102,50 +87,30 @@ export async function employeeLogin(formData: FormData) {
         redirect('/Employee_portal/login?error=missing_fields')
     }
 
-    // Look up employee
-    const { data: employee, error: empError } = await supabase
+    // Sign in with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: password,
+    })
+
+    if (authError || !authData.user) {
+        console.error('Auth login error:', authError)
+        redirect('/Employee_portal/login?error=invalid_credentials')
+    }
+
+    // Verify user is an employee (check employees table)
+    const { data: employee } = await supabase
         .from('employees')
-        .select('id, email, name, password_hash, is_active')
-        .eq('email', email.toLowerCase().trim())
+        .select('id, is_active')
+        .eq('id', authData.user.id)
         .eq('is_active', true)
         .single()
 
-    if (empError || !employee) {
-        redirect('/Employee_portal/login?error=invalid_credentials')
+    if (!employee) {
+        // Not an employee, sign them out
+        await supabase.auth.signOut()
+        redirect('/Employee_portal/login?error=not_employee')
     }
-
-    // Verify password
-    const providedHash = hashValue(password)
-    if (!employee.password_hash || employee.password_hash !== providedHash) {
-        redirect('/Employee_portal/login?error=invalid_credentials')
-    }
-
-    // Generate session
-    const sessionToken = generateSessionToken()
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7)
-
-    const { error: sessionError } = await supabase
-        .from('employee_sessions')
-        .insert({
-            employee_id: employee.id,
-            session_token: sessionToken,
-            expires_at: expiresAt.toISOString(),
-        })
-
-    if (sessionError) {
-        redirect('/Employee_portal/login?error=session_error')
-    }
-
-    // Set cookie
-    const cookieStore = await cookies()
-    cookieStore.set('employee_session_token', sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7,
-        path: '/',
-    })
 
     revalidatePath('/Employee_portal', 'layout')
     redirect('/Employee_portal')
@@ -153,59 +118,30 @@ export async function employeeLogin(formData: FormData) {
 
 // Employee logout
 export async function employeeLogout() {
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('employee_session_token')?.value
-
-    if (sessionToken) {
         const supabase = await createClient()
-        await supabase
-            .from('employee_sessions')
-            .delete()
-            .eq('session_token', sessionToken)
-    }
-
-    cookieStore.set('employee_session_token', '', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 0,
-        path: '/',
-    })
-
+    await supabase.auth.signOut()
     redirect('/Employee_portal/login')
 }
 
-// Verify employee session (server-side)
+// Verify employee session (server-side) - Uses Supabase Auth
 export async function verifyEmployeeSession(): Promise<{
     isValid: boolean
     employee?: { id: string; email: string; name: string; role: string }
 }> {
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('employee_session_token')?.value
-
-    if (!sessionToken) {
-        return { isValid: false }
-    }
-
     const supabase = await createClient()
 
-    // Check session validity
-    const { data: session, error: sessionError } = await supabase
-        .from('employee_sessions')
-        .select('employee_id, expires_at')
-        .eq('session_token', sessionToken)
-        .gt('expires_at', new Date().toISOString())
-        .single()
+    // Get current auth session
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (sessionError || !session) {
+    if (error || !user) {
         return { isValid: false }
     }
 
-    // Get employee details
+    // Verify user is an employee
     const { data: employee, error: empError } = await supabase
         .from('employees')
         .select('id, email, name, role, is_active')
-        .eq('id', session.employee_id)
+        .eq('id', user.id)
         .eq('is_active', true)
         .single()
 

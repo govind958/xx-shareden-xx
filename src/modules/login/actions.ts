@@ -17,7 +17,7 @@ function getURL() {
   return url
 }
 
-// ✅ Login (unchanged)
+// ✅ Login (with role validation - only regular users)
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
@@ -26,29 +26,39 @@ export async function login(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
     redirect('/error')
+  }
+
+  // Check if user is an employee trying to use user login
+  const userType = authData.user?.user_metadata?.user_type
+  if (userType === 'employee') {
+    // Sign them out and redirect to employee login
+    await supabase.auth.signOut()
+    redirect('/Employee_portal/login?error=use_employee_login')
   }
 
   revalidatePath('/private', 'layout')
   redirect('/private')
 }
 
-// ✅ Signup (updated for email verification flow)
+// ✅ Signup (with user_type metadata)
 export async function signup(formData: FormData) {
   const supabase = await createClient()
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
 
   const { error } = await supabase.auth.signUp({
-    ...data,
+    email,
+    password,
     options: {
-      emailRedirectTo: getURL(), // where verification link will send user
+      emailRedirectTo: getURL(),
+      data: {
+        user_type: 'user', // Mark as regular user
+      },
     },
   })
 
@@ -56,12 +66,10 @@ export async function signup(formData: FormData) {
     redirect('/error')
   }
 
-  // Revalidate private cache (optional, safe to keep)
   revalidatePath('/private', 'layout')
-
-  // 👉 Instead of sending user to /private, send them to verify email page
   redirect('/verify-email')
 }
+
 // ✅ Google Login/Signup
 // ✅ OAuth Factory
 const signInWith = (provider: 'google' | 'github' | 'facebook') => {

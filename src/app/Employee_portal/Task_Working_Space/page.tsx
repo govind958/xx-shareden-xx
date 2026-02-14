@@ -1,13 +1,12 @@
 "use client"
 
-import React, { useEffect, useState, useRef, Suspense, useMemo } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Terminal, Send, Check, ChevronLeft, Zap,
-  Box, ArrowRight, LayoutGrid, Activity
+  Terminal, Send, Zap,
+  Box, ArrowRight, LayoutGrid
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
-import { verifyEmployeeSession } from '@/src/modules/employee/actions';
 
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
@@ -28,27 +27,40 @@ function ClientDashboardContent() {
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Initial Data Fetch: Get all Cart Items (Order Items)
+  // 1. Initial Data Fetch: Get Supabase Auth user and verify employee
   useEffect(() => {
     async function initDashboard() {
-      // Use custom employee session instead of Supabase Auth
-      const sessionResult = await verifyEmployeeSession();
+      // Get Supabase Auth session (required for realtime to work)
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-      if (!sessionResult.isValid || !sessionResult.employee) {
-        console.error('No valid employee session found');
+      if (authError || !authUser) {
+        console.error('No valid auth session found');
         setLoading(false);
         return;
       }
 
-      const emp = sessionResult.employee;
-      setUser({ id: emp.id, email: emp.email }); // For message sender_id
-      setEmployeeId(emp.id);
+      // Verify user is an employee
+      const { data: employee, error: empError } = await supabase
+        .from('employees')
+        .select('id, email, name, role, is_active')
+        .eq('id', authUser.id)
+        .eq('is_active', true)
+        .single();
+
+      if (empError || !employee) {
+        console.error('User is not an employee');
+        setLoading(false);
+        return;
+      }
+
+      setUser({ id: employee.id, email: employee.email });
+      setEmployeeId(employee.id);
 
       // Fetch order_items assigned to this employee
       const { data: cartItems } = await supabase
         .from('order_items')
         .select('*, stacks(name)')
-        .eq('assigned_to', emp.id)
+        .eq('assigned_to', employee.id)
         .order('created_at', { ascending: false });
 
       setOrders(cartItems || []);
@@ -78,6 +90,30 @@ function ClientDashboardContent() {
   useEffect(() => {
     if (!orderItemId) return;
 
+    // Function to fetch messages (used for polling fallback)
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from('project_messages')
+        .select('*')
+        .eq('order_item_id', orderItemId)
+        .order('created_at', { ascending: true });
+      
+      if (data) {
+        // Always use the fresh data from DB to avoid duplicates
+        setMessages(data);
+      }
+    };
+
+    console.log('Setting up realtime for order:', orderItemId);
+    
+    // Debug: Check auth state
+    supabase.auth.getSession().then(({ data, error }) => {
+      console.log('Current auth session:', data?.session ? 'EXISTS' : 'NONE', error);
+      if (data?.session) {
+        console.log('Session user:', data.session.user.email);
+      }
+    });
+
     const channel = supabase.channel(`nexus_${orderItemId}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -85,10 +121,12 @@ function ClientDashboardContent() {
         table: 'project_messages',
         filter: `order_item_id=eq.${orderItemId}`
       }, (payload) => {
+        console.log('Realtime INSERT received:', payload);
+        const newMsg = payload.new as any;
         // Deduplicate: only add if not already in state
         setMessages(prev => {
-          const exists = prev.find(m => m.id === payload.new.id);
-          return exists ? prev : [...prev, payload.new];
+          const exists = prev.find(m => m.id === newMsg.id);
+          return exists ? prev : [...prev, newMsg];
         });
       })
       .on('postgres_changes', {
@@ -100,8 +138,9 @@ function ClientDashboardContent() {
         setActiveStack(payload.new);
       })
       .subscribe((status, err) => {
+        console.log('Realtime subscription status:', status);
         if (status === 'SUBSCRIBED') {
-          console.log('Realtime: Connected to channel');
+          console.log('Realtime: Connected to channel (Employee Portal)');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Realtime: Channel error', err);
         } else if (status === 'TIMED_OUT') {
@@ -109,7 +148,13 @@ function ClientDashboardContent() {
         }
       });
 
-    return () => { supabase.removeChannel(channel); };
+    // Polling fallback - fetch every 3 seconds in case realtime doesn't work
+    const pollInterval = setInterval(fetchMessages, 3000);
+
+    return () => { 
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel); 
+    };
   }, [orderItemId]);
 
   useEffect(() => {

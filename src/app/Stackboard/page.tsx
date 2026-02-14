@@ -260,9 +260,21 @@ function MessageDashboard({
         filter: `order_item_id=eq.${activeStackId}`
       }, (payload) => {
         setMessages(prev => {
-          // Prevent duplicates if we already added it optimistically
-          const exists = prev.find(m => m.id === payload.new.id);
-          return exists ? prev : [...prev, payload.new];
+          // Prevent duplicates - check by ID or by content+sender for optimistic messages
+          const newMsg = payload.new as any;
+          const exists = prev.find(m => 
+            m.id === newMsg.id || 
+            (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number')
+          );
+          if (exists) {
+            // Replace optimistic message with real one
+            return prev.map(m => 
+              (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number') 
+                ? newMsg 
+                : m
+            );
+          }
+          return [...prev, newMsg];
         });
       })
       .subscribe((status, err) => {
