@@ -12,6 +12,7 @@ import {
   Cpu,
   Trash2
 } from 'lucide-react';
+import BuyNowButton from '@/src/components/buynowbutton';
 
 // const FEATURES = [
 //   "Create, assign, and track tasks",
@@ -39,14 +40,12 @@ interface CartStack {
 }
 
 export default function TechNoirCheckout() {
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [cartStacks, setCartStacks] = useState<CartStack[]>([]);
   const [activeCartId, setActiveCartId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [profileData, setProfileData] = useState<{ email?: string; name?: string } | null>(null);
+  const [profileData, setProfileData] = useState<{ email?: string; name?: string; contact?: string } | null>(null);
   const [organizationData, setOrganizationData] = useState<{ name?: string } | null>(null);
 
   useEffect(() => {
@@ -83,7 +82,8 @@ export default function TechNoirCheckout() {
         // Combine profile data with email from auth
         setProfileData({
           email: user.email || undefined,
-          name: profileData?.name || ''
+          name: profileData?.name || '',
+          contact: '' // Add contact field if you have it in your profiles table
         });
         setOrganizationData({ name: organizationData?.org_name || '' });
 
@@ -196,175 +196,6 @@ export default function TechNoirCheckout() {
       alert('Failed to remove item from cart');
     } finally {
       setRemovingId(null);
-    }
-  };
-
-  const handleCheckout = async () => {
-    if (isCheckingOut || cartStacks.length === 0) return;
-    setIsCheckingOut(true);
-
-    if (!user) {
-      alert('Please sign in to checkout');
-      setIsCheckingOut(false);
-      return;
-    }
-
-    try {
-      const supabase = createClient();
-
-      // Calculate total
-      const totalAmount = cartStacks.reduce((sum, item) => sum + item.price, 0);
-
-      // Process each cart item - create stacks for unsaved clusters
-      const processedItems: Array<{ stack_id: string; sub_stack_ids: string[]; cart_id: string }> = [];
-
-      for (const item of cartStacks) {
-        if (item.isUnsaved && item.cluster_data) {
-          // First, check if a matching stack with same substacks already exists
-          const clusterName = item.cluster_name || item.name;
-          const currentSubstackNames = item.cluster_data.map(s => s.name).sort();
-
-          // Check for existing active stacks (ignore name, only match by substacks)
-          const { data: existingStacks } = await supabase
-            .from('stacks')
-            .select('id, name')
-            .eq('active', true);
-
-          let foundStackId: string | null = null;
-          let foundSubStackIds: string[] = [];
-
-          if (existingStacks && existingStacks.length > 0) {
-            // Check substacks for each stack - find one with matching substacks
-            for (const stack of existingStacks) {
-              const { data: existingSubStacks } = await supabase
-                .from('sub_stacks')
-                .select('id, name')
-                .eq('stack_id', stack.id);
-
-              if (existingSubStacks) {
-                const existingNames = existingSubStacks.map(s => s.name).sort();
-
-                // Compare: same count and same substack names (ignore stack name)
-                const isMatch = currentSubstackNames.length === existingNames.length &&
-                  currentSubstackNames.every((val, index) => val === existingNames[index]);
-
-                if (isMatch) {
-                  foundStackId = stack.id;
-                  foundSubStackIds = existingSubStacks.map(s => s.id);
-                  break;
-                }
-              }
-            }
-          }
-
-
-          if (foundStackId) {
-            // Reuse existing stack - don't create duplicate
-            processedItems.push({
-              stack_id: foundStackId,
-              sub_stack_ids: foundSubStackIds,
-              cart_id: item.cart_id,
-            });
-          } else {
-            // No matching stack found - create new one
-            const { data: stackRow, error: stackError } = await supabase
-              .from('stacks')
-              .insert({
-                name: clusterName,
-                description: 'Custom infrastructure stack',
-                type: 'custom',
-                base_price: item.price,
-                author_id: user.id,
-                active: true,
-              })
-              .select('id')
-              .single();
-
-            if (stackError || !stackRow) {
-              throw new Error(`Failed to create stack: ${stackError?.message || 'Unknown error'}`);
-            }
-
-            // Create sub_stacks
-            const subStackPayload = item.cluster_data.map((sub) => ({
-              stack_id: stackRow.id,
-              name: sub.name,
-              price: sub.price,
-              is_free: sub.is_free,
-            }));
-
-            const { data: subRows, error: subError } = await supabase
-              .from('sub_stacks')
-              .insert(subStackPayload)
-              .select('id');
-
-            if (subError) {
-              throw new Error(`Failed to create sub_stacks: ${subError.message}`);
-            }
-
-            const subStackIds = (subRows || []).map((row: { id: string }) => row.id);
-
-            processedItems.push({
-              stack_id: stackRow.id,
-              sub_stack_ids: subStackIds,
-              cart_id: item.cart_id,
-            });
-          }
-        } else {
-          // Already saved stack - use existing IDs
-          processedItems.push({
-            stack_id: item.stack_id!,
-            sub_stack_ids: item.sub_stacks.filter(s => s.id).map(s => s.id!),
-            cart_id: item.cart_id,
-          });
-        }
-      }
-
-
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          total_amount: totalAmount,
-        })
-        .select('id')
-        .single();
-
-      if (orderError || !order) throw orderError;
-
-      // Create order items with the processed stack IDs
-      const orderItems = processedItems.map((item) => ({
-        order_id: order.id,
-        user_id: user.id,
-        stack_id: item.stack_id,
-        sub_stack_ids: item.sub_stack_ids,
-        status: 'initiated',
-        step: 1,
-        progress_percent: 0,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      // Clear cart
-      const { error: clearError } = await supabase
-        .from('cart_stacks')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('status', 'active');
-
-      if (clearError) throw clearError;
-
-      // Redirect to stackboard
-      router.push('/private?tab=stackboard');
-    } catch (error) {
-      console.error('Error during checkout:', error);
-      alert('Checkout failed. Please try again.');
-    } finally {
-      setIsCheckingOut(false);
     }
   };
 
@@ -570,13 +401,21 @@ export default function TechNoirCheckout() {
                 </p>
               </div>
 
-              <button
-                onClick={handleCheckout}
-                disabled={isCheckingOut || cartStacks.length === 0}
-                className="w-full bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-black py-6 rounded-2xl transition-all duration-300 uppercase tracking-[0.3em] shadow-[0_0_40px_rgba(20,184,166,0.15)] active:scale-[0.98]"
-              >
-                {isCheckingOut ? 'Processing...' : 'Complete Subscription'}
-              </button>
+              <BuyNowButton 
+                amount={subtotal} 
+                userDetails={{
+                  name: organizationData?.name || profileData?.name || '',
+                  email: profileData?.email || '',
+                  contact: profileData?.contact || ''
+                }}
+                cartItems={cartStacks}
+                onSuccess={(verification: {orderId?: string; paymentId?: string}) => {
+                  console.log('Payment successful!', verification)
+                  // Clear local cart state
+                  setCartStacks([])
+                  // Redirect handled by BuyNowButton
+                }}
+              />
               {cartStacks.length === 0 && (
                 <p className="text-[10px] text-neutral-600 italic text-center mt-4">Add stacks to your cart to checkout</p>
               )}
