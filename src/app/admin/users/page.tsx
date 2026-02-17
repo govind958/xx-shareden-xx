@@ -30,21 +30,67 @@ export default function OrderCommandCenter() {
     async function fetchData() {
       setLoading(true);
 
-      // Fetch Orders
-      const { data: orderData } = await supabase
+      // Fetch Orders with order_items
+      const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select(`
           id, total_amount, created_at, user_id,
-          order_items (id, stack_id, status, progress_percent, assigned_to)
+          order_items (
+            id, stack_id, status, progress_percent, assigned_to
+          )
         `)
         .order('created_at', { ascending: false });
+
+      if (orderError) {
+        console.error('Error fetching orders:', orderError);
+      }
+
+      if (orderData && orderData.length > 0) {
+        // Get unique user IDs for profiles
+        const userIds = [...new Set(orderData.map(o => o.user_id))];
+        
+        // Get unique stack IDs for stack names
+        const stackIds = [...new Set(
+          orderData.flatMap(o => 
+            o.order_items?.map((item: { stack_id: string }) => item.stack_id) || []
+          ).filter(Boolean)
+        )];
+
+        // Fetch profiles
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, name')
+          .in('user_id', userIds);
+
+        // Fetch stacks
+        const { data: stacksData } = await supabase
+          .from('stacks')
+          .select('id, name')
+          .in('id', stackIds);
+
+        // Create a map for quick lookup
+        const stacksMap = new Map(stacksData?.map(s => [s.id, s.name]) || []);
+
+        // Merge profiles and stack names into orders
+        const ordersWithData = orderData.map(order => ({
+          ...order,
+          profile: profilesData?.find(p => p.user_id === order.user_id) || null,
+          order_items: order.order_items?.map((item: { stack_id: string; id: string; status: string; progress_percent: number; assigned_to: string }) => ({
+            ...item,
+            stack_name: stacksMap.get(item.stack_id) || null
+          })) || []
+        }));
+
+        setOrders(ordersWithData);
+      } else {
+        setOrders(orderData || []);
+      }
 
       // Fetch Employees for assignment
       const { data: empData } = await supabase
         .from('employees')
         .select('id, name, role');
 
-      if (orderData) setOrders(orderData);
       if (empData) setEmployees(empData);
       setLoading(false);
     }
@@ -172,6 +218,10 @@ export default function OrderCommandCenter() {
                   orders.map((order) => {
                     const firstItem = order.order_items?.[0];
                     const statusKey = firstItem?.status || 'pending';
+                    const userName = order.profile?.name || 'Unknown User';
+                    const stackName = firstItem?.stack_name || 'Custom Stack';
+                    const stackCount = order.order_items?.length || 0;
+                    
                     return (
                       <tr key={order.id} onClick={() => setSelectedOrderId(order.id)} className="group hover:bg-teal-500/[0.03] transition-all cursor-pointer">
                         <td className="px-8 py-7">
@@ -180,18 +230,23 @@ export default function OrderCommandCenter() {
                         </td>
                         <td className="px-8 py-7">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neutral-800 to-black border border-neutral-800 flex items-center justify-center text-xs font-bold text-teal-500">U</div>
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neutral-800 to-black border border-neutral-800 flex items-center justify-center text-xs font-bold text-teal-500 uppercase">
+                              {userName.charAt(0)}
+                            </div>
                             <div>
-                              <p className="text-sm font-bold text-neutral-200">User ID</p>
-                              <p className="text-xs text-neutral-500 lowercase">{order.user_id.slice(0, 15)}...</p>
+                              <p className="text-sm font-bold text-neutral-200">{userName}</p>
+                              <p className="text-xs text-neutral-500 font-mono">{order.user_id?.slice(0, 12)}...</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-7">
                           <div className="inline-flex items-center gap-2 px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-lg text-[11px] font-bold text-neutral-300">
                             <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                            {firstItem?.stack_id || "Standard Stack"}
+                            {stackName}
                           </div>
+                          {stackCount > 1 && (
+                            <p className="text-[10px] text-neutral-600 mt-1">+{stackCount - 1} more stacks</p>
+                          )}
                         </td>
                         <td className="px-8 py-7"><p className="text-sm font-bold text-white font-mono tracking-tight">₹{order.total_amount.toLocaleString()}</p></td>
                         <td className="px-8 py-7">
