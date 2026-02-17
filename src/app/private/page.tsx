@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useEffect, useState, Suspense } from "react"
-import { createClient } from "@/utils/supabase/client"
 import { logout } from "@/src/modules/logout/actions"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/src/context/AuthContext"
@@ -9,9 +8,13 @@ import { useAuth } from "@/src/context/AuthContext"
 // Icons
 import {
   Home, Settings, Code, LucideShoppingCart, CircuitBoardIcon,
-  CreditCardIcon, LogOut, Bell, Search, Command, 
+  CreditCardIcon, LogOut, Search, Command, 
   ShieldCheck, RefreshCcw
 } from "lucide-react"
+
+// Notifications
+import { NotificationBell } from "@/src/components/notifications/notification-bell"
+import { useNotifications } from "@/src/hooks/use-notifications"
 
 // UI Components
 import { Button } from "@/src/components/ui/button"
@@ -32,6 +35,9 @@ function PrivatePanelContent() {
   const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState("overview")
   const [isNavigating, setIsNavigating] = useState(false)
+
+  // Initialize real-time notifications
+  useNotifications(user?.id)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -180,10 +186,7 @@ function PrivatePanelContent() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 text-neutral-500 hover:text-white transition-colors relative">
-              <Bell size={18} />
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-teal-500 rounded-full border border-[#050505]"></span>
-            </button>
+            <NotificationBell />
             <div className="h-4 w-[1px] bg-neutral-800 mx-2"></div>
             <Button className="bg-teal-500 hover:bg-teal-600 text-black font-bold text-xs uppercase tracking-tighter rounded-lg px-6 h-9">
               Deploy Stack

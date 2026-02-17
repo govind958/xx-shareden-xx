@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import mixpanel from "../lib/mixpanelClient";
 import { AuthProvider } from "@/src/context/AuthContext";
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -26,6 +27,12 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Toaster 
+          position="top-right"
+          theme="dark"
+          richColors
+          closeButton
+        />
       </body>
     </html>
   );
