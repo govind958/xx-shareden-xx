@@ -138,6 +138,7 @@ export interface StackFormData {
   description: string
   base_price: number
   active: string
+  substacks: Substack[]
 }
 
 export interface OrdersManagementProps {
