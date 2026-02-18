@@ -21,12 +21,15 @@ import {
   Paperclip,
   Send,
   Globe,
-  Command
+  Command,
+  Clock,
+  Play
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
 import { getPurchasedStacks, getPurchasedSubStacks } from '@/src/modules/stack_board/action';
 import { useAuth } from '@/src/context/AuthContext';
+import { toast } from 'sonner';
 
 /* ---------------- UTILS ---------------- */
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
@@ -80,6 +83,56 @@ export default function TechNoirDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // 2.5 Real-time subscription for order_items updates (progress & status)
+  useEffect(() => {
+    if (!user?.id || purchasedStacks.length === 0) return;
+
+    const supabase = createClient();
+    
+    // Subscribe to changes on order_items for this user
+    const channel = supabase.channel(`user_orders_${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'order_items',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        const updatedItem = payload.new as any;
+        console.log('[Stackboard] Order item updated:', updatedItem);
+        
+        // Update the purchasedStacks state
+        setPurchasedStacks(prev => prev.map(stack => 
+          stack.id === updatedItem.id 
+            ? { 
+                ...stack, 
+                status: updatedItem.status?.toUpperCase() || stack.status,
+                progress_percent: updatedItem.progress_percent ?? stack.progress_percent
+              }
+            : stack
+        ));
+
+        // Show toast notification for status changes
+        const statusMessages: Record<string, string> = {
+          'in_progress': '🔧 Work has started on your order!',
+          'completed': '🎉 Your order has been completed!',
+          'processing': '📋 Your order is being processed',
+        };
+        
+        if (statusMessages[updatedItem.status]) {
+          toast(statusMessages[updatedItem.status]);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Stackboard] Realtime: Connected for order updates');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, purchasedStacks.length]);
+
   // 3. Handle Stack Selection
   const handleStackSelect = async (stack: PURCHASED_STACKS) => {
     if (selectedStackId === stack.id) return;
@@ -98,10 +151,27 @@ export default function TechNoirDashboard() {
 
   if (loading || authLoading) return <BootSequence />;
 
-  // Calculate progress
-  const progressPercent = purchasedSubStacks.length > 0
-    ? Math.round((purchasedSubStacks.filter(s => s.status === 'completed').length / purchasedSubStacks.length) * 100)
-    : 0;
+  // Get the selected stack's progress
+  const selectedStack = purchasedStacks.find(s => s.id === selectedStackId);
+  const progressPercent = selectedStack?.progress_percent || 0;
+  const selectedStatus = selectedStack?.status?.toLowerCase() || 'initiated';
+
+  // Get status display for the selected stack
+  const getSelectedStatusInfo = () => {
+    switch (selectedStatus) {
+      case 'initiated':
+        return { label: 'Queued', color: 'text-neutral-400' };
+      case 'processing':
+        return { label: 'Assigned', color: 'text-blue-400' };
+      case 'in_progress':
+        return { label: 'Working', color: 'text-amber-400' };
+      case 'completed':
+        return { label: 'Completed', color: 'text-green-400' };
+      default:
+        return { label: selectedStatus, color: 'text-neutral-400' };
+    }
+  };
+  const selectedStatusInfo = getSelectedStatusInfo();
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-500 font-sans selection:bg-teal-500/30 overflow-x-hidden p-4 lg:p-10">
@@ -166,17 +236,39 @@ export default function TechNoirDashboard() {
           {/* LEFT: PROGRESS ARCHITECTURE */}
           <aside className="col-span-12 lg:col-span-4 bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col">
             <div className="p-8 border-b border-neutral-900">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-4">
                 <div className="space-y-1">
                   <p className="text-[9px] font-black text-neutral-600 uppercase tracking-[0.5em]">Stack_Progress</p>
                   <h2 className="text-white text-lg font-bold tracking-tight">{selectedStackName}</h2>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-mono text-teal-500 font-bold">{progressPercent}%</p>
-                  <div className="w-24 h-1 bg-neutral-900 mt-2 overflow-hidden">
-                    <div className="h-full bg-teal-500" style={{ width: `${progressPercent}%` }} />
+                  <p className={cn("text-[10px] font-mono font-bold", selectedStatusInfo.color)}>{progressPercent}%</p>
+                  <div className="w-24 h-1.5 bg-neutral-900 mt-2 overflow-hidden rounded-full">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-700",
+                        selectedStatus === 'completed' ? 'bg-green-500' : 
+                        selectedStatus === 'in_progress' ? 'bg-amber-500' : 'bg-teal-500'
+                      )} 
+                      style={{ width: `${progressPercent}%` }} 
+                    />
                   </div>
                 </div>
+              </div>
+              
+              {/* Status Badge */}
+              <div className={cn(
+                "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-8",
+                selectedStatus === 'completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                selectedStatus === 'in_progress' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                selectedStatus === 'processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                'bg-neutral-800 text-neutral-400 border border-neutral-700'
+              )}>
+                {selectedStatus === 'in_progress' && <Play size={10} fill="currentColor" />}
+                {selectedStatus === 'completed' && <CheckCircle2 size={10} />}
+                {selectedStatus === 'processing' && <Clock size={10} />}
+                {selectedStatus === 'initiated' && <Clock size={10} />}
+                {selectedStatusInfo.label}
               </div>
 
               <div className="space-y-10 relative">
@@ -435,6 +527,34 @@ function StackCard({ stack, isSelected, onClick }: { stack: PURCHASED_STACKS; is
   };
   const Icon = stack.icon || getIconForType(stack.type);
 
+  // Get status display info
+  const getStatusInfo = (status: string) => {
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'initiated':
+        return { label: 'Queued', color: 'text-neutral-400', bg: 'bg-neutral-800', border: 'border-neutral-700' };
+      case 'processing':
+        return { label: 'Assigned', color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500/30' };
+      case 'in_progress':
+        return { label: 'Working', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30' };
+      case 'completed':
+        return { label: 'Completed', color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500/30' };
+      default:
+        return { label: status, color: 'text-neutral-400', bg: 'bg-neutral-800', border: 'border-neutral-700' };
+    }
+  };
+
+  const statusInfo = getStatusInfo(stack.status);
+  const progress = stack.progress_percent || 0;
+
+  // Get progress bar color based on status
+  const getProgressColor = () => {
+    const normalizedStatus = stack.status?.toLowerCase();
+    if (normalizedStatus === 'completed') return 'bg-green-500';
+    if (normalizedStatus === 'in_progress') return 'bg-amber-500';
+    return 'bg-teal-500';
+  };
+
   return (
     <div
       className={`group bg-[#0a0a0a] border p-8 rounded-[32px] transition-all duration-500 relative overflow-hidden cursor-pointer
@@ -445,24 +565,73 @@ function StackCard({ stack, isSelected, onClick }: { stack: PURCHASED_STACKS; is
       `}
       onClick={onClick}
     >
-      <div className="flex justify-between items-start mb-12">
+      <div className="flex justify-between items-start mb-6">
         <div className={`p-3 rounded-2xl transition-colors duration-500 ${isSelected ? 'bg-teal-500 text-black' : 'bg-neutral-900 group-hover:bg-teal-500 group-hover:text-black text-neutral-400'}`}>
           <Icon size={20} />
         </div>
-        <div className="text-[9px] font-bold text-neutral-600 border border-neutral-800 px-3 py-1 rounded-full uppercase tracking-widest">
-          {stack.status}
+        <div className={cn(
+          "text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border",
+          statusInfo.bg, statusInfo.color, statusInfo.border
+        )}>
+          {statusInfo.label}
         </div>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1 mb-6">
         <p className="text-[9px] font-black text-teal-500/60 uppercase tracking-[0.4em]">{stack.type}</p>
         <h3 className="text-white font-black text-lg tracking-tighter uppercase">{stack.name}</h3>
       </div>
 
-      <div className="mt-8 pt-8 border-t border-neutral-900 flex items-end justify-between">
+      {/* Progress Bar Section */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[8px] font-bold text-neutral-600 uppercase tracking-widest">Progress</span>
+          <span className={cn(
+            "text-[10px] font-mono font-bold",
+            progress === 100 ? "text-green-400" : progress > 0 ? "text-amber-400" : "text-neutral-500"
+          )}>
+            {progress}%
+          </span>
+        </div>
+        <div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden">
+          <div 
+            className={cn("h-full rounded-full transition-all duration-700 ease-out", getProgressColor())}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        {/* Status indicator text */}
+        <div className="flex items-center gap-2 mt-2">
+          {stack.status?.toLowerCase() === 'in_progress' && (
+            <>
+              <Play size={10} className="text-amber-400" fill="currentColor" />
+              <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">Work in progress</span>
+            </>
+          )}
+          {stack.status?.toLowerCase() === 'completed' && (
+            <>
+              <CheckCircle2 size={10} className="text-green-400" />
+              <span className="text-[8px] font-bold text-green-400 uppercase tracking-wider">Delivered</span>
+            </>
+          )}
+          {stack.status?.toLowerCase() === 'processing' && (
+            <>
+              <Clock size={10} className="text-blue-400" />
+              <span className="text-[8px] font-bold text-blue-400 uppercase tracking-wider">Assigned to team</span>
+            </>
+          )}
+          {stack.status?.toLowerCase() === 'initiated' && (
+            <>
+              <Clock size={10} className="text-neutral-500" />
+              <span className="text-[8px] font-bold text-neutral-500 uppercase tracking-wider">In queue</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="pt-6 border-t border-neutral-900 flex items-end justify-between">
         <div>
-          <p className="text-[8px] font-bold text-neutral-700 uppercase tracking-[0.3em] mb-1">Architecture_Value</p>
-          <p className="text-2xl font-mono text-white font-bold tracking-tighter">₹{stack.price.toFixed(2)}</p>
+          <p className="text-[8px] font-bold text-neutral-700 uppercase tracking-[0.3em] mb-1">Value</p>
+          <p className="text-xl font-mono text-white font-bold tracking-tighter">₹{stack.price.toFixed(2)}</p>
         </div>
         <div className="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-600 group-hover:text-white group-hover:bg-neutral-800 transition-all">
           <ArrowUpRight size={18} />

@@ -43,6 +43,7 @@ export const getPurchasedStacks = async (userId: string) => {
             type: stack?.type || 'Unknown Type',
             price: stack?.base_price || 0,
             status: item.status?.toUpperCase() || 'INITIATED',
+            progress_percent: item.progress_percent || 0,
         };
     }) || [];
 };

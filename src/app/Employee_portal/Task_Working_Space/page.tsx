@@ -1,12 +1,15 @@
 "use client"
 
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useEffect, useState, useRef, Suspense, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Terminal, Send, Zap,
-  Box, ArrowRight, LayoutGrid
+  Box, ArrowRight, LayoutGrid,
+  Play, CheckCircle, Loader2
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
+import { toast } from 'sonner';
 
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
@@ -25,6 +28,7 @@ function ClientDashboardContent() {
   const [user, setUser] = useState<any>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUpdatingStatus, startStatusTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 1. Initial Data Fetch: Get Supabase Auth user and verify employee
@@ -185,6 +189,77 @@ function ClientDashboardContent() {
     }
   };
 
+  // Handle status update
+  const handleStatusUpdate = (newStatus: OrderItemStatus) => {
+    if (!orderItemId) return;
+    
+    startStatusTransition(async () => {
+      const result = await updateOrderItemStatus(orderItemId, newStatus);
+      
+      if (result.success) {
+        // Update local state optimistically
+        setActiveStack((prev: any) => prev ? { 
+          ...prev, 
+          status: newStatus,
+          progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : prev.progress_percent
+        } : prev);
+        
+        // Also update in orders list
+        setOrders(prev => prev.map(order => 
+          order.id === orderItemId 
+            ? { 
+                ...order, 
+                status: newStatus,
+                progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : order.progress_percent
+              } 
+            : order
+        ));
+        
+        toast.success(
+          newStatus === 'in_progress' 
+            ? 'Started working on task!' 
+            : newStatus === 'completed' 
+              ? 'Task marked as completed!' 
+              : 'Status updated!'
+        );
+      } else {
+        toast.error(result.error || 'Failed to update status');
+      }
+    });
+  };
+
+  // Handle progress update
+  const handleProgressUpdate = async (newProgress: number) => {
+    if (!orderItemId) return;
+    
+    const result = await updateOrderItemProgress(orderItemId, newProgress);
+    
+    if (result.success) {
+      setActiveStack((prev: any) => prev ? { ...prev, progress_percent: newProgress } : prev);
+      setOrders(prev => prev.map(order => 
+        order.id === orderItemId ? { ...order, progress_percent: newProgress } : order
+      ));
+    } else {
+      toast.error(result.error || 'Failed to update progress');
+    }
+  };
+
+  // Get status display info
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'initiated':
+        return { label: 'Not Started', color: 'text-neutral-400', bg: 'bg-neutral-800' };
+      case 'processing':
+        return { label: 'Assigned', color: 'text-blue-400', bg: 'bg-blue-500/20' };
+      case 'in_progress':
+        return { label: 'Working', color: 'text-amber-400', bg: 'bg-amber-500/20' };
+      case 'completed':
+        return { label: 'Completed', color: 'text-green-400', bg: 'bg-green-500/20' };
+      default:
+        return { label: status, color: 'text-neutral-400', bg: 'bg-neutral-800' };
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-teal-500 font-mono animate-pulse">BOOTING_NEXUS_OS...</div>;
 
   return (
@@ -261,17 +336,122 @@ function ClientDashboardContent() {
           <main className="col-span-12 lg:col-span-8">
             {orderItemId ? (
               <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[800px]">
-                {/* Chat Header */}
-                <div className="p-6 border-b border-neutral-900 flex justify-between items-center bg-zinc-900/10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
-                      <Terminal size={18} />
+                {/* Chat Header with Status Controls */}
+                <div className="p-6 border-b border-neutral-900 bg-zinc-900/10">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
+                        <Terminal size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Node_Uplink_Channel</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[9px] font-mono text-neutral-600 uppercase">Status:</span>
+                          <span className={cn(
+                            "text-[9px] font-black uppercase px-2 py-0.5 rounded",
+                            getStatusInfo(activeStack?.status || 'initiated').bg,
+                            getStatusInfo(activeStack?.status || 'initiated').color
+                          )}>
+                            {getStatusInfo(activeStack?.status || 'initiated').label}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Node_Uplink_Channel</h3>
-                      <p className="text-[9px] font-mono text-neutral-600 uppercase mt-0.5">Status: {activeStack?.status || 'Active'}</p>
+                    
+                    {/* Status Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {activeStack?.status !== 'completed' && (
+                        <>
+                          {/* Start Working Button */}
+                          {(activeStack?.status === 'initiated' || activeStack?.status === 'processing') && (
+                            <button
+                              onClick={() => handleStatusUpdate('in_progress')}
+                              disabled={isUpdatingStatus}
+                              className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                                "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+                                "hover:bg-amber-500/30 hover:border-amber-500/50",
+                                "disabled:opacity-50 disabled:cursor-not-allowed"
+                              )}
+                            >
+                              {isUpdatingStatus ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Play size={14} fill="currentColor" />
+                              )}
+                              Start Working
+                            </button>
+                          )}
+                          
+                          {/* Mark Complete Button */}
+                          {activeStack?.status === 'in_progress' && (
+                            <button
+                              onClick={() => handleStatusUpdate('completed')}
+                              disabled={isUpdatingStatus}
+                              className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                                "bg-green-500/20 text-green-400 border border-green-500/30",
+                                "hover:bg-green-500/30 hover:border-green-500/50",
+                                "disabled:opacity-50 disabled:cursor-not-allowed"
+                              )}
+                            >
+                              {isUpdatingStatus ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <CheckCircle size={14} />
+                              )}
+                              Mark Complete
+                            </button>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Completed Badge */}
+                      {activeStack?.status === 'completed' && (
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/20 text-green-400 border border-green-500/30">
+                          <CheckCircle size={14} />
+                          <span className="text-[10px] font-black uppercase tracking-wider">Completed</span>
+                        </div>
+                      )}
                     </div>
                   </div>
+                  
+                  {/* Progress Bar */}
+                  {activeStack && (
+                    <div className="mt-4 pt-4 border-t border-neutral-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Progress</span>
+                        <span className="text-[10px] font-mono text-teal-400">{activeStack.progress_percent || 0}%</span>
+                      </div>
+                      <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-teal-500 to-teal-400 transition-all duration-500 ease-out"
+                          style={{ width: `${activeStack.progress_percent || 0}%` }}
+                        />
+                      </div>
+                      
+                      {/* Quick Progress Buttons (only when in_progress) */}
+                      {activeStack.status === 'in_progress' && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <span className="text-[8px] font-black text-neutral-700 uppercase">Quick Set:</span>
+                          {[25, 50, 75, 100].map((percent) => (
+                            <button
+                              key={percent}
+                              onClick={() => handleProgressUpdate(percent)}
+                              className={cn(
+                                "px-2 py-1 rounded text-[9px] font-mono transition-all",
+                                activeStack.progress_percent === percent
+                                  ? "bg-teal-500/30 text-teal-400 border border-teal-500/50"
+                                  : "bg-neutral-800 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-300"
+                              )}
+                            >
+                              {percent}%
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Messages Area */}

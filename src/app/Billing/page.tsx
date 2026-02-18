@@ -85,17 +85,19 @@ const BillingPage: FC = () => {
   const getStatusStyles = (status: string) => {
     // Map your DB statuses to colors
     const s = status.toLowerCase();
-    if (s === "successful" || s === "assigned" || s === "completed" || s === "done") return "text-teal-500 border-teal-500/30 bg-teal-500/5";
+    if (s === "completed" || s === "done") return "text-green-400 border-green-400/30 bg-green-400/5";
+    if (s === "in_progress") return "text-amber-400 border-amber-400/30 bg-amber-400/5";
+    if (s === "processing" || s === "assigned") return "text-blue-400 border-blue-400/30 bg-blue-400/5";
     if (s === "failed" || s === "cancelled") return "text-red-400 border-red-400/30 bg-red-400/5";
-    if (s === "in_progress") return "text-blue-400 border-blue-400/30 bg-blue-400/5";
     if (s === "under_review") return "text-purple-400 border-purple-400/30 bg-purple-400/5";
     return "text-zinc-500 border-zinc-500/30 bg-zinc-500/5"; // pending, initiated, etc.
   };
 
   const formatStackStatus = (status: string) => {
     const statusMap: Record<string, string> = {
-      initiated: 'Initiated',
-      in_progress: 'In Progress',
+      initiated: 'Queued',
+      processing: 'Assigned',
+      in_progress: 'Working',
       under_review: 'Under Review',
       completed: 'Completed',
       done: 'Done',

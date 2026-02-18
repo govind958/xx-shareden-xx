@@ -7,6 +7,7 @@ export interface PURCHASED_STACKS {
   type: string;
   price: number;
   status: string;
+  progress_percent: number;
   icon?: any; // Optional icon component
 }
 

@@ -16,10 +16,23 @@ const supabase = createClient();
 
 const statusColor = (status: string) => {
   switch (status) {
-    case 'completed': return 'bg-teal-500/10 border-teal-500/20 text-teal-500';
+    case 'completed': return 'bg-green-500/10 border-green-500/20 text-green-500';
+    case 'in_progress': return 'bg-amber-500/10 border-amber-500/20 text-amber-500';
     case 'processing': return 'bg-blue-500/10 border-blue-500/20 text-blue-500';
+    case 'initiated': return 'bg-neutral-500/10 border-neutral-500/20 text-neutral-400';
     case 'cancelled': return 'bg-red-500/10 border-red-500/20 text-red-500';
     default: return 'bg-neutral-800 border-neutral-700 text-neutral-500';
+  }
+};
+
+const statusLabel = (status: string) => {
+  switch (status) {
+    case 'completed': return 'Completed';
+    case 'in_progress': return 'Working';
+    case 'processing': return 'Assigned';
+    case 'initiated': return 'Not Started';
+    case 'cancelled': return 'Cancelled';
+    default: return status;
   }
 };
 
@@ -45,8 +58,8 @@ const TaskRow = ({ id, task, status, progress, isActive, createdAt }: any) => (
       </div>
     </td>
     <td className="py-5 px-4">
-      <span className={`text-[9px] font-black uppercase px-2 py-1 border ${statusColor(status)}`}>
-        {status}
+      <span className={`text-[9px] font-black uppercase px-2 py-1 border rounded ${statusColor(status)}`}>
+        {statusLabel(status)}
       </span>
     </td>
     <td className="py-5 px-4">
@@ -122,8 +135,9 @@ export default function TaskPage() {
     fetchTasks();
   }, []);
 
-  const activeTasks = tasks.filter(t => t.status !== 'completed' && t.is_active);
+  const activeTasks = tasks.filter(t => t.status === 'in_progress' || (t.status !== 'completed' && t.is_active));
   const completedTasks = tasks.filter(t => t.status === 'completed');
+  const inProgressTasks = tasks.filter(t => t.status === 'in_progress');
 
   return (
     <div className="p-6 md:p-12 space-y-10 animate-in fade-in duration-700">
@@ -184,23 +198,30 @@ export default function TaskPage() {
       </div>
 
       {/* Analytics Footer */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
-          <Clock size={20} className="text-teal-500" />
+          <Clock size={20} className="text-amber-500" />
           <div>
-            <p className="text-[10px] font-black dark:text-white uppercase">{activeTasks.length} Active Tasks</p>
+            <p className="text-[10px] font-black dark:text-white uppercase">{inProgressTasks.length} Working</p>
             <p className="text-[9px] font-bold text-neutral-500 uppercase">In Progress</p>
           </div>
         </div>
         <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
-          <CheckSquare size={20} className="text-teal-500" />
+          <AlertTriangle size={20} className="text-blue-500" />
+          <div>
+            <p className="text-[10px] font-black dark:text-white uppercase">{activeTasks.length - inProgressTasks.length} Pending</p>
+            <p className="text-[9px] font-bold text-neutral-500 uppercase">Not Started</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
+          <CheckSquare size={20} className="text-green-500" />
           <div>
             <p className="text-[10px] font-black dark:text-white uppercase">{completedTasks.length} Completed</p>
             <p className="text-[9px] font-bold text-neutral-500 uppercase">Delivered</p>
           </div>
         </div>
-        <div className="md:col-span-1 flex items-center justify-center p-6 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl">
-          <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-[0.3em]">Total_Assignments: {tasks.length}</p>
+        <div className="flex items-center justify-center p-6 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl">
+          <p className="text-[9px] font-mono text-neutral-400 uppercase tracking-[0.3em]">Total: {tasks.length}</p>
         </div>
       </div>
     </div>

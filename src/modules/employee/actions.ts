@@ -159,3 +159,126 @@ export async function verifyEmployeeSession(): Promise<{
         },
     }
 }
+
+// Valid order item statuses
+export type OrderItemStatus = 'initiated' | 'processing' | 'in_progress' | 'completed' | 'cancelled'
+
+// Update order item status (for employees working on tasks)
+export async function updateOrderItemStatus(
+    orderItemId: string,
+    newStatus: OrderItemStatus,
+    progressPercent?: number
+): Promise<{ success: boolean; error?: string }> {
+    const { isValid, employee } = await verifyEmployeeSession()
+
+    if (!isValid || !employee) {
+        return { success: false, error: 'Unauthorized - Employee session required' }
+    }
+
+    const supabase = await createClient()
+
+    // Verify this order item is assigned to this employee
+    const { data: orderItem, error: fetchError } = await supabase
+        .from('order_items')
+        .select('id, assigned_to, status')
+        .eq('id', orderItemId)
+        .single()
+
+    if (fetchError || !orderItem) {
+        return { success: false, error: 'Order item not found' }
+    }
+
+    if (orderItem.assigned_to !== employee.id) {
+        return { success: false, error: 'You are not assigned to this order item' }
+    }
+
+    // Build update payload
+    const updatePayload: { status: OrderItemStatus; progress_percent?: number } = {
+        status: newStatus,
+    }
+
+    // Auto-set progress based on status if not provided
+    if (progressPercent !== undefined) {
+        updatePayload.progress_percent = progressPercent
+    } else {
+        // Default progress values based on status
+        switch (newStatus) {
+            case 'in_progress':
+                updatePayload.progress_percent = 25
+                break
+            case 'completed':
+                updatePayload.progress_percent = 100
+                break
+        }
+    }
+
+    // Update order_items table
+    const { error: updateError } = await supabase
+        .from('order_items')
+        .update(updatePayload)
+        .eq('id', orderItemId)
+
+    if (updateError) {
+        return { success: false, error: updateError.message }
+    }
+
+    // Also update employee_assignments status
+    const assignmentStatus = newStatus === 'completed' ? 'completed' : 
+                            newStatus === 'in_progress' ? 'in_progress' : 'assigned'
+    
+    await supabase
+        .from('employee_assignments')
+        .update({ status: assignmentStatus })
+        .eq('order_item_id', orderItemId)
+        .eq('employee_id', employee.id)
+
+    revalidatePath('/Employee_portal/Task_Working_Space')
+    revalidatePath('/Employee_portal/Task')
+
+    return { success: true }
+}
+
+// Update order item progress (without changing status)
+export async function updateOrderItemProgress(
+    orderItemId: string,
+    progressPercent: number
+): Promise<{ success: boolean; error?: string }> {
+    const { isValid, employee } = await verifyEmployeeSession()
+
+    if (!isValid || !employee) {
+        return { success: false, error: 'Unauthorized - Employee session required' }
+    }
+
+    if (progressPercent < 0 || progressPercent > 100) {
+        return { success: false, error: 'Progress must be between 0 and 100' }
+    }
+
+    const supabase = await createClient()
+
+    // Verify this order item is assigned to this employee
+    const { data: orderItem, error: fetchError } = await supabase
+        .from('order_items')
+        .select('id, assigned_to')
+        .eq('id', orderItemId)
+        .single()
+
+    if (fetchError || !orderItem) {
+        return { success: false, error: 'Order item not found' }
+    }
+
+    if (orderItem.assigned_to !== employee.id) {
+        return { success: false, error: 'You are not assigned to this order item' }
+    }
+
+    // Update progress
+    const { error: updateError } = await supabase
+        .from('order_items')
+        .update({ progress_percent: progressPercent })
+        .eq('id', orderItemId)
+
+    if (updateError) {
+        return { success: false, error: updateError.message }
+    }
+
+    return { success: true }
+}
