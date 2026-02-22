@@ -1,6 +1,7 @@
 "use client";
 
-import React, { FC, useState, useRef, ReactNode } from "react";
+import React, { FC, useState, useRef, ReactNode, useEffect } from "react";
+import { getStacks } from "@/src/modules/product_stacks/actions";
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import { Button } from "@/src/components/ui/button";
 import Footer from "@/src/components/Footer";
@@ -56,6 +57,24 @@ const revealVariants = {
 
 const App: FC = () => {
   const { scrollYProgress } = useScroll();
+  
+  const [stacks, setStacks] = useState<Array<{
+    id: string;
+    name: string;
+    base_price: number;
+    sub_stacks?: Array<{ name: string }>;
+  }>>([]);
+
+  useEffect(() => {
+    async function loadStacks() {
+      const data = await getStacks();
+      const predictableStacks = data.filter(stack => 
+        ["HR Stack", "Web Development Stack", "Custom Stack"].includes(stack.name)
+      );
+      setStacks(predictableStacks);
+    }
+    loadStacks();
+  }, []);
   
   // High-fidelity background transitions
   const gridY = useTransform(scrollYProgress, [0, 1], ["0%", "-10%"]);
@@ -244,31 +263,34 @@ const App: FC = () => {
           <p className="text-neutral-500 text-sm">No hourly billing. No overhead.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { name: "Starter Stack", price: "$2,500", items: ["Basic Bookkeeping", "Payroll Setup", "Slack Support"] },
-            { name: "Growth Stack", price: "$5,000", items: ["Full Finance Ops", "Multi-state Compliance", "Dedicated Operator"] },
-            { name: "Enterprise", price: "Custom", items: ["White-glove Ops", "Audit Support", "24/7 Response"] }
-          ].map((plan, i) => (
+          {stacks.length > 0 ? stacks.map((stack) => (
             <motion.div 
-              key={i} 
+              key={stack.id} 
               variants={revealVariants}
               initial="hidden"
               whileInView="visible"
               whileHover={{ y: -5 }} 
               className="p-10 rounded-[2rem] bg-white/[0.02] border border-white/10 flex flex-col"
             >
-              <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-500 mb-2">{plan.name}</h4>
-              <div className="text-4xl font-black mb-8 tracking-tighter">{plan.price}<span className="text-xs text-neutral-700 ml-1">/MO</span></div>
+              <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-500 mb-2">{stack.name}</h4>
+              <div className="text-4xl font-black mb-8 tracking-tighter">
+                {stack.base_price > 0 ? `₹${stack.base_price.toLocaleString()}` : "Custom"}
+                <span className="text-xs text-neutral-700 ml-1">/MO</span>
+              </div>
               <ul className="space-y-4 mb-10 flex-grow">
-                {plan.items.map(item => (
-                  <li key={item} className="flex items-center gap-3 text-xs text-neutral-400">
-                    <div className="w-1 h-1 rounded-full bg-teal-500" /> {item}
+                {stack.sub_stacks?.map((sub, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-xs text-neutral-400">
+                    <div className="w-1 h-1 rounded-full bg-teal-500" /> {sub.name}
                   </li>
                 ))}
               </ul>
               <Button className="w-full bg-white text-black font-black text-[10px] tracking-widest h-12 rounded-none">SELECT STACK</Button>
             </motion.div>
-          ))}
+          )) : (
+            <div className="col-span-3 text-center py-12 text-neutral-500">
+              Loading stacks...
+            </div>
+          )}
         </div>
       </section>
 
