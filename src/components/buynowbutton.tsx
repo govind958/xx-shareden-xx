@@ -42,6 +42,8 @@ interface UserDetails {
 
 interface BuyNowButtonProps {
   amount: number;
+  discountAmount?: number;
+  couponId?: string;
   userDetails?: UserDetails;
   cartItems: CartItem[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,7 +61,7 @@ const loadRazorpayScript = () => {
     })
   }
 
-  export default function BuyNowButton({ amount, userDetails, cartItems, onSuccess }: BuyNowButtonProps) {
+  export default function BuyNowButton({ amount, discountAmount, couponId, userDetails, cartItems, onSuccess }: BuyNowButtonProps) {
     const [loading, setLoading] = useState(false)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [dialogType, setDialogType] = useState<"success" | "error">("success")
@@ -111,6 +113,8 @@ const loadRazorpayScript = () => {
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
             cartItems: cartItems,
+            discountAmount: discountAmount,
+            couponId: couponId,
           })
 
           if (verification.error) {

@@ -101,7 +101,8 @@ export interface CreateOrderResult {
 
 export async function createOrderFromCart(
   userId: string,
-  discountAmount: number = 0
+  discountAmount: number = 0,
+  couponId?: string
 ): Promise<CreateOrderResult> {
   const supabase = await createClient();
 
@@ -126,6 +127,8 @@ export async function createOrderFromCart(
       .insert({
         user_id: userId,
         total_amount: totalAmount,
+        discount_amount: discountAmount,
+        coupon_id: couponId || null,
       })
       .select("id")
       .single();
@@ -161,6 +164,23 @@ export async function createOrderFromCart(
         success: false,
         error: "Unable to add items to the order. Please try again.",
       };
+    }
+    // 5️⃣ Increment the coupon used_count (If a coupon was applied)
+    if (couponId) {
+      // First, get the current count
+      const { data: couponData } = await supabase
+        .from("coupons")
+        .select("used_count")
+        .eq("id", couponId)
+        .single();
+
+      if (couponData) {
+        // Then, update it by adding 1
+        await supabase
+          .from("coupons")
+          .update({ used_count: (couponData.used_count || 0) + 1 })
+          .eq("id", couponId);
+      }
     }
 
     // 5️⃣ Empty cart

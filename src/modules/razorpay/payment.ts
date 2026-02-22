@@ -27,6 +27,8 @@ interface StackPaymentData {
   razorpay_payment_id: string;
   razorpay_signature: string;
   cartItems: CartItem[];
+  discountAmount?: number;
+  couponId?: string;
 }
 
 // Initialize Razorpay client
@@ -79,7 +81,9 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
     razorpay_order_id, 
     razorpay_payment_id, 
     razorpay_signature, 
-    cartItems 
+    cartItems,
+    discountAmount,
+    couponId
   } = paymentData
   
   const supabase = await createClient()
@@ -210,18 +214,36 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
       }
     }
 
-    // Create order
+    // Create order with coupon info
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         user_id: user.id,
         total_amount: totalAmount,
         payment_method: 'razorpay',
-      payment_id: razorpay_payment_id,
+        payment_id: razorpay_payment_id,
         razorpay_order_id: razorpay_order_id,
-    })
+        discount_amount: discountAmount || 0,
+        coupon_id: couponId || null,
+      })
       .select('id')
       .single()
+    
+    // If coupon was used, increment its used_count
+    if (couponId) {
+      const { data: currentCoupon } = await supabase
+        .from('coupons')
+        .select('used_count')
+        .eq('id', couponId)
+        .single()
+      
+      if (currentCoupon) {
+        await supabase
+          .from('coupons')
+          .update({ used_count: (currentCoupon.used_count || 0) + 1 })
+          .eq('id', couponId)
+      }
+    }
 
     if (orderError || !order) {
       console.error('Order creation error:', orderError)

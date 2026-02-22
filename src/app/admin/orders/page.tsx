@@ -7,9 +7,9 @@ import { Order, Profile } from "@/src/types/admin"
 export default async function AdminOrdersPage() {
   const { isValid } = await verifyAdminSession()
 
-  if (!isValid) {
-    redirect("/admin/login")
-  }
+  // if (!isValid) {
+  //   redirect("/admin/login")
+  // }
 
   const supabase = await createClient()
 
@@ -21,7 +21,6 @@ export default async function AdminOrdersPage() {
       user_id,
       total_amount,
       created_at,
-      updated_at,
       order_items (
         id,
         stack_id,

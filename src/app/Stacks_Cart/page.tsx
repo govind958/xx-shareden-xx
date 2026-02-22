@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import {
   Lock,
@@ -10,9 +9,13 @@ import {
   Globe,
   ShieldCheck,
   Cpu,
-  Trash2
+  Trash2,
+  Tag,
+  X,
+  Loader2
 } from 'lucide-react';
 import BuyNowButton from '@/src/components/buynowbutton';
+import { validateCoupon } from '@/src/modules/coupon/action';
 
 // const FEATURES = [
 //   "Create, assign, and track tasks",
@@ -32,7 +35,7 @@ interface CartStack {
   type: string;
   price: number;
   description: string;
-  sub_stacks: Array<{ id?: string; name: string; price: number }>;
+  sub_stacks: Array<{ id?: string; name: string; price: number }>;       
   // For unsaved clusters (new flow)
   cluster_name?: string;
   cluster_data?: Array<{ name: string; price: number; is_free: boolean }>;
@@ -47,6 +50,16 @@ export default function TechNoirCheckout() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<{ email?: string; name?: string; contact?: string } | null>(null);
   const [organizationData, setOrganizationData] = useState<{ name?: string } | null>(null);
+  
+  // Coupon states
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    couponId: string;
+  } | null>(null);
 
   useEffect(() => {
     const fetchCartStacks = async () => {
@@ -199,7 +212,48 @@ export default function TechNoirCheckout() {
     }
   };
 
+  // Handle coupon application
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const result = await validateCoupon(couponCode.trim(), subtotal);
+
+      if (result.success) {
+        setAppliedCoupon({
+          code: result.code!,
+          discountAmount: result.discountAmount!,
+          couponId: result.couponId!,
+        });
+        setCouponCode('');
+        setCouponError(null);
+      } else {
+        setCouponError(result.error || 'Invalid coupon');
+        setAppliedCoupon(null);
+      }
+    } catch {
+      setCouponError('Failed to validate coupon');
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Remove applied coupon
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+  };
+
   const subtotal = cartStacks.reduce((sum, item) => sum + item.price, 0);
+  const discount = appliedCoupon?.discountAmount || 0;
+  const finalTotal = Math.max(subtotal - discount, 0);
   const activeStack = cartStacks.find((stack) => stack.cart_id === activeCartId);
 
   if (loading) return <BootSequence />;
@@ -329,18 +383,90 @@ export default function TechNoirCheckout() {
               )}
             </div>
 
-            <div className="pt-10 border-t border-neutral-900 space-y-3">
+            {/* COUPON SECTION */}
+            <div className="pt-6 border-t border-neutral-900 space-y-4">
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em]">Have a Coupon?</p>
+              
+              {!appliedCoupon ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Tag size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" />
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={(e) => {
+                          setCouponCode(e.target.value.toUpperCase());
+                          setCouponError(null);
+                        }}
+                        placeholder="ENTER CODE"
+                        className="w-full bg-neutral-900/50 border border-neutral-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-neutral-700 focus:outline-none focus:border-teal-500/50 transition-all font-mono uppercase tracking-wider"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="px-6 py-3 bg-teal-500/20 border border-teal-500/30 rounded-xl text-teal-400 text-[10px] font-black uppercase tracking-wider hover:bg-teal-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {couponLoading ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        'Apply'
+                      )}
+                    </button>
+                  </div>
+                  {couponError && (
+                    <p className="text-red-400 text-[10px] font-medium ml-1">{couponError}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Tag size={16} className="text-green-400" />
+                    <div>
+                      <p className="text-green-400 text-sm font-bold">{appliedCoupon.code}</p>
+                      <p className="text-green-400/70 text-[10px]">-₹{appliedCoupon.discountAmount.toLocaleString()} off</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="p-2 hover:bg-green-500/20 rounded-lg transition-colors"
+                  >
+                    <X size={16} className="text-green-400" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* PRICE BREAKDOWN */}
+            <div className="pt-6 border-t border-neutral-900 space-y-3">
               <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-neutral-600">
                 <span>Subtotal</span>
                 <span className="text-white font-mono">₹{subtotal.toLocaleString()}</span>
               </div>
+              
+              {appliedCoupon && (
+                <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-green-400">
+                  <span>Discount ({appliedCoupon.code})</span>
+                  <span className="font-mono">-₹{appliedCoupon.discountAmount.toLocaleString()}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-neutral-600">
                 <span>Items in Cart</span>
                 <span className="text-white font-mono">{cartStacks.length}</span>
               </div>
+              
               <div className="flex justify-between pt-6 text-2xl font-black border-t border-neutral-900">
                 <span className="text-white uppercase tracking-tighter">Total_Cost</span>
-                <span className="text-teal-500 font-mono">₹{subtotal.toLocaleString()}</span>
+                <div className="text-right">
+                  {appliedCoupon && (
+                    <span className="text-neutral-600 line-through text-lg mr-3 font-mono">₹{subtotal.toLocaleString()}</span>
+                  )}
+                  <span className="text-teal-500 font-mono">₹{finalTotal.toLocaleString()}</span>
+                </div>
               </div>
             </div>
           </section>
@@ -402,7 +528,9 @@ export default function TechNoirCheckout() {
               </div>
 
               <BuyNowButton 
-                amount={subtotal} 
+                amount={finalTotal}
+                discountAmount={discount}
+                couponId={appliedCoupon?.couponId}
                 userDetails={{
                   name: organizationData?.name || profileData?.name || '',
                   email: profileData?.email || '',
@@ -413,6 +541,7 @@ export default function TechNoirCheckout() {
                   console.log('Payment successful!', verification)
                   // Clear local cart state
                   setCartStacks([])
+                  setAppliedCoupon(null)
                   // Redirect handled by BuyNowButton
                 }}
               />
