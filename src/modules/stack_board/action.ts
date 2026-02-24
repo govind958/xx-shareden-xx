@@ -12,6 +12,7 @@ export const getPurchasedStacks = async (userId: string) => {
             status,
             sub_stack_ids,
             progress_percent,
+            created_at,
             stacks (
                 id,
                 name,
@@ -19,7 +20,8 @@ export const getPurchasedStacks = async (userId: string) => {
                 type
             )
         `)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error fetching order_items:", error);
