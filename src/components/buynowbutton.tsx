@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/src/components/ui/dialog"
-import { CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
 
 // Extend Window interface for Razorpay
 declare global {
@@ -64,7 +64,7 @@ const loadRazorpayScript = () => {
   export default function BuyNowButton({ amount, discountAmount, couponId, userDetails, cartItems, onSuccess }: BuyNowButtonProps) {
     const [loading, setLoading] = useState(false)
     const [dialogOpen, setDialogOpen] = useState(false)
-    const [dialogType, setDialogType] = useState<"success" | "error">("success")
+    const [dialogType, setDialogType] = useState<"success" | "error" | "processing">("success")
     const [dialogMessage, setDialogMessage] = useState("")
     const [paymentId, setPaymentId] = useState("")
     const router = useRouter()
@@ -107,6 +107,11 @@ const loadRazorpayScript = () => {
         handler: async function (response: any) {
           console.log('Payment successful, verifying...', response)
           
+          // Show processing spinner
+          setDialogType("processing")
+          setDialogMessage("Verifying payment...")
+          setDialogOpen(true)
+          
           // 5. Verify payment and create order
           const verification = await verifyPaymentAndCreateStackOrder({
             razorpay_order_id: response.razorpay_order_id,
@@ -120,13 +125,11 @@ const loadRazorpayScript = () => {
           if (verification.error) {
             setDialogType("error")
             setDialogMessage(`Payment failed: ${verification.error}`)
-            setDialogOpen(true)
           } else {
             // 6. Payment successful!
             setDialogType("success")
             setDialogMessage("Payment successful! Your stacks are being prepared.")
             setPaymentId(verification.paymentId || '')
-            setDialogOpen(true)
             
             // Call onSuccess callback if provided
             if (onSuccess) {
@@ -151,6 +154,9 @@ const loadRazorpayScript = () => {
     }
   
     const handleDialogClose = (open: boolean) => {
+      // Prevent closing during processing
+      if (dialogType === "processing") return
+      
       if (!open) {
         setDialogOpen(false)
         if (dialogType === "success") {
@@ -182,31 +188,43 @@ const loadRazorpayScript = () => {
 
         <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
           <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <div className="flex items-center gap-3">
-                {dialogType === "success" ? (
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                ) : (
-                  <XCircle className="h-6 w-6 text-red-600" />
-                )}
-                <DialogTitle>
-                  {dialogType === "success" ? "Payment Successful!" : "Payment Failed"}
-                </DialogTitle>
+            {dialogType === "processing" ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-4">
+                <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                <DialogTitle className="text-center">Processing Payment</DialogTitle>
+                <DialogDescription className="text-center">
+                  {dialogMessage}
+                </DialogDescription>
               </div>
-              <DialogDescription className="pt-2">
-                {dialogMessage}
-                {dialogType === "success" && paymentId && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Payment ID: {paymentId}
+            ) : (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    {dialogType === "success" ? (
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    ) : (
+                      <XCircle className="h-6 w-6 text-red-600" />
+                    )}
+                    <DialogTitle>
+                      {dialogType === "success" ? "Payment Successful!" : "Payment Failed"}
+                    </DialogTitle>
                   </div>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button onClick={handleButtonClick} className="w-full">
-                {dialogType === "success" ? "Continue" : "Close"}
-              </Button>
-            </DialogFooter>
+                  <DialogDescription className="pt-2">
+                    {dialogMessage}
+                    {dialogType === "success" && paymentId && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Payment ID: {paymentId}
+                      </div>
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button onClick={handleButtonClick} className="w-full">
+                    {dialogType === "success" ? "Continue" : "Close"}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </DialogContent>
         </Dialog>
       </>
