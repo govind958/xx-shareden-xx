@@ -23,7 +23,8 @@ import {
   Globe,
   Command,
   Clock,
-  Play
+  Play,
+  MessageCircle
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
@@ -431,9 +432,20 @@ function MessageDashboard({
   if (!activeStackId) {
     return (
       <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] h-[700px] flex items-center justify-center text-neutral-700">
-        <div className="flex flex-col items-center gap-4">
-          <Terminal size={48} strokeWidth={1} />
-          <p className="text-[10px] font-black uppercase tracking-[0.5em]">Select_Node_To_Initialize_Uplink</p>
+        <div className="flex flex-col items-center gap-6 px-8 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-neutral-900/50 border border-neutral-800 flex items-center justify-center">
+            <Terminal size={36} strokeWidth={1.5} className="text-neutral-600" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-bold text-neutral-400 uppercase tracking-wider">No Stack Selected</p>
+            <p className="text-xs text-neutral-600 max-w-[280px]">
+              Select a stack from the list above to view messages and communicate with your assigned team
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-[9px] font-mono text-neutral-700 uppercase tracking-widest">
+            <div className="w-1.5 h-1.5 rounded-full bg-neutral-700" />
+            <span>Awaiting Selection</span>
+          </div>
         </div>
       </div>
     );
@@ -461,8 +473,16 @@ function MessageDashboard({
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
         {messages.length === 0 && !loadingMessages ? (
-          <div className="h-full flex flex-col items-center justify-center opacity-30">
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-500">Channel_Open_No_Traffic</p>
+          <div className="h-full flex flex-col items-center justify-center gap-4">
+            <div className="w-16 h-16 rounded-xl bg-neutral-900/50 border border-neutral-800 flex items-center justify-center">
+              <MessageCircle size={24} className="text-neutral-700" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider">No Messages Yet</p>
+              <p className="text-[10px] text-neutral-700 max-w-[240px]">
+                Start a conversation with your team or wait for updates on your project
+              </p>
+            </div>
           </div>
         ) : (
           messages.map((m) => {
