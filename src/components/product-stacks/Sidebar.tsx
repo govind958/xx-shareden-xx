@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
   // Cluster Group item for dragging
   const clusterGroup: Stack = {
     id: 'cluster-group',
-    name: 'Cluster Group',
+    name: 'Custom Stack_' + crypto.randomUUID().substring(0, 8),
     type: 'group',
     description: 'Logical container for nodes',
     base_price: 0,
