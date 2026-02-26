@@ -31,6 +31,7 @@ export interface OrderWithStacks {
     id: string;
     total_amount: number;
     created_at: string;
+    subscription_duration?: SubscriptionLimit;
     stacks: PurchasedStack[];
   } 
 
@@ -44,5 +45,4 @@ export interface OrderWithStacks {
     created_at: string;
     order_id: string;
     base_price: number;
-    subscription_duration?: SubscriptionLimit;
   }

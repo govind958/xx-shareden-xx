@@ -239,7 +239,6 @@ export const Canvas: React.FC = () => {
                 height={node.height}
                 isSaved={node.isSaved}
                 price={nodePrice}
-                subscriptionLimit={node.subscriptionLimit}
                 onResizeStart={(e) => startResize(e, node.id)}
                 onConnectStart={() => { }}
                 onBuy={handlePurchaseCluster}
