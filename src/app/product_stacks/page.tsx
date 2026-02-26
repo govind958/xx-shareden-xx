@@ -66,10 +66,10 @@ export default function ProductStacksPage() {
 
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans">
-      <TopNav />
+  
 
       <main className="max-w-[1600px] mx-auto p-8 space-y-12"> {/* Increased space-y */}
-        <PageHeader />
+       
         
         <CanvasContainer stacks={stacks} subStacks={subStacks} />
 

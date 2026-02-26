@@ -185,31 +185,7 @@ export default function TechNoirDashboard() {
       <div className="relative z-10 w-full max-w-[1700px] mx-auto space-y-8">
 
         {/* --- INDUSTRIAL HEADER --- */}
-        <header className="flex flex-col md:flex-row items-center justify-between bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] shadow-2xl">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-1.5 h-1.5 bg-teal-500 animate-pulse" />
-              <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.6em]">System_Uplink: Active</span>
-            </div>
-            <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic flex items-baseline gap-1">
-              NEXUS<span className="text-neutral-800 not-italic">.OS</span>
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-12 mt-6 md:mt-0">
-            <div className="hidden xl:grid grid-cols-2 gap-x-8 gap-y-1">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-700">Latency</span>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-700">Timestamp</span>
-              <span className="text-[10px] font-mono text-teal-500/70">14ms</span>
-              <span className="text-[10px] font-mono text-white">{currentTime.toLocaleTimeString('en-GB')}</span>
-            </div>
-
-            <button className="group relative overflow-hidden bg-white text-black px-10 py-4 rounded-full text-[11px] font-black uppercase tracking-[0.3em] transition-all hover:pr-14">
-              <span className="relative z-10">Initialize_Deploy</span>
-              <ArrowUpRight className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all" size={18} />
-            </button>
-          </div>
-        </header>
+      
 
         {/* --- TECH-STACK HORIZONTAL SCROLL --- */}
         <section className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
