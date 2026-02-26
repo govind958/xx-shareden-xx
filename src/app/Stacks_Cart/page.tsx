@@ -26,10 +26,12 @@ interface SubStack {
 interface CartStack {
   cart_id: string;
   stack_id: string | null;
-  name: string;
+  name: string; 
   type: string;
   price: number;
   sub_stacks: SubStack[];
+  isUnsaved?: boolean;
+  cluster_data?: Array<{ name: string; price: number; is_free: boolean }>;
 }
 
 type PaymentTab = 'Recurring' | 'Non-Recurring';
@@ -54,6 +56,8 @@ export default function ZohoStyleCheckout() {
   const [profileData, setProfileData] = useState<any>(null);
   const [organizationData, setOrganizationData] = useState<any>(null);
 
+  const supabase = useMemo(() => createClient(), []);
+
   useEffect(() => {
     const fetchCheckoutData = async () => {
       if (authLoading || !user) {
@@ -61,7 +65,6 @@ export default function ZohoStyleCheckout() {
         return;
       }
       try {
-        const supabase = createClient();
         const [prof, org, cart] = await Promise.all([
           supabase.from('profiles').select('name').eq('user_id', user.id).single(),
           supabase.from('organizations').select('org_name').eq('user_id', user.id).single(),
@@ -82,7 +85,9 @@ export default function ZohoStyleCheckout() {
                 name: s.name, 
                 price: s.price || 0, 
                 quantity: 1 
-            })) || []
+            })) || [],
+            isUnsaved: !item.stacks?.id,
+            cluster_data: item.cluster_data,
           }));
           setCartStacks(formatted);
         }
@@ -93,16 +98,45 @@ export default function ZohoStyleCheckout() {
       }
     };
     fetchCheckoutData();
-  }, [user, authLoading]);
+  }, [user, authLoading, supabase]);
 
   // Logic Helpers
-  const removeItem = (stackIndex: number, subIndex?: number) => {
+  const removeItem = async (stackIndex: number, subIndex?: number) => {
     const newStacks = [...cartStacks];
+    const stack = newStacks[stackIndex];
+    
     if (subIndex !== undefined) {
-        newStacks[stackIndex].sub_stacks.splice(subIndex, 1);
+      // Remove sub_stack from local state and update cluster_data
+      newStacks[stackIndex].sub_stacks.splice(subIndex, 1);
+      if (newStacks[stackIndex].cluster_data) {
+        newStacks[stackIndex].cluster_data!.splice(subIndex, 1);
+      }
+      
+      // Update the cart item in database with new cluster_data
+      try {
+        await supabase
+          .from('cart_stacks')
+          .update({ 
+            cluster_data: newStacks[stackIndex].cluster_data,
+            total_price: newStacks[stackIndex].sub_stacks.reduce((sum, s) => sum + s.price, 0)
+          })
+          .eq('id', stack.cart_id);
+      } catch (e) {
+        console.error('Failed to update cart item:', e);
+      }
     } else {
-        newStacks.splice(stackIndex, 1);
+      // Remove entire stack from database
+      try {
+        await supabase
+          .from('cart_stacks')
+          .delete()
+          .eq('id', stack.cart_id);
+      } catch (e) {
+        console.error('Failed to delete cart item:', e);
+      }
+      newStacks.splice(stackIndex, 1);
     }
+    
     setCartStacks(newStacks);
   };
 
@@ -380,6 +414,7 @@ export default function ZohoStyleCheckout() {
                                 email: profileData?.email || '',
                             }}
                             cartItems={cartStacks}
+                            billingCycle={billingCycle === 'Monthly' ? 'monthly' : 'yearly'}
                             onSuccess={() => alert('Payment Successful!')}
                         />
                         <button onClick={() => setStep(1)} className="w-full border border-slate-300 py-3 rounded font-bold text-slate-500 hover:bg-slate-50 transition-colors text-sm">

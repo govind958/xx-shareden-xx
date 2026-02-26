@@ -29,6 +29,7 @@ interface StackPaymentData {
   cartItems: CartItem[];
   discountAmount?: number;
   couponId?: string;
+  billingCycle: 'monthly' | 'yearly';
 }
 
 // Initialize Razorpay client
@@ -83,7 +84,8 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
     razorpay_signature, 
     cartItems,
     discountAmount,
-    couponId
+    couponId,
+    billingCycle
   } = paymentData
   
   const supabase = await createClient()
@@ -214,7 +216,7 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
       }
     }
 
-    // Create order with coupon info
+    // Create order with coupon info and billing cycle
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -225,6 +227,7 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
         razorpay_order_id: razorpay_order_id,
         discount_amount: discountAmount || 0,
         coupon_id: couponId || null,
+        subscription_duration: billingCycle,
       })
       .select('id')
       .single()

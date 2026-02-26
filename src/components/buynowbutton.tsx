@@ -46,6 +46,7 @@ interface BuyNowButtonProps {
   couponId?: string;
   userDetails?: UserDetails;
   cartItems: CartItem[];
+  billingCycle: 'monthly' | 'yearly';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSuccess?: (verification: any) => void;
 }
@@ -61,7 +62,7 @@ const loadRazorpayScript = () => {
     })
   }
 
-  export default function BuyNowButton({ amount, discountAmount, couponId, userDetails, cartItems, onSuccess }: BuyNowButtonProps) {
+  export default function BuyNowButton({ amount, discountAmount, couponId, userDetails, cartItems, billingCycle, onSuccess }: BuyNowButtonProps) {
     const [loading, setLoading] = useState(false)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [dialogType, setDialogType] = useState<"success" | "error">("success")
@@ -115,6 +116,7 @@ const loadRazorpayScript = () => {
             cartItems: cartItems,
             discountAmount: discountAmount,
             couponId: couponId,
+            billingCycle: billingCycle,
           })
 
           if (verification.error) {
