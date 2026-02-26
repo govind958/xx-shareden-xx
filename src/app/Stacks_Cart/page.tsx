@@ -49,8 +49,14 @@ export default function ZohoStyleCheckout() {
 
   // Coupon States
   const [couponInput, setCouponInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ 
+    id: string;
+    code: string; 
+    discount_type: 'percentage' | 'fixed';
+    discount_amount: number;
+  } | null>(null);
   const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const [cartStacks, setCartStacks] = useState<CartStack[]>([]);
   const [profileData, setProfileData] = useState<any>(null);
@@ -147,13 +153,49 @@ export default function ZohoStyleCheckout() {
     setCartStacks(newStacks);
   };
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+    
     setCouponError('');
-    if (couponInput.toUpperCase() === 'SAVE10') {
-        setAppliedCoupon({ code: 'SAVE10', discount: 500 });
-        setCouponInput('');
-    } else {
+    setCouponLoading(true);
+    
+    try {
+      const { data: coupon, error } = await supabase
+        .from('coupons')
+        .select('id, code, discount_type, discount_amount, is_active, min_cart_value')
+        .eq('code', couponInput.toUpperCase())
+        .single();
+      
+      if (error || !coupon) {
         setCouponError('Invalid coupon code');
+        return;
+      }
+      
+      if (!coupon.is_active) {
+        setCouponError('This coupon is no longer active');
+        return;
+      }
+      
+      if (coupon.min_cart_value && subtotal < coupon.min_cart_value) {
+        setCouponError(`Minimum cart value of ₹${coupon.min_cart_value} required`);
+        return;
+      }
+      
+      setAppliedCoupon({
+        id: coupon.id,
+        code: coupon.code,
+        discount_type: coupon.discount_type as 'percentage' | 'fixed',
+        discount_amount: coupon.discount_amount,
+      });
+      setCouponInput('');
+    } catch (e) {
+      console.error('Coupon error:', e);
+      setCouponError('Failed to apply coupon');
+    } finally {
+      setCouponLoading(false);
     }
   };
 
@@ -171,7 +213,17 @@ export default function ZohoStyleCheckout() {
     return billingCycle === 'Yearly' ? total : total * 1.2;
   }, [cartStacks, billingCycle]);
 
-  const totalPayable = Math.max(0, subtotal - (appliedCoupon?.discount || 0));
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discount_type === 'percentage') {
+      return subtotal * (appliedCoupon.discount_amount / 100);
+    }
+    return appliedCoupon.discount_amount;
+  }, [appliedCoupon, subtotal]);
+
+  const discountedSubtotal = Math.max(0, subtotal - couponDiscount);
+  const gstAmount = discountedSubtotal * 0.18;
+  const totalPayable = discountedSubtotal + gstAmount;
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]">
@@ -365,17 +417,20 @@ export default function ZohoStyleCheckout() {
                         <div className="flex justify-between text-sm text-[#14b8a6] bg-teal-50 px-2 py-1.5 rounded border border-teal-100 border-dashed">
                             <span className="flex items-center gap-1 font-medium italic">
                                 <Tag size={12} /> {appliedCoupon.code}
+                                {appliedCoupon.discount_type === 'percentage' && (
+                                  <span className="text-[10px]">({appliedCoupon.discount_amount}%)</span>
+                                )}
                             </span>
                             <div className="flex items-center gap-2">
-                                <span>- ₹{appliedCoupon.discount.toLocaleString()}</span>
+                                <span>- ₹{couponDiscount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 <button onClick={removeCoupon} className="text-slate-400 hover:text-red-500"><X size={14} /></button>
                             </div>
                         </div>
                     )}
 
                     <div className="flex justify-between text-sm text-slate-600">
-                        <span>Tax (GST 0%)</span>
-                        <span className="font-medium text-slate-800">₹0.00</span>
+                        <span>Tax (GST 18%)</span>
+                        <span className="font-medium text-slate-800">₹{gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
@@ -391,9 +446,10 @@ export default function ZohoStyleCheckout() {
                             />
                             <button 
                                 onClick={handleApplyCoupon}
-                                className="bg-[#020202] text-white px-3 py-2 rounded text-[11px] font-bold hover:bg-black transition-colors"
+                                disabled={couponLoading}
+                                className="bg-[#020202] text-white px-3 py-2 rounded text-[11px] font-bold hover:bg-black transition-colors disabled:opacity-50"
                             >
-                                APPLY
+                                {couponLoading ? '...' : 'APPLY'}
                             </button>
                         </div>
                         {couponError && <p className="text-[10px] text-red-500 mt-1 font-medium">{couponError}</p>}
@@ -408,7 +464,9 @@ export default function ZohoStyleCheckout() {
                 {step === 2 && (
                     <div className="space-y-3">
                         <BuyNowButton 
-                            amount={totalPayable}
+                            amount={Math.round(totalPayable)}
+                            discountAmount={couponDiscount}
+                            couponId={appliedCoupon?.id}
                             userDetails={{
                                 name: organizationData?.name || profileData?.name || '',
                                 email: profileData?.email || '',
