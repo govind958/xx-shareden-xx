@@ -2,123 +2,151 @@
 
 import React from "react"
 import { 
-  TrendingUp, Zap, ShieldCheck, Layers, 
- Clock, Database,
+  MoreHorizontal, 
+  ClipboardList, 
+  AlertCircle, 
+  Flag, 
+  Search, 
+  LayoutDashboard, 
+  Layers,
+  ChevronRight,
+  Plus,
+  HelpCircle
 } from "lucide-react"
 
-/* ---------------- INDUSTRIAL STYLING HELPERS ---------------- */
-const INDUSTRIAL_CARD = "bg-[#080808] border border-neutral-900 rounded-[32px] p-8 transition-all hover:border-teal-500/40 shadow-2xl group"
-const ICON_CONTAINER = "w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
+/* ---------------- STYLE HELPERS ---------------- */
+// Added subtle transitions and hover lifts for better tactile feel
+const STAT_CARD = "group bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-200 cursor-default relative overflow-hidden"
+const SECTION_CARD = "bg-white border border-slate-200 rounded-2xl p-6 min-h-[350px] flex flex-col shadow-sm hover:border-slate-300 transition-colors"
+const ICON_BG = "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
 
-export default function ClientDashboardPage() {
+export default function DashboardPage() {
   return (
-    // overflow-x-hidden ensures the "white strip" bug is killed at the component level
-    <div className="flex-1 flex flex-col min-w-0 bg-[#020202] overflow-x-hidden">
+    <div className="flex-1 flex flex-col min-h-screen bg-[#FDFDFD] text-slate-800 font-sans selection:bg-blue-100">
       
-      {/* 1. TOP NAV BAR (Search & Actions) */}
-      
-
-      {/* 2. MAIN DASHBOARD CONTENT */}
-      <main className="p-8 lg:p-12 space-y-12 max-w-[1600px] mx-auto w-full">
-        
-        {/* HERO SECTION */}
-        <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">Operational Status</span>
-            <h2 className="text-5xl md:text-6xl font-bold tracking-tighter text-white leading-none">System Overview</h2>
-            <div className="flex items-center gap-3 pt-2">
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-teal-500/10 border border-teal-500/20 rounded-md">
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                <span className="text-[9px] font-black text-teal-500 uppercase">Live Monitor</span>
-              </div>
-              <p className="text-neutral-600 text-sm font-medium tracking-tight">Active node synchronization in progress</p>
-            </div>
+      {/* 1. HEADER SECTION */}
+      <header className="px-10 py-8 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600">
+            <LayoutDashboard size={14} />
+            Overview
           </div>
-          
-          <div className="flex gap-3">
-            <button className="px-8 py-3.5 bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 text-white font-bold rounded-2xl text-[11px] transition-all uppercase tracking-widest backdrop-blur-sm">
-              Logs
-            </button>
-            <button className="px-8 py-3.5 bg-teal-600 hover:bg-teal-500 text-black font-black rounded-2xl text-[11px] transition-all uppercase tracking-widest shadow-2xl shadow-teal-500/20">
-              Upgrade Node
-            </button>
-          </div>
-        </section>
-
-        {/* STATS GRID */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: "Active Stacks", value: "2", icon: Layers, trend: "+12%" },
-            { label: "System Health", value: "99.9%", icon: ShieldCheck, trend: "Stable" },
-            { label: "API Traffic", value: "1.2M", icon: Zap, trend: "+5.4%" },
-            { label: "Network Growth", value: "18%", icon: TrendingUp, trend: "+2.1%" },
-          ].map((stat, i) => (
-            <div key={i} className={INDUSTRIAL_CARD}>
-              <div className="flex justify-between items-start mb-10">
-                <div className={ICON_CONTAINER}>
-                  <stat.icon size={20} />
-                </div>
-                <span className="text-[10px] font-black text-teal-500 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1 rounded-lg uppercase tracking-widest">
-                  {stat.trend}
-                </span>
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                <h3 className="text-4xl font-bold text-white font-mono tracking-tighter leading-none">{stat.value}</h3>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* INFRASTRUCTURE MONITORING SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-           
-           {/* Visual Monitoring Placeholder */}
-          
-
-           {/* Resource Allocation */}
-           <div className={cn(INDUSTRIAL_CARD, "min-h-[400px]")}>
-              <div className="flex items-center gap-3 mb-8">
-                <Database size={18} className="text-teal-500" />
-                <h3 className="text-lg font-bold text-white tracking-tight">Resource_Allocation</h3>
-              </div>
-              <div className="space-y-8">
-                {[
-                  { label: "NVMe Storage", usage: 75, limit: "10GB" },
-                  { label: "CPU Compute", usage: 92, limit: "500h" },
-                  { label: "Bandwidth", usage: 45, limit: "100GB" },
-                ].map((item, i) => (
-                  <div key={i} className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">{item.label}</span>
-                      <span className="text-sm font-mono font-bold text-white">{item.usage}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
-                      <div className={cn("h-full rounded-full transition-all", item.usage > 90 ? "bg-red-500" : "bg-teal-500")} style={{ width: `${item.usage}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-12 p-5 rounded-2xl bg-teal-950/20 border border-teal-900/30">
-                <div className="flex gap-4">
-                  <Clock size={16} className="text-teal-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-neutral-400 leading-relaxed font-bold uppercase tracking-wider">
-                    Reset cycle: <span className="text-white">04 Days Remaining</span>
-                  </p>
-                </div>
-              </div>
-           </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-500">Govind</span>
+          </h1>
+          <p className="text-sm text-slate-400">
+            Managing <span className="font-semibold text-slate-600">govinddotanand816...</span>
+          </p>
         </div>
+        
+        <div className="flex items-center gap-4 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+          <nav className="flex gap-1">
+            <button className="px-4 py-2 text-sm font-semibold text-blue-600 bg-white shadow-sm rounded-xl">Personal</button>
+            <button className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">Portfolio</button>
+          </nav>
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <button className="p-2 text-slate-400 hover:bg-white hover:text-slate-600 rounded-lg transition-all">
+            <MoreHorizontal size={20} />
+          </button>
+        </div>
+      </header>
+
+      {/* 2. MAIN CONTENT */}
+      <main className="px-10 py-10 space-y-10 max-w-[1600px] w-full mx-auto">
+        
+        {/* STATS SECTION */}
+        <section>
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Key Performance Indicators</h2>
+            <button className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline">
+              View Detailed Analytics <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
+            <StatCard label="Open Tasks" count={0} color="blue" icon={<ClipboardList size={20}/>} />
+            <StatCard label="Closed Tasks" count={0} color="blue" icon={<ClipboardList size={20}/>} />
+            <StatCard label="Open Issues" count={0} color="red" icon={<AlertCircle size={20}/>} />
+            <StatCard label="Closed Issues" count={0} color="red" icon={<AlertCircle size={20}/>} />
+            <StatCard label="Open Phases" count={0} color="indigo" icon={<Flag size={20}/>} />
+            <StatCard label="Closed Phases" count={0} color="indigo" icon={<Flag size={20}/>} />
+          </div>
+        </section>
+
+        {/* WORKSPACE GRID */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <EmptyStateSection title="My Tasks" highlightColor="bg-blue-500" />
+          <EmptyStateSection title="My Issues" highlightColor="bg-red-500" />
+          <EmptyStateSection title="Due Today" highlightColor="bg-amber-500" />
+          <EmptyStateSection title="Overdue" highlightColor="bg-purple-500" />
+        </section>
       </main>
 
-      <footer className="py-12 text-center border-t border-neutral-900 mx-8">
-         <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[1em]">SYSTEM ARCHITECTURE V4.0.2 // CLIENT ACCESS</p>
-      </footer>
+      {/* ACTION BUTTON */}
+      <div className="fixed bottom-8 right-8 flex flex-col items-end gap-3">
+         
+        <button className="bg-white border border-slate-200 text-slate-600 px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 font-medium hover:bg-slate-50 transition-all text-sm">
+          <HelpCircle size={18} className="text-orange-500" />
+          Support
+        </button>
+      </div>
     </div>
   )
 }
 
-function cn(...inputs: (string | false | null | undefined)[]) {
-  return inputs.filter(Boolean).join(" ")
+/* ---------------- SUB-COMPONENTS ---------------- */
+
+function StatCard({ label, count, color, icon }: { label: string, count: number, color: 'blue' | 'red' | 'indigo', icon: React.ReactNode }) {
+  const themes = {
+    blue: "text-blue-600 bg-blue-50",
+    red: "text-red-500 bg-red-50",
+    indigo: "text-indigo-500 bg-indigo-50"
+  }
+
+  return (
+    <div className={STAT_CARD}>
+      <div className="relative z-10">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter mb-1">{label}</p>
+        <h3 className="text-3xl font-black text-slate-900 tracking-tight">{count}</h3>
+      </div>
+      <div className={`${themes[color]} ${ICON_BG}`}>
+        {icon}
+      </div>
+      {/* Subtle bottom accent line */}
+      <div className={`absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-500 ${color === 'blue' ? 'bg-blue-500' : color === 'red' ? 'bg-red-500' : 'bg-indigo-500'}`} />
+    </div>
+  )
+}
+
+function EmptyStateSection({ title, highlightColor }: { title: string, highlightColor: string }) {
+  return (
+    <div className={SECTION_CARD}>
+      <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center gap-3">
+          <div className={`w-1.5 h-6 ${highlightColor} rounded-full`} />
+          <h3 className="text-slate-800 font-bold tracking-tight">{title}</h3>
+        </div>
+        <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
+          <Layers size={16} />
+        </button>
+      </div>
+      
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {/* Modernized Empty Illustration */}
+        <div className="relative mb-6">
+          <div className="w-24 h-24 bg-slate-50 rounded-3xl flex items-center justify-center border border-dashed border-slate-200">
+             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center">
+                <Search size={20} className="text-slate-300" />
+             </div>
+          </div>
+          <div className="absolute -top-2 -right-2 w-8 h-8 bg-white shadow-md rounded-full flex items-center justify-center">
+            <AlertCircle size={16} className="text-amber-400" />
+          </div>
+        </div>
+        <h4 className="text-slate-900 font-semibold mb-1">All caught up!</h4>
+        <p className="text-slate-400 text-sm max-w-[200px] leading-relaxed">
+          No {title.toLowerCase()} were found in your current workspace.
+        </p>
+      </div>
+    </div>
+  )
 }
