@@ -30,6 +30,7 @@ export function ClientSidebar({
     { id: "stacks", icon: Package, label: "Products" },
     { id: "stacks_cart", icon: ShoppingCart, label: "Cart" },
     { id: "stackboard", icon: LayoutDashboard, label: "Stackboard" },
+      { id: "billing", icon: LayoutDashboard, label: "Billing" },
     { id: "settings", icon: Settings, label: "Settings" },
   ]
 

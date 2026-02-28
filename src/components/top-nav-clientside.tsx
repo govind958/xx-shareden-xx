@@ -63,24 +63,37 @@ export function TopNav() {
         </div>
 
         {/* SECURITY LAYER PROFILE SECTION */}
-        <div className="flex items-center gap-3 py-1.5 px-3 bg-neutral-900/40 rounded-lg border border-neutral-800 hover:border-[#2B6CB0]/30 transition-all group cursor-pointer">
-          
-          <div className="relative shrink-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center font-black text-black text-[11px]">
-              {loading ? <Cpu size={12} className="animate-spin" /> : initial}
-            </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0A0A0A] rounded-full" />
-          </div>
+       <div className="flex items-center gap-3 px-2.5 py-1.5 rounded-md hover:bg-[#F7FAFC] transition-all duration-200 group cursor-pointer">
+  
+  {/* Avatar */}
+  <div className="relative shrink-0">
+    <div className="w-9 h-9 rounded-full bg-[#1A365D] flex items-center justify-center text-white text-xs font-semibold tracking-wide shadow-sm group-hover:shadow-md transition-all duration-200">
+      {loading ? <Cpu size={14} className="animate-spin text-white" /> : initial}
+    </div>
 
-          <div className="hidden sm:flex flex-col min-w-0 pr-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-neutral-200 font-bold truncate uppercase tracking-wider">
-                {loading ? "FETCHING..." : userIdentifier}
-              </span>
-              <ShieldCheck size={10} className="text-teal-500/50 group-hover:text-teal-400 transition-colors" />
-            </div>
-          </div>
-        </div>
+    {/* Online Status */}
+    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#38A169] border-2 border-white rounded-full" />
+  </div>
+
+  {/* Text Section */}
+  <div className="hidden sm:flex flex-col leading-tight">
+    <div className="flex items-center gap-1.5">
+      <span className="text-sm text-[#1A365D] font-medium truncate">
+        {loading ? "Fetching..." : userIdentifier}
+      </span>
+
+      <ShieldCheck
+        size={14}
+        className="text-[#319795] opacity-70 group-hover:opacity-100 transition-opacity"
+      />
+    </div>
+
+    <span className="text-[11px] text-gray-400 font-medium">
+      Workspace Member
+    </span>
+  </div>
+
+</div>
 
       </div>
     </header>
