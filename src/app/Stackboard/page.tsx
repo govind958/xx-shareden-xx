@@ -24,13 +24,22 @@ import {
   Command,
   Clock,
   Play,
-  MessageCircle
+  MessageCircle,
+  Plus,
+  Star
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
 import { getPurchasedStacks, getPurchasedSubStacks } from '@/src/modules/stack_board/action';
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
+import { 
+  MessageCardRenderer, 
+  type MessageType, 
+  type RatingData,
+  type MessageMetadata 
+} from '@/src/components/messaging/message-cards';
+import { RatingModal } from '@/src/components/messaging/create-modals';
 
 /* ---------------- UTILS ---------------- */
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
@@ -325,6 +334,10 @@ function MessageDashboard({
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  
+  // Component-based messaging state
+  const [showActions, setShowActions] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   // 1. Fetch & Subscribe to Messages
   useEffect(() => {
@@ -429,6 +442,68 @@ function MessageDashboard({
     }
   };
 
+  // Send component-based message (rating)
+  const sendComponentMessage = async (
+    messageType: MessageType, 
+    metadata: MessageMetadata,
+    contentDescription: string
+  ) => {
+    if (!user || !activeStackId) return;
+
+    const { data, error } = await supabase.from('project_messages').insert({
+      order_item_id: activeStackId,
+      content: contentDescription,
+      sender_id: user.id,
+      sender_role: 'client',
+      message_type: messageType,
+      metadata: metadata
+    }).select().single();
+
+    if (error) {
+      toast.error('Failed to send message');
+      return;
+    }
+
+    if (data) {
+      setMessages(prev => {
+        const exists = prev.find(m => m.id === data.id);
+        return exists ? prev : [...prev, data];
+      });
+      toast.success('Rating sent!');
+    }
+  };
+
+  // Handle rating creation
+  const handleCreateRating = (data: RatingData) => {
+    sendComponentMessage('rating', { rating: data }, `Rating for: ${data.topic}`);
+  };
+
+  // Handle appointment status update (client can approve/decline appointments from employee)
+  const handleAppointmentStatusUpdate = async (messageId: string, status: 'approved' | 'declined') => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message?.metadata?.appointment) return;
+
+    const updatedMetadata = {
+      ...message.metadata,
+      appointment: { ...message.metadata.appointment, status }
+    };
+
+    const { error } = await supabase
+      .from('project_messages')
+      .update({ metadata: updatedMetadata })
+      .eq('id', messageId);
+
+    if (error) {
+      toast.error('Failed to update appointment status');
+      return;
+    }
+
+    setMessages(prev => prev.map(m => 
+      m.id === messageId ? { ...m, metadata: updatedMetadata } : m
+    ));
+    toast.success(`Appointment ${status}!`);
+  };
+
   if (!activeStackId) {
     return (
       <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] h-[700px] flex items-center justify-center text-neutral-700">
@@ -487,20 +562,35 @@ function MessageDashboard({
         ) : (
           messages.map((m) => {
             const isMe = m.sender_role === 'client';
+            const messageType = m.message_type || 'text';
+            const isComponentMessage = messageType !== 'text' && m.metadata;
+            
             return (
               <div key={m.id} className={`flex flex-col gap-2 max-w-[450px] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                 <span className={`text-[9px] font-bold uppercase tracking-widest ${isMe ? 'mr-1 text-teal-500/50' : 'ml-1 text-neutral-700'}`}>
                   {isMe ? 'User_Auth' : 'System_Admin'}
                 </span>
 
-                <div className={cn(
-                  "p-5 text-[13px] font-bold leading-relaxed shadow-lg relative",
-                  isMe
-                    ? "bg-teal-500 text-black rounded-[24px] rounded-tr-none"
-                    : "bg-neutral-900/80 border border-neutral-800 text-neutral-300 rounded-[24px] rounded-tl-none"
-                )}>
-                  {m.content}
-                </div>
+                {isComponentMessage ? (
+                  <div className={cn("max-w-full", isMe ? "ml-auto" : "mr-auto")}>
+                    <MessageCardRenderer
+                      messageType={messageType as MessageType}
+                      metadata={m.metadata}
+                      isMe={isMe}
+                      onAppointmentApprove={() => handleAppointmentStatusUpdate(m.id, 'approved')}
+                      onAppointmentDecline={() => handleAppointmentStatusUpdate(m.id, 'declined')}
+                    />
+                  </div>
+                ) : (
+                  <div className={cn(
+                    "p-5 text-[13px] font-bold leading-relaxed shadow-lg relative",
+                    isMe
+                      ? "bg-teal-500 text-black rounded-[24px] rounded-tr-none"
+                      : "bg-neutral-900/80 border border-neutral-800 text-neutral-300 rounded-[24px] rounded-tl-none"
+                  )}>
+                    {m.content}
+                  </div>
+                )}
 
                 <span className="text-[8px] font-mono text-neutral-800 uppercase">
                   {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -511,26 +601,81 @@ function MessageDashboard({
         )}
       </div>
 
-      {/* Input Area */}
+      {/* Input Area with Rating Action */}
       <div className="p-8 bg-neutral-900/20 border-t border-neutral-900">
         <form onSubmit={handleSendMessage} className="relative">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="EXECUTE TRANSMISSION..."
-            className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 focus:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all placeholder:text-neutral-800"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-neutral-600 hover:text-teal-500 transition-colors disabled:opacity-50"
-          >
-            <span className="text-[10px] font-bold hidden sm:block">SEND</span>
-            <Send size={16} />
-          </button>
+          {/* Action Menu Popover for Rating */}
+          {showActions && (
+            <div className="absolute bottom-full left-0 mb-4 bg-neutral-900 rounded-2xl shadow-2xl p-4 z-30 border border-neutral-800 animate-in fade-in slide-in-from-bottom-4 duration-200">
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowActions(false);
+                  setShowRatingModal(true);
+                }} 
+                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-neutral-800 transition-colors group"
+              >
+                <div className="p-2 rounded-xl bg-yellow-500/20 text-yellow-400 group-hover:scale-110 transition-transform">
+                  <Star size={20} />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-bold text-white block">Send Rating</span>
+                  <span className="text-[10px] text-neutral-500">Rate the employee's work</span>
+                </div>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setShowActions(false)} 
+                className="absolute -top-2 -right-2 bg-neutral-800 text-white rounded-full p-1 shadow-lg hover:bg-neutral-700 transition-colors border border-neutral-700"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-3">
+            {/* Plus Button for Actions */}
+            <button 
+              type="button"
+              onClick={() => setShowActions(!showActions)}
+              className={cn(
+                "p-3 rounded-xl transition-all shrink-0",
+                showActions 
+                  ? "bg-teal-500 text-black rotate-45" 
+                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
+              )}
+            >
+              <Plus size={20} />
+            </button>
+            
+            {/* Text Input */}
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="EXECUTE TRANSMISSION..."
+                className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 focus:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all placeholder:text-neutral-800"
+              />
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-neutral-600 hover:text-teal-500 transition-colors disabled:opacity-50"
+              >
+                <span className="text-[10px] font-bold hidden sm:block">SEND</span>
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
         </form>
       </div>
+      
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleCreateRating}
+      />
     </div>
   );
 }

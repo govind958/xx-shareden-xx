@@ -5,11 +5,19 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Terminal, Send, Zap,
   Box, ArrowRight, LayoutGrid,
-  Play, CheckCircle, Loader2
+  Play, CheckCircle, Loader2, Plus
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
 import { toast } from 'sonner';
+import { 
+  MessageCardRenderer, 
+  type MessageType, 
+  type AppointmentData, 
+  type MessageMetadata 
+} from '@/src/components/messaging/message-cards';
+import { ActionMenu } from '@/src/components/messaging/action-menu';
+import { AppointmentModal } from '@/src/components/messaging/create-modals';
 
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
@@ -30,6 +38,10 @@ function ClientDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Component-based messaging state
+  const [showActions, setShowActions] = useState(false);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
 
   // 1. Initial Data Fetch: Get Supabase Auth user and verify employee
   useEffect(() => {
@@ -187,6 +199,78 @@ function ClientDashboardContent() {
         return exists ? prev : [...prev, data];
       });
     }
+  };
+
+  // Handle action menu selection
+  const handleActionSelect = (type: MessageType | 'doc') => {
+    setShowActions(false);
+    if (type === 'appointment') {
+      setShowAppointmentModal(true);
+    } else if (type === 'doc') {
+      toast.info('File sharing coming soon!');
+    }
+  };
+
+  // Send component-based message
+  const sendComponentMessage = async (
+    messageType: MessageType, 
+    metadata: MessageMetadata,
+    contentDescription: string
+  ) => {
+    if (!user || !orderItemId) return;
+
+    const { data, error } = await supabase.from('project_messages').insert({
+      order_item_id: orderItemId,
+      content: contentDescription,
+      sender_id: user.id,
+      sender_role: 'employee',
+      message_type: messageType,
+      metadata: metadata
+    }).select().single();
+
+    if (error) {
+      toast.error('Failed to send message');
+      return;
+    }
+
+    if (data) {
+      setMessages(prev => {
+        const exists = prev.find(m => m.id === data.id);
+        return exists ? prev : [...prev, data];
+      });
+      toast.success('Message sent!');
+    }
+  };
+
+  // Handle appointment creation
+  const handleCreateAppointment = (data: AppointmentData) => {
+    sendComponentMessage('appointment', { appointment: data }, `Appointment request: ${data.title}`);
+  };
+
+  // Handle appointment status update
+  const handleAppointmentStatusUpdate = async (messageId: string, status: 'approved' | 'declined') => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message?.metadata?.appointment) return;
+
+    const updatedMetadata = {
+      ...message.metadata,
+      appointment: { ...message.metadata.appointment, status }
+    };
+
+    const { error } = await supabase
+      .from('project_messages')
+      .update({ metadata: updatedMetadata })
+      .eq('id', messageId);
+
+    if (error) {
+      toast.error('Failed to update appointment status');
+      return;
+    }
+
+    setMessages(prev => prev.map(m => 
+      m.id === messageId ? { ...m, metadata: updatedMetadata } : m
+    ));
+    toast.success(`Appointment ${status}!`);
   };
 
   // Handle status update
@@ -456,39 +540,84 @@ function ClientDashboardContent() {
 
                 {/* Messages Area */}
                 <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
-                  {messages.length > 0 ? messages.map((m, i) => (
-                    <div key={m.id || i} className={cn("flex flex-col gap-1.5", m.sender_role === 'employee' ? "items-end" : "items-start")}>
-                      <span className="text-[8px] font-black text-neutral-700  tracking-widest">
-                        {m.sender_role === 'employee' ? 'You (Operative)' : 'Client_Auth'}
-                      </span>
-                      <div className={cn(
-                        "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight  leading-relaxed shadow-lg",
-                        m.sender_role === 'employee'
-                          ? "bg-teal-500 text-black rounded-tr-none"
-                          : "bg-neutral-900 text-white border border-neutral-800 rounded-tl-none"
-                      )}>
-                        {m.content}
+                  {messages.length > 0 ? messages.map((m, i) => {
+                    const isMe = m.sender_role === 'employee';
+                    const messageType = m.message_type || 'text';
+                    const isComponentMessage = messageType !== 'text' && m.metadata;
+                    
+                    return (
+                      <div key={m.id || i} className={cn("flex flex-col gap-1.5", isMe ? "items-end" : "items-start")}>
+                        <span className="text-[8px] font-black text-neutral-700 tracking-widest">
+                          {isMe ? 'You (Operative)' : 'Client_Auth'}
+                        </span>
+                        
+                        {isComponentMessage ? (
+                          <div className={cn("max-w-[85%]", isMe ? "ml-auto" : "mr-auto")}>
+                            <MessageCardRenderer
+                              messageType={messageType as MessageType}
+                              metadata={m.metadata}
+                              isMe={isMe}
+                              onAppointmentApprove={() => handleAppointmentStatusUpdate(m.id, 'approved')}
+                              onAppointmentDecline={() => handleAppointmentStatusUpdate(m.id, 'declined')}
+                            />
+                          </div>
+                        ) : (
+                          <div className={cn(
+                            "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight leading-relaxed shadow-lg",
+                            isMe
+                              ? "bg-teal-500 text-black rounded-tr-none"
+                              : "bg-neutral-900 text-white border border-neutral-800 rounded-tl-none"
+                          )}>
+                            {m.content}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )) : (
+                    );
+                  }) : (
                     <div className="h-full flex flex-col items-center justify-center opacity-20 italic text-[10px] tracking-[0.5em] uppercase">
                       Awaiting_Initial_Handshake...
                     </div>
                   )}
                 </div>
 
-                {/* Input Area */}
+                {/* Input Area with Action Menu */}
                 <form onSubmit={sendMessage} className="p-8 bg-black/40 border-t border-neutral-900">
                   <div className="relative">
-                    <input
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="ENTER_SIGNAL_ENCODING..."
-                      className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white focus:border-teal-500 focus:outline-none transition-all"
+                    {/* Action Menu Popover */}
+                    <ActionMenu 
+                      isOpen={showActions} 
+                      onClose={() => setShowActions(false)} 
+                      onAction={handleActionSelect}
                     />
-                    <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 text-teal-500 hover:text-white transition-colors">
-                      <Send size={18} />
-                    </button>
+                    
+                    <div className="flex items-center gap-3">
+                      {/* Plus Button for Actions */}
+                      <button 
+                        type="button"
+                        onClick={() => setShowActions(!showActions)}
+                        className={cn(
+                          "p-3 rounded-xl transition-all shrink-0",
+                          showActions 
+                            ? "bg-teal-500 text-black rotate-45" 
+                            : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
+                        )}
+                      >
+                        <Plus size={20} />
+                      </button>
+                      
+                      {/* Text Input */}
+                      <div className="relative flex-1">
+                        <input
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          placeholder="ENTER_SIGNAL_ENCODING..."
+                          className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white focus:border-teal-500 focus:outline-none transition-all"
+                        />
+                        <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 text-teal-500 hover:text-white transition-colors">
+                          <Send size={18} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -501,6 +630,13 @@ function ClientDashboardContent() {
           </main>
         </div>
       </div>
+      
+      {/* Component Message Modals */}
+      <AppointmentModal
+        isOpen={showAppointmentModal}
+        onClose={() => setShowAppointmentModal(false)}
+        onSubmit={handleCreateAppointment}
+      />
     </div>
   );
 }
