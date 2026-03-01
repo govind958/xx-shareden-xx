@@ -26,18 +26,19 @@ import {
   Play,
   MessageCircle,
   Plus,
-  Star
+  Star,
+  Loader2
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
 import { getPurchasedStacks, getPurchasedSubStacks } from '@/src/modules/stack_board/action';
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
-import { 
-  MessageCardRenderer, 
-  type MessageType, 
+import {
+  MessageCardRenderer,
+  type MessageType,
   type RatingData,
-  type MessageMetadata 
+  type MessageMetadata
 } from '@/src/components/messaging/message-cards';
 import { RatingModal } from '@/src/components/messaging/create-modals';
 
@@ -98,7 +99,7 @@ export default function TechNoirDashboard() {
     if (!user?.id || purchasedStacks.length === 0) return;
 
     const supabase = createClient();
-    
+
     // Subscribe to changes on order_items for this user
     const channel = supabase.channel(`user_orders_${user.id}`)
       .on('postgres_changes', {
@@ -109,15 +110,15 @@ export default function TechNoirDashboard() {
       }, (payload) => {
         const updatedItem = payload.new as any;
         console.log('[Stackboard] Order item updated:', updatedItem);
-        
+
         // Update the purchasedStacks state
-        setPurchasedStacks(prev => prev.map(stack => 
-          stack.id === updatedItem.id 
-            ? { 
-                ...stack, 
-                status: updatedItem.status?.toUpperCase() || stack.status,
-                progress_percent: updatedItem.progress_percent ?? stack.progress_percent
-              }
+        setPurchasedStacks(prev => prev.map(stack =>
+          stack.id === updatedItem.id
+            ? {
+              ...stack,
+              status: updatedItem.status?.toUpperCase() || stack.status,
+              progress_percent: updatedItem.progress_percent ?? stack.progress_percent
+            }
             : stack
         ));
 
@@ -127,7 +128,7 @@ export default function TechNoirDashboard() {
           'completed': '🎉 Your order has been completed!',
           'processing': '📋 Your order is being processed',
         };
-        
+
         if (statusMessages[updatedItem.status]) {
           toast(statusMessages[updatedItem.status]);
         }
@@ -254,25 +255,25 @@ export default function TechNoirDashboard() {
                 <div className="text-right">
                   <p className={cn("text-[10px] font-mono font-bold", selectedStatusInfo.color)}>{progressPercent}%</p>
                   <div className="w-24 h-1.5 bg-neutral-900 mt-2 overflow-hidden rounded-full">
-                    <div 
+                    <div
                       className={cn(
                         "h-full rounded-full transition-all duration-700",
-                        selectedStatus === 'completed' ? 'bg-green-500' : 
-                        selectedStatus === 'in_progress' ? 'bg-amber-500' : 'bg-teal-500'
-                      )} 
-                      style={{ width: `${progressPercent}%` }} 
+                        selectedStatus === 'completed' ? 'bg-green-500' :
+                          selectedStatus === 'in_progress' ? 'bg-amber-500' : 'bg-teal-500'
+                      )}
+                      style={{ width: `${progressPercent}%` }}
                     />
                   </div>
                 </div>
               </div>
-              
+
               {/* Status Badge */}
               <div className={cn(
                 "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-8",
                 selectedStatus === 'completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                selectedStatus === 'in_progress' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                selectedStatus === 'processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                  selectedStatus === 'in_progress' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    selectedStatus === 'processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                      'bg-neutral-800 text-neutral-400 border border-neutral-700'
               )}>
                 {selectedStatus === 'in_progress' && <Play size={10} fill="currentColor" />}
                 {selectedStatus === 'completed' && <CheckCircle2 size={10} />}
@@ -334,10 +335,12 @@ function MessageDashboard({
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  
+
   // Component-based messaging state
   const [showActions, setShowActions] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Fetch & Subscribe to Messages
   useEffect(() => {
@@ -368,15 +371,15 @@ function MessageDashboard({
         setMessages(prev => {
           // Prevent duplicates - check by ID or by content+sender for optimistic messages
           const newMsg = payload.new as any;
-          const exists = prev.find(m => 
-            m.id === newMsg.id || 
+          const exists = prev.find(m =>
+            m.id === newMsg.id ||
             (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number')
           );
           if (exists) {
             // Replace optimistic message with real one
-            return prev.map(m => 
-              (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number') 
-                ? newMsg 
+            return prev.map(m =>
+              (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number')
+                ? newMsg
                 : m
             );
           }
@@ -444,7 +447,7 @@ function MessageDashboard({
 
   // Send component-based message (rating)
   const sendComponentMessage = async (
-    messageType: MessageType, 
+    messageType: MessageType,
     metadata: MessageMetadata,
     contentDescription: string
   ) => {
@@ -498,10 +501,69 @@ function MessageDashboard({
       return;
     }
 
-    setMessages(prev => prev.map(m => 
+    setMessages(prev => prev.map(m =>
       m.id === messageId ? { ...m, metadata: updatedMetadata } : m
     ));
     toast.success(`Appointment ${status}!`);
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !activeStackId) return;
+
+    try {
+      setIsUploading(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${activeStackId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chats-file')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chats-file')
+        .getPublicUrl(filePath);
+
+      const { data, error: dbError } = await supabase
+        .from('project_messages')
+        .insert({
+          order_item_id: activeStackId,
+          content: `Shared a file: ${file.name}`,
+          sender_id: user.id,
+          sender_role: 'client',
+          message_type: 'file',
+          file_url: publicUrl,
+          file_type: file.type,
+          file_name: file.name,
+          metadata: { file: { url: publicUrl, name: file.name, type: file.type } }
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      if (data) {
+        setMessages(prev => {
+          const exists = prev.find(m => m.id === data.id);
+          return exists ? prev : [...prev, data];
+        });
+        toast.success('File shared!');
+      }
+    } catch (error: any) {
+      console.error('Error uploading file:', error.message);
+      toast.error('Failed to upload file');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   if (!activeStackId) {
@@ -564,7 +626,7 @@ function MessageDashboard({
             const isMe = m.sender_role === 'client';
             const messageType = m.message_type || 'text';
             const isComponentMessage = messageType !== 'text' && m.metadata;
-            
+
             return (
               <div key={m.id} className={`flex flex-col gap-2 max-w-[450px] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                 <span className={`text-[9px] font-bold uppercase tracking-widest ${isMe ? 'mr-1 text-teal-500/50' : 'ml-1 text-neutral-700'}`}>
@@ -604,16 +666,16 @@ function MessageDashboard({
       {/* Input Area with Rating Action */}
       <div className="p-8 bg-neutral-900/20 border-t border-neutral-900">
         <form onSubmit={handleSendMessage} className="relative">
-          {/* Action Menu Popover for Rating */}
+          {/* Action Menu Popover for Rating & File */}
           {showActions && (
             <div className="absolute bottom-full left-0 mb-4 bg-neutral-900 rounded-2xl shadow-2xl p-4 z-30 border border-neutral-800 animate-in fade-in slide-in-from-bottom-4 duration-200">
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   setShowActions(false);
                   setShowRatingModal(true);
-                }} 
-                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-neutral-800 transition-colors group"
+                }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-neutral-800 transition-colors group w-full"
               >
                 <div className="p-2 rounded-xl bg-yellow-500/20 text-yellow-400 group-hover:scale-110 transition-transform">
                   <Star size={20} />
@@ -623,53 +685,87 @@ function MessageDashboard({
                   <span className="text-[10px] text-neutral-500">Rate the employee's work</span>
                 </div>
               </button>
-              <button 
+              <button
                 type="button"
-                onClick={() => setShowActions(false)} 
+                onClick={() => {
+                  setShowActions(false);
+                  fileInputRef.current?.click();
+                }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-neutral-800 transition-colors group w-full"
+              >
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform">
+                  <FileText size={20} />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-bold text-white block">Share File</span>
+                  <span className="text-[10px] text-neutral-500">Send images, PDFs & documents</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowActions(false)}
                 className="absolute -top-2 -right-2 bg-neutral-800 text-white rounded-full p-1 shadow-lg hover:bg-neutral-700 transition-colors border border-neutral-700"
               >
                 <X size={12} />
               </button>
             </div>
           )}
-          
+
           <div className="flex items-center gap-3">
             {/* Plus Button for Actions */}
-            <button 
+            <button
               type="button"
               onClick={() => setShowActions(!showActions)}
               className={cn(
                 "p-3 rounded-xl transition-all shrink-0",
-                showActions 
-                  ? "bg-teal-500 text-black rotate-45" 
+                showActions
+                  ? "bg-teal-500 text-black rotate-45"
                   : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
               )}
             >
               <Plus size={20} />
             </button>
-            
+
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileUpload}
+              className="hidden"
+              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
+            />
+
             {/* Text Input */}
             <div className="relative flex-1">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="EXECUTE TRANSMISSION..."
-                className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 focus:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all placeholder:text-neutral-800"
-              />
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-neutral-600 hover:text-teal-500 transition-colors disabled:opacity-50"
-              >
-                <span className="text-[10px] font-bold hidden sm:block">SEND</span>
-                <Send size={16} />
-              </button>
+              {isUploading ? (
+                <div className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 flex items-center gap-3">
+                  <Loader2 size={16} className="animate-spin text-teal-500" />
+                  <span className="text-xs text-teal-500 font-bold uppercase tracking-wider">Uploading file...</span>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="EXECUTE TRANSMISSION..."
+                    className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 focus:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all placeholder:text-neutral-800"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-neutral-600 hover:text-teal-500 transition-colors disabled:opacity-50"
+                  >
+                    <span className="text-[10px] font-bold hidden sm:block">SEND</span>
+                    <Send size={16} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </form>
       </div>
-      
+
       {/* Rating Modal */}
       <RatingModal
         isOpen={showRatingModal}
@@ -759,7 +855,7 @@ function StackCard({ stack, isSelected, onClick }: { stack: PURCHASED_STACKS; is
           </span>
         </div>
         <div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden">
-          <div 
+          <div
             className={cn("h-full rounded-full transition-all duration-700 ease-out", getProgressColor())}
             style={{ width: `${progress}%` }}
           />

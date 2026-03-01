@@ -5,16 +5,16 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Terminal, Send, Zap,
   Box, ArrowRight, LayoutGrid,
-  Play, CheckCircle, Loader2, Plus
+  Play, CheckCircle, Loader2, Plus, Paperclip
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
 import { toast } from 'sonner';
-import { 
-  MessageCardRenderer, 
-  type MessageType, 
-  type AppointmentData, 
-  type MessageMetadata 
+import {
+  MessageCardRenderer,
+  type MessageType,
+  type AppointmentData,
+  type MessageMetadata
 } from '@/src/components/messaging/message-cards';
 import { ActionMenu } from '@/src/components/messaging/action-menu';
 import { AppointmentModal } from '@/src/components/messaging/create-modals';
@@ -38,10 +38,12 @@ function ClientDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+
   // Component-based messaging state
   const [showActions, setShowActions] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Initial Data Fetch: Get Supabase Auth user and verify employee
   useEffect(() => {
@@ -113,7 +115,7 @@ function ClientDashboardContent() {
         .select('*')
         .eq('order_item_id', orderItemId)
         .order('created_at', { ascending: true });
-      
+
       if (data) {
         // Always use the fresh data from DB to avoid duplicates
         setMessages(data);
@@ -121,7 +123,7 @@ function ClientDashboardContent() {
     };
 
     console.log('Setting up realtime for order:', orderItemId);
-    
+
     // Debug: Check auth state
     supabase.auth.getSession().then(({ data, error }) => {
       console.log('Current auth session:', data?.session ? 'EXISTS' : 'NONE', error);
@@ -167,9 +169,9 @@ function ClientDashboardContent() {
     // Polling fallback - fetch every 3 seconds in case realtime doesn't work
     const pollInterval = setInterval(fetchMessages, 3000);
 
-    return () => { 
+    return () => {
       clearInterval(pollInterval);
-      supabase.removeChannel(channel); 
+      supabase.removeChannel(channel);
     };
   }, [orderItemId]);
 
@@ -202,18 +204,78 @@ function ClientDashboardContent() {
   };
 
   // Handle action menu selection
-  const handleActionSelect = (type: MessageType | 'doc') => {
+  const handleActionSelect = (type: MessageType | 'file') => {
     setShowActions(false);
     if (type === 'appointment') {
       setShowAppointmentModal(true);
-    } else if (type === 'doc') {
-      toast.info('File sharing coming soon!');
+    } else if (type === 'file') {
+      fileInputRef.current?.click();
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !orderItemId) return;
+
+    try {
+      setIsUploading(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `${orderItemId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chats-file')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chats-file')
+        .getPublicUrl(filePath);
+
+      const { data, error: dbError } = await supabase
+        .from('project_messages')
+        .insert({
+          order_item_id: orderItemId,
+          content: `Shared a file: ${file.name}`,
+          sender_id: user.id,
+          sender_role: 'employee',
+          message_type: 'file',
+          file_url: publicUrl,
+          file_type: file.type,
+          file_name: file.name,
+          metadata: { file: { url: publicUrl, name: file.name, type: file.type } }
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      if (data) {
+        setMessages(prev => {
+          const exists = prev.find(m => m.id === data.id);
+          return exists ? prev : [...prev, data];
+        });
+        toast.success('File shared!');
+      }
+    } catch (error: any) {
+      console.error('Error uploading file:', error.message);
+      toast.error('Failed to upload file');
+    } finally {
+      setIsUploading(false);
+      // Reset file input so the same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   // Send component-based message
   const sendComponentMessage = async (
-    messageType: MessageType, 
+    messageType: MessageType,
     metadata: MessageMetadata,
     contentDescription: string
   ) => {
@@ -267,7 +329,7 @@ function ClientDashboardContent() {
       return;
     }
 
-    setMessages(prev => prev.map(m => 
+    setMessages(prev => prev.map(m =>
       m.id === messageId ? { ...m, metadata: updatedMetadata } : m
     ));
     toast.success(`Appointment ${status}!`);
@@ -276,34 +338,34 @@ function ClientDashboardContent() {
   // Handle status update
   const handleStatusUpdate = (newStatus: OrderItemStatus) => {
     if (!orderItemId) return;
-    
+
     startStatusTransition(async () => {
       const result = await updateOrderItemStatus(orderItemId, newStatus);
-      
+
       if (result.success) {
         // Update local state optimistically
-        setActiveStack((prev: any) => prev ? { 
-          ...prev, 
+        setActiveStack((prev: any) => prev ? {
+          ...prev,
           status: newStatus,
           progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : prev.progress_percent
         } : prev);
-        
+
         // Also update in orders list
-        setOrders(prev => prev.map(order => 
-          order.id === orderItemId 
-            ? { 
-                ...order, 
-                status: newStatus,
-                progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : order.progress_percent
-              } 
+        setOrders(prev => prev.map(order =>
+          order.id === orderItemId
+            ? {
+              ...order,
+              status: newStatus,
+              progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : order.progress_percent
+            }
             : order
         ));
-        
+
         toast.success(
-          newStatus === 'in_progress' 
-            ? 'Started working on task!' 
-            : newStatus === 'completed' 
-              ? 'Task marked as completed!' 
+          newStatus === 'in_progress'
+            ? 'Started working on task!'
+            : newStatus === 'completed'
+              ? 'Task marked as completed!'
               : 'Status updated!'
         );
       } else {
@@ -315,12 +377,12 @@ function ClientDashboardContent() {
   // Handle progress update
   const handleProgressUpdate = async (newProgress: number) => {
     if (!orderItemId) return;
-    
+
     const result = await updateOrderItemProgress(orderItemId, newProgress);
-    
+
     if (result.success) {
       setActiveStack((prev: any) => prev ? { ...prev, progress_percent: newProgress } : prev);
-      setOrders(prev => prev.map(order => 
+      setOrders(prev => prev.map(order =>
         order.id === orderItemId ? { ...order, progress_percent: newProgress } : order
       ));
     } else {
@@ -441,7 +503,7 @@ function ClientDashboardContent() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Status Action Buttons */}
                     <div className="flex items-center gap-2">
                       {activeStack?.status !== 'completed' && (
@@ -466,7 +528,7 @@ function ClientDashboardContent() {
                               Start Working
                             </button>
                           )}
-                          
+
                           {/* Mark Complete Button */}
                           {activeStack?.status === 'in_progress' && (
                             <button
@@ -489,7 +551,7 @@ function ClientDashboardContent() {
                           )}
                         </>
                       )}
-                      
+
                       {/* Completed Badge */}
                       {activeStack?.status === 'completed' && (
                         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/20 text-green-400 border border-green-500/30">
@@ -499,7 +561,7 @@ function ClientDashboardContent() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Progress Bar */}
                   {activeStack && (
                     <div className="mt-4 pt-4 border-t border-neutral-800">
@@ -508,12 +570,12 @@ function ClientDashboardContent() {
                         <span className="text-[10px] font-mono text-teal-400">{activeStack.progress_percent || 0}%</span>
                       </div>
                       <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-gradient-to-r from-teal-500 to-teal-400 transition-all duration-500 ease-out"
                           style={{ width: `${activeStack.progress_percent || 0}%` }}
                         />
                       </div>
-                      
+
                       {/* Quick Progress Buttons (only when in_progress) */}
                       {activeStack.status === 'in_progress' && (
                         <div className="flex items-center gap-2 mt-3">
@@ -544,13 +606,13 @@ function ClientDashboardContent() {
                     const isMe = m.sender_role === 'employee';
                     const messageType = m.message_type || 'text';
                     const isComponentMessage = messageType !== 'text' && m.metadata;
-                    
+
                     return (
                       <div key={m.id || i} className={cn("flex flex-col gap-1.5", isMe ? "items-end" : "items-start")}>
                         <span className="text-[8px] font-black text-neutral-700 tracking-widest">
                           {isMe ? 'You (Operative)' : 'Client_Auth'}
                         </span>
-                        
+
                         {isComponentMessage ? (
                           <div className={cn("max-w-[85%]", isMe ? "ml-auto" : "mr-auto")}>
                             <MessageCardRenderer
@@ -584,38 +646,56 @@ function ClientDashboardContent() {
                 <form onSubmit={sendMessage} className="p-8 bg-black/40 border-t border-neutral-900">
                   <div className="relative">
                     {/* Action Menu Popover */}
-                    <ActionMenu 
-                      isOpen={showActions} 
-                      onClose={() => setShowActions(false)} 
+                    <ActionMenu
+                      isOpen={showActions}
+                      onClose={() => setShowActions(false)}
                       onAction={handleActionSelect}
                     />
-                    
+
                     <div className="flex items-center gap-3">
                       {/* Plus Button for Actions */}
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setShowActions(!showActions)}
                         className={cn(
                           "p-3 rounded-xl transition-all shrink-0",
-                          showActions 
-                            ? "bg-teal-500 text-black rotate-45" 
+                          showActions
+                            ? "bg-teal-500 text-black rotate-45"
                             : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
                         )}
                       >
                         <Plus size={20} />
                       </button>
-                      
+
+                      {/* Hidden File Input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
+                      />
+
                       {/* Text Input */}
                       <div className="relative flex-1">
-                        <input
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          placeholder="ENTER_SIGNAL_ENCODING..."
-                          className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white focus:border-teal-500 focus:outline-none transition-all"
-                        />
-                        <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 text-teal-500 hover:text-white transition-colors">
-                          <Send size={18} />
-                        </button>
+                        {isUploading ? (
+                          <div className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 flex items-center gap-3">
+                            <Loader2 size={16} className="animate-spin text-teal-500" />
+                            <span className="text-xs text-teal-500 font-bold uppercase tracking-wider">Uploading file...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <input
+                              value={input}
+                              onChange={(e) => setInput(e.target.value)}
+                              placeholder="ENTER_SIGNAL_ENCODING..."
+                              className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white focus:border-teal-500 focus:outline-none transition-all"
+                            />
+                            <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 text-teal-500 hover:text-white transition-colors">
+                              <Send size={18} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -630,7 +710,7 @@ function ClientDashboardContent() {
           </main>
         </div>
       </div>
-      
+
       {/* Component Message Modals */}
       <AppointmentModal
         isOpen={showAppointmentModal}
