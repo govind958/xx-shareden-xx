@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import React from "react"
 import { cn } from "@/src/lib/utils"
@@ -30,7 +30,7 @@ export function ClientSidebar({
     { id: "stacks", icon: Package, label: "Products" },
     { id: "stacks_cart", icon: ShoppingCart, label: "Cart" },
     { id: "stackboard", icon: LayoutDashboard, label: "Stackboard" },
-      { id: "billing", icon: LayoutDashboard, label: "Billing" },
+    { id: "billing", icon: LayoutDashboard, label: "Billing" },
     { id: "settings", icon: Settings, label: "Settings" },
   ]
 
@@ -43,7 +43,6 @@ export function ClientSidebar({
       isDark ? "bg-[#1A365D] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
     )}>
       
-      {/* COLLAPSE TRIGGER BUTTON */}
       <div className={cn("h-14 flex items-center px-4", isCollapsed ? "justify-center" : "justify-between px-6")}>
         {!isCollapsed && <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-50">Menu</span>}
         <button 
@@ -68,7 +67,7 @@ export function ClientSidebar({
                 "group w-full flex items-center rounded-lg transition-all py-2.5",
                 isCollapsed ? "justify-center" : "px-3 gap-3",
                 isActive 
-                  ? (isDark ? "bg-[#2B6CB0] text-white shadow-md" : "bg-[#F3F4F6] text-slate-900")
+                  ? (isDark ? "bg-[#2B6CB0] text-white shadow-md" : "bg-slate-100 text-slate-900")
                   : (isDark ? "text-slate-300 hover:text-white hover:bg-white/5" : "text-slate-500 hover:bg-slate-50")
               )}
             >
