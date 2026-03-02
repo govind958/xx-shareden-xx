@@ -1,124 +1,198 @@
 "use client"
 
-import React from "react"
-import { 
-  TrendingUp, Zap, ShieldCheck, Layers, 
- Clock, Database,
+import React, { useState, useEffect } from "react"
+import {
+  ClipboardList,
+  AlertCircle,
+  Flag,
+  Search,
+  Layers,
+  ChevronRight,
+  HelpCircle
 } from "lucide-react"
 
-/* ---------------- INDUSTRIAL STYLING HELPERS ---------------- */
-const INDUSTRIAL_CARD = "bg-[#080808] border border-neutral-900 rounded-[32px] p-8 transition-all hover:border-teal-500/40 shadow-2xl group"
-const ICON_CONTAINER = "w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-black transition-all duration-500"
+/* ---------------- BRAND COLORS ---------------- */
+const BRAND_PRIMARY = "#1A365D"
+const BRAND_ACTION = "#2B6CB0"
+const BRAND_TEAL = "#319795"
+const BRAND_BG = "#F7FAFC"
+const BRAND_SUCCESS = "#38A169"
+const BRAND_ERROR = "#E53E3E"
 
-export default function ClientDashboardPage() {
+/* ---------------- STYLE HELPERS ---------------- */
+const STAT_CARD =
+  "group bg-white border border-[#1A365D]/10 rounded-2xl p-5 flex items-center justify-between shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
+
+const SECTION_CARD =
+  "bg-white border border-[#1A365D]/10 rounded-3xl p-6 min-h-[350px] flex flex-col shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+
+/* --- LOADING COMPONENT --- */
+const LoadingPage = () => (
+  <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="flex gap-2">
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-75" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-150" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-300" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-500" />
+    </div>
+  </div>
+);
+
+export default function DashboardPage() {
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Simulate initial data fetch
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (initialLoading) {
+    return <LoadingPage />;
+  }
+
   return (
-    // overflow-x-hidden ensures the "white strip" bug is killed at the component level
-    <div className="flex-1 flex flex-col min-w-0 bg-[#020202] overflow-x-hidden">
-      
-      {/* 1. TOP NAV BAR (Search & Actions) */}
-      
+    <div className="flex-1 flex flex-col min-h-screen bg-[#F7FAFC] text-[#1A365D] font-sans selection:bg-[#2B6CB0]/20">
 
-      {/* 2. MAIN DASHBOARD CONTENT */}
-      <main className="p-8 lg:p-12 space-y-12 max-w-[1600px] mx-auto w-full">
-        
-        {/* HERO SECTION */}
-        <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">Operational Status</span>
-            <h2 className="text-5xl md:text-6xl font-bold tracking-tighter text-white leading-none">System Overview</h2>
-            <div className="flex items-center gap-3 pt-2">
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-teal-500/10 border border-teal-500/20 rounded-md">
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                <span className="text-[9px] font-black text-teal-500 uppercase">Live Monitor</span>
-              </div>
-              <p className="text-neutral-600 text-sm font-medium tracking-tight">Active node synchronization in progress</p>
-            </div>
+      {/* ---------------- MAIN ---------------- */}
+      <main className="px-10 py-12 space-y-12 max-w-[1600px] w-full mx-auto">
+
+        {/* KPI SECTION */}
+        <section>
+          <div className="flex justify-between items-end mb-8">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+              Key Performance Indicators
+            </h2>
+
+            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline">
+              View Detailed Analytics <ChevronRight size={14} />
+            </button>
           </div>
-          
-          <div className="flex gap-3">
-            <button className="px-8 py-3.5 bg-neutral-900/50 border border-neutral-800 hover:bg-neutral-800 text-white font-bold rounded-2xl text-[11px] transition-all uppercase tracking-widest backdrop-blur-sm">
-              Logs
-            </button>
-            <button className="px-8 py-3.5 bg-teal-600 hover:bg-teal-500 text-black font-black rounded-2xl text-[11px] transition-all uppercase tracking-widest shadow-2xl shadow-teal-500/20">
-              Upgrade Node
-            </button>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
+            <StatCard label="Open Tasks" count={0} color="blue" icon={<ClipboardList size={20} />} />
+            <StatCard label="Closed Tasks" count={0} color="blue" icon={<ClipboardList size={20} />} />
+            <StatCard label="Open Issues" count={0} color="red" icon={<AlertCircle size={20} />} />
+            <StatCard label="Closed Issues" count={0} color="red" icon={<AlertCircle size={20} />} />
+            <StatCard label="Open Phases" count={0} color="teal" icon={<Flag size={20} />} />
+            <StatCard label="Closed Phases" count={0} color="teal" icon={<Flag size={20} />} />
           </div>
         </section>
 
-        {/* STATS GRID */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: "Active Stacks", value: "2", icon: Layers, trend: "+12%" },
-            { label: "System Health", value: "99.9%", icon: ShieldCheck, trend: "Stable" },
-            { label: "API Traffic", value: "1.2M", icon: Zap, trend: "+5.4%" },
-            { label: "Network Growth", value: "18%", icon: TrendingUp, trend: "+2.1%" },
-          ].map((stat, i) => (
-            <div key={i} className={INDUSTRIAL_CARD}>
-              <div className="flex justify-between items-start mb-10">
-                <div className={ICON_CONTAINER}>
-                  <stat.icon size={20} />
-                </div>
-                <span className="text-[10px] font-black text-teal-500 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1 rounded-lg uppercase tracking-widest">
-                  {stat.trend}
-                </span>
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                <h3 className="text-4xl font-bold text-white font-mono tracking-tighter leading-none">{stat.value}</h3>
-              </div>
-            </div>
-          ))}
+        {/* WORKSPACE GRID */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <EmptyStateSection title="My Tasks" highlight="#2B6CB0" />
+          <EmptyStateSection title="My Issues" highlight="#E53E3E" />
+          <EmptyStateSection title="Due Today" highlight="#319795" />
+          <EmptyStateSection title="Overdue" highlight="#E53E3E" />
         </section>
-
-        {/* INFRASTRUCTURE MONITORING SECTION */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-           
-           {/* Visual Monitoring Placeholder */}
-          
-
-           {/* Resource Allocation */}
-           <div className={cn(INDUSTRIAL_CARD, "min-h-[400px]")}>
-              <div className="flex items-center gap-3 mb-8">
-                <Database size={18} className="text-teal-500" />
-                <h3 className="text-lg font-bold text-white tracking-tight">Resource_Allocation</h3>
-              </div>
-              <div className="space-y-8">
-                {[
-                  { label: "NVMe Storage", usage: 75, limit: "10GB" },
-                  { label: "CPU Compute", usage: 92, limit: "500h" },
-                  { label: "Bandwidth", usage: 45, limit: "100GB" },
-                ].map((item, i) => (
-                  <div key={i} className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">{item.label}</span>
-                      <span className="text-sm font-mono font-bold text-white">{item.usage}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
-                      <div className={cn("h-full rounded-full transition-all", item.usage > 90 ? "bg-red-500" : "bg-teal-500")} style={{ width: `${item.usage}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-12 p-5 rounded-2xl bg-teal-950/20 border border-teal-900/30">
-                <div className="flex gap-4">
-                  <Clock size={16} className="text-teal-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-neutral-400 leading-relaxed font-bold uppercase tracking-wider">
-                    Reset cycle: <span className="text-white">04 Days Remaining</span>
-                  </p>
-                </div>
-              </div>
-           </div>
-        </div>
       </main>
 
-      <footer className="py-12 text-center border-t border-neutral-900 mx-8">
-         <p className="text-[10px] font-black text-neutral-800 uppercase tracking-[1em]">SYSTEM ARCHITECTURE V4.0.2 // CLIENT ACCESS</p>
-      </footer>
+      {/* FLOATING SUPPORT */}
+      <div className="fixed bottom-8 right-8">
+        <button className="bg-[#1A365D] text-white px-5 py-2.5 rounded-xl shadow-xl flex items-center gap-2 font-medium hover:bg-[#2B6CB0] transition-all text-sm">
+          <HelpCircle size={18} />
+          Support
+        </button>
+      </div>
     </div>
   )
 }
 
-function cn(...inputs: (string | false | null | undefined)[]) {
-  return inputs.filter(Boolean).join(" ")
+/* ---------------- COMPONENTS ---------------- */
+
+function StatCard({
+  label,
+  count,
+  color,
+  icon
+}: {
+  label: string
+  count: number
+  color: "blue" | "red" | "teal"
+  icon: React.ReactNode
+}) {
+
+  const themes = {
+    blue: "text-[#2B6CB0] bg-[#2B6CB0]/10",
+    red: "text-[#E53E3E] bg-[#E53E3E]/10",
+    teal: "text-[#319795] bg-[#319795]/10"
+  }
+
+  const accent = {
+    blue: "bg-[#2B6CB0]",
+    red: "bg-[#E53E3E]",
+    teal: "bg-[#319795]"
+  }
+
+  return (
+    <div className={STAT_CARD}>
+      <div>
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+          {label}
+        </p>
+        <h3 className="text-3xl font-black text-[#1A365D] tracking-tight">
+          {count}
+        </h3>
+      </div>
+
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${themes[color]}`}>
+        {icon}
+      </div>
+
+      <div className={`absolute bottom-0 left-0 h-[3px] w-0 group-hover:w-full transition-all duration-500 ${accent[color]}`} />
+    </div>
+  )
+}
+
+function EmptyStateSection({
+  title,
+  highlight
+}: {
+  title: string
+  highlight: string
+}) {
+  return (
+    <div className={SECTION_CARD}>
+      <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-1.5 h-6 rounded-full"
+            style={{ backgroundColor: highlight }}
+          />
+          <h3 className="font-bold tracking-tight text-[#1A365D]">
+            {title}
+          </h3>
+        </div>
+
+        <button className="p-1.5 hover:bg-[#F7FAFC] rounded-lg text-slate-400 transition-colors">
+          <Layers size={16} />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <div className="relative mb-6">
+          <div className="w-24 h-24 bg-[#F7FAFC] rounded-3xl flex items-center justify-center border border-dashed border-[#1A365D]/10">
+            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center">
+              <Search size={20} className="text-slate-300" />
+            </div>
+          </div>
+          <div className="absolute -top-2 -right-2 w-8 h-8 bg-white shadow-md rounded-full flex items-center justify-center">
+            <AlertCircle size={16} className="text-amber-400" />
+          </div>
+        </div>
+
+        <h4 className="font-semibold mb-1 text-[#1A365D]">
+          All caught up!
+        </h4>
+
+        <p className="text-slate-400 text-sm max-w-[220px] leading-relaxed">
+          No {title.toLowerCase()} were found in your current workspace.
+        </p>
+      </div>
+    </div>
+  )
 }

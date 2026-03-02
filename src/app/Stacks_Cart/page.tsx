@@ -15,6 +15,19 @@ import {
 } from 'lucide-react';
 import BuyNowButton from '@/src/components/buynowbutton';
 
+/* --- LOADING COMPONENT --- */
+const LoadingPage = () => (
+  <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="flex gap-2">
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-75" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-150" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-300" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-500" />
+    </div>
+  </div>
+);
+
 /* ---------------- TYPES ---------------- */
 interface SubStack {
   id?: string;
@@ -66,15 +79,20 @@ export default function ZohoStyleCheckout() {
 
   useEffect(() => {
     const fetchCheckoutData = async () => {
+      // Create a minimum delay timer to show the animation nicely
+      const timer = new Promise((resolve) => setTimeout(resolve, 1500));
+
       if (authLoading || !user) {
         if (!authLoading && !user) setLoading(false);
         return;
       }
+
       try {
         const [prof, org, cart] = await Promise.all([
           supabase.from('profiles').select('name').eq('user_id', user.id).single(),
           supabase.from('organizations').select('org_name').eq('user_id', user.id).single(),
-          supabase.from('cart_stacks').select(`id, total_price, cluster_name, cluster_data, stacks (id, name, type)`).eq('user_id', user.id).eq('status', 'active')
+          supabase.from('cart_stacks').select(`id, total_price, cluster_name, cluster_data, stacks (id, name, type)`).eq('user_id', user.id).eq('status', 'active'),
+          timer // Wait for the minimum 1.5s delay
         ]);
         
         setProfileData({ email: user.email || '', name: prof.data?.name || '' });
@@ -225,36 +243,32 @@ export default function ZohoStyleCheckout() {
   const gstAmount = discountedSubtotal * 0.18;
   const totalPayable = discountedSubtotal + gstAmount;
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]">
-        <div className="animate-pulse flex flex-col items-center">
-            <div className="h-12 w-12 bg-[#14b8a6] rounded-full mb-4"></div>
-            <p className="text-slate-500 font-medium">Finalizing your order...</p>
-        </div>
-    </div>
-  );
+  /* --- CONDITIONAL RENDER FOR LOADING --- */
+  if (loading) {
+    return <LoadingPage />;
+  }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] font-sans text-slate-700">
+    <div className="min-h-screen bg-[#F7FAFC] font-sans text-slate-700">
       
-      {/* STEPPER HEADER - BLACK BACKGROUND */}
-      <div className="w-full bg-[#020202] text-white pt-8 pb-12">
+      {/* STEPPER HEADER - DEEP NAVY BACKGROUND */}
+      <div className="w-full bg-[#1A365D] text-white pt-8 pb-12">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-center gap-4 text-sm font-medium">
             <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-[#14b8a6] flex items-center justify-center text-xs text-white">✓</span>
+              <span className="w-6 h-6 rounded-full bg-[#38A169] flex items-center justify-center text-xs text-white">✓</span>
               <span className="opacity-80 text-xs">Plan</span>
             </div>
             <div className="w-12 h-[1px] bg-white/20" />
             <div className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${step === 1 ? 'bg-white text-[#020202]' : 'bg-[#14b8a6] border-none'}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${step === 1 ? 'bg-white text-[#1A365D]' : 'bg-[#38A169] border-none'}`}>
                 {step > 1 ? '✓' : '2'}
               </span>
               <span className={step === 1 ? 'font-bold' : 'opacity-80'}>Add-ons</span>
             </div>
             <div className="w-12 h-[1px] bg-white/20" />
             <div className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${step === 2 ? 'bg-white text-[#020202]' : 'border-white/40'}`}>3</span>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${step === 2 ? 'bg-white text-[#1A365D]' : 'border-white/40'}`}>3</span>
               <span className={step === 2 ? 'font-bold' : 'opacity-60'}>Payment</span>
             </div>
           </div>
@@ -269,18 +283,18 @@ export default function ZohoStyleCheckout() {
             {/* PLAN SELECTOR CARD */}
             <div className="bg-white border border-slate-200 rounded shadow-sm p-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-teal-50 text-[#14b8a6] rounded flex items-center justify-center font-bold text-xl border border-teal-100">B</div>
+                <div className="w-12 h-12 bg-slate-50 text-[#1A365D] rounded flex items-center justify-center font-bold text-xl border border-[#1A365D]">B</div>
                 <div>
-                  <h2 className="font-bold text-lg">{cartStacks[0]?.name || 'Professional Plan'}</h2>
-                  <button className="text-[#14b8a6] text-sm font-medium hover:underline">Change Plan</button>
+                  <h2 className="font-bold text-lg text-[#1A365D]">{cartStacks[0]?.name || 'Professional Plan'}</h2>
+                  <button className="text-[#319795] text-sm font-medium hover:underline">Change Plan</button>
                 </div>
               </div>
               <div className="text-right flex flex-col items-end">
                 <div className="flex bg-slate-100 p-1 rounded-md mb-2 w-fit">
-                    <button onClick={() => setBillingCycle('Monthly')} className={`px-4 py-1 text-xs font-bold rounded transition-all ${billingCycle === 'Monthly' ? 'bg-white shadow-sm text-[#14b8a6]' : 'text-slate-500'}`}>Monthly</button>
-                    <button onClick={() => setBillingCycle('Yearly')} className={`px-4 py-1 text-xs font-bold rounded transition-all ${billingCycle === 'Yearly' ? 'bg-[#14b8a6] text-white' : 'text-slate-500'}`}>Yearly</button>
+                    <button onClick={() => setBillingCycle('Monthly')} className={`px-4 py-1 text-xs font-bold rounded transition-all ${billingCycle === 'Monthly' ? 'bg-white shadow-sm text-[#2B6CB0]' : 'text-slate-500'}`}>Monthly</button>
+                    <button onClick={() => setBillingCycle('Yearly')} className={`px-4 py-1 text-xs font-bold rounded transition-all ${billingCycle === 'Yearly' ? 'bg-[#2B6CB0] text-white' : 'text-slate-500'}`}>Yearly</button>
                 </div>
-                <p className="text-xl font-bold">₹{subtotal.toLocaleString()}</p>
+                <p className="text-xl font-bold text-[#1A365D]">₹{subtotal.toLocaleString()}</p>
               </div>
             </div>
 
@@ -301,13 +315,13 @@ export default function ZohoStyleCheckout() {
                       <React.Fragment key={stack.cart_id}>
                         <tr className="group">
                           <td className="px-6 py-6">
-                            <p className="font-bold text-slate-800">{stack.name}</p>
+                            <p className="font-bold text-[#1A365D]">{stack.name}</p>
                             <p className="text-xs text-slate-400 mt-0.5">Base Plan License</p>
                           </td>
                           <td className="px-6 py-6 text-center text-sm font-medium text-slate-600">1</td>
-                          <td className="px-6 py-6 text-right font-bold">₹{stack.price.toLocaleString()}</td>
+                          <td className="px-6 py-6 text-right font-bold text-[#1A365D]">₹{stack.price.toLocaleString()}</td>
                           <td className="px-4 py-6 text-center">
-                             <button onClick={() => removeItem(sIdx)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                             <button onClick={() => removeItem(sIdx)} className="text-slate-300 hover:text-[#E53E3E] transition-colors"><Trash2 size={16} /></button>
                           </td>
                         </tr>
                         {stack.sub_stacks.map((sub, subIdx) => (
@@ -317,11 +331,11 @@ export default function ZohoStyleCheckout() {
                               <p className="text-[11px] text-slate-400">Performance Add-on</p>
                             </td>
                             <td className="px-6 py-4">
-                              <input type="number" value={sub.quantity} onChange={(e) => updateQuantity(sIdx, subIdx, e.target.value)} className="w-20 mx-auto block border border-slate-300 rounded px-2 py-1 text-sm text-center focus:border-[#14b8a6] outline-none" />
+                              <input type="number" value={sub.quantity} onChange={(e) => updateQuantity(sIdx, subIdx, e.target.value)} className="w-20 mx-auto block border border-slate-300 rounded px-2 py-1 text-sm text-center focus:border-[#2B6CB0] focus:ring-[#2B6CB0] outline-none" />
                             </td>
                             <td className="px-6 py-4 text-right font-medium text-slate-600">₹{(sub.price * sub.quantity).toLocaleString()}</td>
                             <td className="px-4 py-4 text-center">
-                                <button onClick={() => removeItem(sIdx, subIdx)} className="text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>
+                                <button onClick={() => removeItem(sIdx, subIdx)} className="text-slate-300 hover:text-[#E53E3E]"><Trash2 size={14} /></button>
                             </td>
                           </tr>
                         ))}
@@ -334,8 +348,8 @@ export default function ZohoStyleCheckout() {
               /* BILLING & PAYMENT FORM */
               <div className="space-y-4">
                 <div className="bg-white border border-slate-200 rounded shadow-sm p-8">
-                  <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                      <CreditCard size={20} className="text-[#14b8a6]" />
+                  <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-[#1A365D]">
+                      <CreditCard size={20} className="text-[#2B6CB0]" />
                       Billing Address
                   </h3>
                   <div className="grid grid-cols-2 gap-6">
@@ -351,10 +365,10 @@ export default function ZohoStyleCheckout() {
 
                 <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
                   <div className="p-8 pb-6">
-                    <h3 className="font-bold text-lg mb-6">Payment Method</h3>
+                    <h3 className="font-bold text-lg mb-6 text-[#1A365D]">Payment Method</h3>
                     <div className="flex border-b border-slate-100 mb-8">
-                        <button onClick={() => setActiveTab('Recurring')} className={`px-8 py-3 text-sm font-bold transition-all border-b-2 -mb-[2px] ${activeTab === 'Recurring' ? 'border-[#14b8a6] text-[#14b8a6]' : 'border-transparent text-slate-400'}`}>Recurring</button>
-                        <button onClick={() => setActiveTab('Non-Recurring')} className={`px-8 py-3 text-sm font-bold transition-all border-b-2 -mb-[2px] ${activeTab === 'Non-Recurring' ? 'border-[#14b8a6] text-[#14b8a6]' : 'border-transparent text-slate-400'}`}>One-time</button>
+                        <button onClick={() => setActiveTab('Recurring')} className={`px-8 py-3 text-sm font-bold transition-all border-b-2 -mb-[2px] ${activeTab === 'Recurring' ? 'border-[#2B6CB0] text-[#2B6CB0]' : 'border-transparent text-slate-400'}`}>Recurring</button>
+                        <button onClick={() => setActiveTab('Non-Recurring')} className={`px-8 py-3 text-sm font-bold transition-all border-b-2 -mb-[2px] ${activeTab === 'Non-Recurring' ? 'border-[#2B6CB0] text-[#2B6CB0]' : 'border-transparent text-slate-400'}`}>One-time</button>
                     </div>
 
                     <div className="min-h-[140px]">
@@ -362,16 +376,16 @@ export default function ZohoStyleCheckout() {
                             <div className="space-y-6">
                                 <div className="flex gap-8">
                                     <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                                        <input type="radio" checked={recurringMethod === 'Credit Card'} onChange={() => setRecurringMethod('Credit Card')} className="w-4 h-4 accent-[#14b8a6]" /> 
+                                        <input type="radio" checked={recurringMethod === 'Credit Card'} onChange={() => setRecurringMethod('Credit Card')} className="w-4 h-4 accent-[#2B6CB0]" /> 
                                         Credit Card
                                     </label>
                                     <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                                        <input type="radio" checked={recurringMethod === 'UPI'} onChange={() => setRecurringMethod('UPI')} className="w-4 h-4 accent-[#14b8a6]" /> 
+                                        <input type="radio" checked={recurringMethod === 'UPI'} onChange={() => setRecurringMethod('UPI')} className="w-4 h-4 accent-[#2B6CB0]" /> 
                                         UPI
                                     </label>
                                 </div>
                                 <div className="bg-slate-50 p-4 rounded border border-slate-100 text-[13px] text-slate-600">
-                                    <p><span className="font-bold">Note:</span> Recurring payments are automated. UPI recurring may take 24-72 hours to verify.</p>
+                                    <p><span className="font-bold text-[#1A365D]">Note:</span> Recurring payments are automated. UPI recurring may take 24-72 hours to verify.</p>
                                 </div>
                             </div>
                         ) : (
@@ -390,18 +404,18 @@ export default function ZohoStyleCheckout() {
             )}
           </div>
 
-          {/* SIDEBAR - TEAL ACCENTS */}
+          {/* SIDEBAR - ACTION ACCENTS */}
           <div className="lg:w-[350px]">
             <div className="bg-white border border-slate-200 rounded shadow-sm sticky top-6 overflow-hidden">
               {billingCycle === 'Yearly' && (
-                <div className="bg-[#14b8a6] p-2.5 text-center">
+                <div className="bg-[#38A169] p-2.5 text-center">
                     <p className="text-white text-[11px] font-bold uppercase tracking-wider">Annual Discount Applied</p>
                 </div>
               )}
               
               <div className="p-6">
                 {step === 1 && cartStacks.length > 0 && (
-                    <button onClick={() => setStep(2)} className="w-full bg-[#14b8a6] hover:bg-[#0d9488] text-white font-bold py-3.5 rounded shadow-lg shadow-teal-100 mb-6 transition-all">
+                    <button onClick={() => setStep(2)} className="w-full bg-[#2B6CB0] hover:bg-[#1A365D] text-white font-bold py-3.5 rounded shadow-lg mb-6 transition-all">
                         Proceed to Billing
                     </button>
                 )}
@@ -414,7 +428,7 @@ export default function ZohoStyleCheckout() {
                     </div>
                     
                     {appliedCoupon && (
-                        <div className="flex justify-between text-sm text-[#14b8a6] bg-teal-50 px-2 py-1.5 rounded border border-teal-100 border-dashed">
+                        <div className="flex justify-between text-sm text-[#38A169] bg-green-50 px-2 py-1.5 rounded border border-[#38A169] border-dashed">
                             <span className="flex items-center gap-1 font-medium italic">
                                 <Tag size={12} /> {appliedCoupon.code}
                                 {appliedCoupon.discount_type === 'percentage' && (
@@ -442,7 +456,7 @@ export default function ZohoStyleCheckout() {
                                 placeholder="Coupon Code" 
                                 value={couponInput}
                                 onChange={(e) => setCouponInput(e.target.value)}
-                                className="flex-1 border border-slate-200 rounded px-3 py-2 text-xs outline-none focus:border-[#14b8a6] uppercase font-semibold"
+                                className="flex-1 border border-slate-200 rounded px-3 py-2 text-xs outline-none focus:border-[#2B6CB0] focus:ring-[#2B6CB0] uppercase font-semibold"
                             />
                             <button 
                                 onClick={handleApplyCoupon}
@@ -452,13 +466,13 @@ export default function ZohoStyleCheckout() {
                                 {couponLoading ? '...' : 'APPLY'}
                             </button>
                         </div>
-                        {couponError && <p className="text-[10px] text-red-500 mt-1 font-medium">{couponError}</p>}
+                        {couponError && <p className="text-[10px] text-[#E53E3E] mt-1 font-medium">{couponError}</p>}
                     </div>
                 )}
 
                 <div className="py-4 flex justify-between items-center bg-slate-50 -mx-6 px-6 mb-6 mt-4">
                     <span className="font-bold text-slate-900">Total Payable</span>
-                    <span className="font-extrabold text-xl text-[#14b8a6]">₹{totalPayable.toLocaleString()}</span>
+                    <span className="font-extrabold text-xl text-[#2B6CB0]">₹{totalPayable.toLocaleString()}</span>
                 </div>
 
                 {step === 2 && (
@@ -496,14 +510,14 @@ function FormGroup({ label, type = 'text', isFull = false, ...props }: any) {
         <div className={isFull ? 'col-span-2' : 'col-span-1'}>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-tight mb-1.5">{label}</label>
             {type === 'select' ? (
-                <select className="w-full border border-slate-200 rounded px-3 py-2.5 text-sm bg-white outline-none focus:border-[#14b8a6]">
+                <select className="w-full border border-slate-200 rounded px-3 py-2.5 text-sm bg-white outline-none focus:border-[#2B6CB0] focus:ring-[#2B6CB0]">
                     <option>Select State</option>
                     <option>Maharashtra</option>
                     <option>Karnataka</option>
                     <option>Delhi</option>
                 </select>
             ) : (
-                <input type="text" {...props} className="w-full border border-slate-200 rounded px-3 py-2.5 text-sm outline-none focus:border-[#14b8a6] transition-all placeholder:text-slate-300" />
+                <input type="text" {...props} className="w-full border border-slate-200 rounded px-3 py-2.5 text-sm outline-none focus:border-[#2B6CB0] focus:ring-[#2B6CB0] transition-all placeholder:text-slate-300" />
             )}
         </div>
     );
