@@ -10,14 +10,17 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  Info
+  Info,
+  MapPin,
+  Pencil
 } from "lucide-react";
-import { OrderWithStacks, PurchasedStack } from "@/src/types/billing";
+import { OrderWithStacks, PurchasedStack, BillingAddress } from "@/src/types/billing";
 import {
   formatSubscriptionCycle,
   calculateNextPayment,
   cancelSubscription,
-  getOrdersWithStacks
+  getOrdersWithStacks,
+  getBillingAddress
 } from "@/src/modules/billing";
 import { useAuth } from "@/src/context/AuthContext";
 
@@ -40,15 +43,20 @@ const BillingPage: FC = () => {
   const [purchasedStacks, setPurchasedStacks] = useState<PurchasedStack[]>([]);
   const [orders, setOrders] = useState<OrderWithStacks[]>([]);
   const [selectedStack, setSelectedStack] = useState<any>(null);
+  const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(null);
 
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const { orders, stacks } = await getOrdersWithStacks(user.id);
-      setOrders(orders);
-      setPurchasedStacks(stacks);
+      const [ordersResult, address] = await Promise.all([
+        getOrdersWithStacks(user.id),
+        getBillingAddress(user.id),
+      ]);
+      setOrders(ordersResult.orders);
+      setPurchasedStacks(ordersResult.stacks);
+      setBillingAddress(address);
       setInitialLoading(false);
     }
     fetchData();
@@ -116,6 +124,63 @@ const BillingPage: FC = () => {
           ))}
         </div>
 
+        {/* Billing Address Section */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Billing Address
+            </h2>
+            <a
+              href="/Stacks_Cart"
+              className="text-xs font-bold text-[#2B6CB0] hover:text-[#1A365D] flex items-center gap-1 transition-colors"
+            >
+              <Pencil size={12} /> Edit
+            </a>
+          </div>
+          {billingAddress ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {billingAddress.company_name && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Company</p>
+                  <p className="text-slate-800 font-medium mt-0.5">{billingAddress.company_name}</p>
+                </div>
+              )}
+              {billingAddress.phone && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone</p>
+                  <p className="text-slate-800 font-medium mt-0.5">{billingAddress.phone}</p>
+                </div>
+              )}
+              {billingAddress.street_address && (
+                <div className="md:col-span-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Address</p>
+                  <p className="text-slate-800 font-medium mt-0.5">
+                    {billingAddress.street_address}
+                    {billingAddress.city && `, ${billingAddress.city}`}
+                    {billingAddress.state && `, ${billingAddress.state}`}
+                    {billingAddress.zip_code && ` - ${billingAddress.zip_code}`}
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Country</p>
+                <p className="text-slate-800 font-medium mt-0.5">{billingAddress.country}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-slate-400 text-sm">No billing address saved yet.</p>
+              <a
+                href="/Stacks_Cart"
+                className="mt-2 inline-block text-xs font-bold text-[#2B6CB0] hover:text-[#1A365D] transition-colors"
+              >
+                Add billing address →
+              </a>
+            </div>
+          )}
+        </div>
+
         {/* Table Container */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -148,8 +213,8 @@ const BillingPage: FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tighter ${isActive
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                            : "bg-amber-50 text-amber-700 border-amber-100"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100"
                           }`}>
                           {statusLabel}
                         </div>
