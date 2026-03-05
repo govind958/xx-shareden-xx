@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
-import { getUserOrganization, updateOrganization, Organization } from '@/src/modules/organization/actions';
+import { getUserOrganization, updateOrganization, createOrganization, Organization } from '@/src/modules/organization/actions';
 import { getBillingAddress, saveBillingAddress } from '@/src/modules/billing';
 import {
   Upload,
@@ -15,6 +15,7 @@ import {
   MapPin,
   Phone
 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -123,6 +124,32 @@ export default function ClassicSaaSProfile() {
     loadData();
   }, [user, authLoading]);
 
+  //logos uploader handler 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !org) return;
+
+    const supabase = createClient();
+    const filePath = `${user.id}/${Date.now()}_${file.name}`;
+    //upload to supabase storage logos
+    const { error: uploadError } = await supabase.storage.from('logos').upload(filePath, file, { upsert: true })
+
+    if (uploadError) {
+      alert('Upload failed: ' + uploadError.message); return
+    }
+
+    //Get the public URL
+    const { data: publicUrl } = supabase.storage
+      .from('logos')
+      .getPublicUrl(filePath);
+
+    // Update the organization's company_logo
+    await updateOrganization(org.id, org.org_name, org.org_slug, publicUrl.publicUrl, org.industry_type);
+    // Update local state
+    setOrg(prev => prev ? { ...prev, company_logo: publicUrl.publicUrl } : null);
+
+  }
+
   const handleChange = useCallback((field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setIsSaved(false);
@@ -130,18 +157,30 @@ export default function ClassicSaaSProfile() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!org || !user) return;
+    if (!user) return;
 
     setIsSaving(true);
     try {
-      // Save org fields to organizations table
-      await updateOrganization(
-        org.id,
-        formData.org_name,
-        org.org_slug,
-        org.company_logo,
-        formData.industry_type
-      );
+      if (org) {
+        // Update existing org
+        await updateOrganization(
+          org.id,
+          formData.org_name,
+          org.org_slug,
+          org.company_logo,
+          formData.industry_type
+        );
+      } else {
+        // Create new org (first time saving)
+        const slug = formData.org_name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const newOrg = await createOrganization(
+          formData.org_name,
+          slug,
+          null,
+          formData.industry_type
+        );
+        setOrg(newOrg);
+      }
 
       // Save address fields to billing_addresses table
       await saveBillingAddress(user.id, {
@@ -207,14 +246,24 @@ export default function ClassicSaaSProfile() {
           <div className="bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-6 text-slate-400">Company Branding</h2>
             <div className="flex flex-col sm:flex-row items-center gap-8">
-              <div className="w-24 h-24 border-2 border-dashed border-slate-200 rounded-md flex items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group shrink-0">
-                <Upload size={20} className="text-slate-400 group-hover:text-blue-600" />
-              </div>
+              <label className="w-24 h-24 border-2 border-dashed border-slate-200 rounded-md flex items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group shrink-0 overflow-hidden">
+                {org?.company_logo ? (
+                  <img src={org.company_logo} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <Upload size={20} className="text-slate-400 group-hover:text-blue-600" />
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+              </label>
               <div className="space-y-2 text-center sm:text-left">
                 <p className="text-sm font-semibold text-slate-700">Organization Logo</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   240x240px recommended. JPG or PNG. <br />
-                  This logo will appear on invoices and portals.
+                  Click the box to upload. This logo will appear on invoices and portals.
                 </p>
               </div>
             </div>

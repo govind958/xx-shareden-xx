@@ -110,7 +110,7 @@ const BillingPage: FC = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {[
-            { label: "Current Balance", value: `$${totalBalance.toFixed(2)}`, icon: CreditCard, color: "text-blue-600" },
+            { label: "Current Balance", value: `₹${totalBalance.toFixed(2)}`, icon: CreditCard, color: "text-blue-600" },
             { label: "Active Subscriptions", value: activeCount, icon: FileText, color: "text-emerald-600" },
             { label: "Days Until Renewal", value: nearestRenewalDays > 0 ? `${nearestRenewalDays} Days` : "—", icon: Clock, color: "text-amber-600" },
           ].map((stat, i) => (
@@ -226,7 +226,7 @@ const BillingPage: FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-slate-800">
-                        ${stack.base_price.toFixed(2)}
+                        ₹{stack.base_price.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button className="p-2 text-slate-300 hover:text-blue-600 transition-all">
