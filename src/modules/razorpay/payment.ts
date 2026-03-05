@@ -1,6 +1,6 @@
 "use server";
 
-import {createClient} from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/server";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { sendInvoiceEmail } from "@/src/modules/email/send-invoice";
@@ -34,35 +34,39 @@ interface StackPaymentData {
 
 // Initialize Razorpay client
 const razorpay = new Razorpay({
-    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-  })
+  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+})
 
 // ACTION 1: Create a Razorpay Order
 export async function createOrder(amount: number, currency = "INR", cartData: CartData | null = null) {
   try {
+    // Razorpay requires minimum ₹1
+    const finalAmount = Math.max(amount, 1)
+
+    console.log("amount", finalAmount, cartData)
     const options = {
-      amount: amount * 100, // Amount in paise
+      amount: finalAmount * 100, // Amount in paise
       currency,
       receipt: `receipt_${Date.now()}`,
       notes: {
-        ...(cartData ? { 
-          cart_items: JSON.stringify(cartData.cartItems?.map(item => ({ 
-            cart_id: item.cart_id, 
-            name: item.name 
+        ...(cartData ? {
+          cart_items: JSON.stringify(cartData.cartItems?.map(item => ({
+            cart_id: item.cart_id,
+            name: item.name
           }))),
-          total_amount: cartData.totalAmount 
+          total_amount: cartData.totalAmount
         } : {})
       }
     }
 
     // Create the order
     const order = await razorpay.orders.create(options)
-    
+
     if (!order) {
       throw new Error("Failed to create order")
     }
-    
+
     // Return the order details to the client
     return {
       id: order.id,
@@ -78,16 +82,16 @@ export async function createOrder(amount: number, currency = "INR", cartData: Ca
 
 // ACTION 2: Verify Payment and Create Stack Orders
 export async function verifyPaymentAndCreateStackOrder(paymentData: StackPaymentData) {
-  const { 
-    razorpay_order_id, 
-    razorpay_payment_id, 
-    razorpay_signature, 
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
     cartItems,
     discountAmount,
     couponId,
     billingCycle
   } = paymentData
-  
+
   const supabase = await createClient()
 
   // 1. Get the logged-in user
@@ -231,7 +235,7 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
       })
       .select('id')
       .single()
-    
+
     // If coupon was used, increment its used_count
     if (couponId) {
       const { data: currentCoupon } = await supabase
@@ -239,7 +243,7 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
         .select('used_count')
         .eq('id', couponId)
         .single()
-      
+
       if (currentCoupon) {
         await supabase
           .from('coupons')
@@ -320,10 +324,10 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
     }
 
     // Return success with order ID
-    return { 
-      success: true, 
+    return {
+      success: true,
       paymentId: razorpay_payment_id,
-      orderId: order.id 
+      orderId: order.id
     }
 
   } catch (error: unknown) {
