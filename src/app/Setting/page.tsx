@@ -1,11 +1,14 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Upload, 
-  ChevronDown, 
-  ShieldCheck, 
-  Check, 
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/src/context/AuthContext';
+import { getUserOrganization, updateOrganization, Organization } from '@/src/modules/organization/actions';
+import { getBillingAddress, saveBillingAddress } from '@/src/modules/billing';
+import {
+  Upload,
+  ChevronDown,
+  ShieldCheck,
+  Check,
   Info,
   Building,
   Globe,
@@ -14,7 +17,6 @@ import {
 } from 'lucide-react';
 
 /* --- LOADING COMPONENT --- */
-// Matches the provided screenshot with centered gray dots
 const LoadingPage = () => (
   <div className="min-h-screen bg-white flex items-center justify-center">
     <div className="flex gap-2">
@@ -27,12 +29,53 @@ const LoadingPage = () => (
   </div>
 );
 
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Chandigarh', 'Puducherry',
+  'Andaman and Nicobar Islands', 'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep'
+];
+
+const INDUSTRIES = ['Technology', 'Retail', 'Finance', 'Healthcare', 'Education', 'Manufacturing', 'Media', 'Other'];
+const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'Singapore'];
+
+interface FormData {
+  // From organizations table
+  org_name: string;
+  industry_type: string;
+  // From billing_addresses table
+  country: string;
+  street_address: string;
+  city: string;
+  zip_code: string;
+  state: string;
+  phone: string;
+}
+
 export default function ClassicSaaSProfile() {
+  const { user, loading: authLoading } = useAuth();
   const [initialLoading, setInitialLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [org, setOrg] = useState<Organization | null>(null);
 
-  // Color Palette
+  const [formData, setFormData] = useState<FormData>({
+    org_name: '',
+    industry_type: 'Technology',
+    country: 'India',
+    street_address: '',
+    city: '',
+    zip_code: '',
+    state: '',
+    phone: '',
+  });
+
+  // Snapshot of last saved data for Discard
+  const [savedData, setSavedData] = useState<FormData>(formData);
+
   const colors = {
     navy: '#1A365D',
     blue: '#2B6CB0',
@@ -42,47 +85,124 @@ export default function ClassicSaaSProfile() {
     border: '#E2E8F0'
   };
 
-  // Simulate initial data fetch
+  // Load organization + billing address data from backend
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setInitialLoading(false);
-    }, 1500); // Shows loading for 1.5 seconds
-    return () => clearTimeout(timer);
+    const loadData = async () => {
+      if (authLoading) return;
+      if (!user) { setInitialLoading(false); return; }
+
+      try {
+        // Fetch org data and billing address in parallel
+        const [orgData, addressData] = await Promise.all([
+          getUserOrganization(),
+          getBillingAddress(user.id),
+        ]);
+
+        const loaded: FormData = {
+          // Org fields
+          org_name: orgData?.org_name || '',
+          industry_type: orgData?.industry_type || 'Technology',
+          // Address fields from billing_addresses
+          country: addressData?.country || 'India',
+          street_address: addressData?.street_address || '',
+          city: addressData?.city || '',
+          zip_code: addressData?.zip_code || '',
+          state: addressData?.state || '',
+          phone: addressData?.phone || '',
+        };
+
+        if (orgData) setOrg(orgData);
+        setFormData(loaded);
+        setSavedData(loaded);
+      } catch (e) {
+        console.error('Error loading settings:', e);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadData();
+  }, [user, authLoading]);
+
+  const handleChange = useCallback((field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setIsSaved(false);
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!org || !user) return;
+
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      // Save org fields to organizations table
+      await updateOrganization(
+        org.id,
+        formData.org_name,
+        org.org_slug,
+        org.company_logo,
+        formData.industry_type
+      );
+
+      // Save address fields to billing_addresses table
+      await saveBillingAddress(user.id, {
+        company_name: formData.org_name,
+        phone: formData.phone,
+        country: formData.country,
+        state: formData.state,
+        street_address: formData.street_address,
+        city: formData.city,
+        zip_code: formData.zip_code,
+      });
+
+      setSavedData(formData);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
-    }, 1000);
+    } catch (err) {
+      console.error('Error saving:', err);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setFormData(savedData);
+    setIsSaved(false);
   };
 
   if (initialLoading) {
     return <LoadingPage />;
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.bg }}>
+        <p className="text-slate-500">Please sign in to access settings.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen py-12 px-4 sm:px-6" style={{ backgroundColor: colors.bg }}>
       <div className="max-w-3xl mx-auto">
-        
+
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: colors.navy }}>
               Organization Profile
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Manage your company's public identity and contact details.</p>
+            <p className="text-slate-500 text-sm mt-1">Manage your company&apos;s public identity and contact details.</p>
           </div>
-          <span className="text-[11px] font-mono font-bold bg-white border border-slate-200 px-3 py-1 rounded text-slate-400">
-            ORG_ID: 60066289066
-          </span>
+          {org && (
+            <span className="text-[11px] font-mono font-bold bg-white border border-slate-200 px-3 py-1 rounded text-slate-400">
+              ORG_ID: {org.id.slice(0, 8).toUpperCase()}
+            </span>
+          )}
         </div>
 
         <form onSubmit={handleSave} className="space-y-6">
-          
+
           {/* Section 1: Logo */}
           <div className="bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-6 text-slate-400">Company Branding</h2>
@@ -103,7 +223,7 @@ export default function ClassicSaaSProfile() {
           {/* Section 2: Details */}
           <div className="bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm space-y-6">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-2 text-slate-400">General Information</h2>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-1.5">
                 <label className="text-sm font-semibold flex items-center gap-1" style={{ color: colors.navy }}>
@@ -111,9 +231,10 @@ export default function ClassicSaaSProfile() {
                 </label>
                 <div className="relative">
                   <Building size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input 
-                    type="text" 
-                    defaultValue="quicloop"
+                  <input
+                    type="text"
+                    value={formData.org_name}
+                    onChange={(e) => handleChange('org_name', e.target.value)}
                     className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm outline-none focus:border-blue-500 transition-all"
                     required
                   />
@@ -124,10 +245,12 @@ export default function ClassicSaaSProfile() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-semibold" style={{ color: colors.navy }}>Industry</label>
                   <div className="relative">
-                    <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm appearance-none bg-white outline-none focus:border-blue-500 cursor-pointer">
-                      <option>Technology</option>
-                      <option>Retail</option>
-                      <option>Finance</option>
+                    <select
+                      value={formData.industry_type}
+                      onChange={(e) => handleChange('industry_type', e.target.value)}
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm appearance-none bg-white outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
                     <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
@@ -136,9 +259,12 @@ export default function ClassicSaaSProfile() {
                   <label className="text-sm font-semibold" style={{ color: colors.navy }}>Location</label>
                   <div className="relative">
                     <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <select className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm appearance-none bg-white outline-none focus:border-blue-500 cursor-pointer">
-                      <option>India</option>
-                      <option>United States</option>
+                    <select
+                      value={formData.country}
+                      onChange={(e) => handleChange('country', e.target.value)}
+                      className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm appearance-none bg-white outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
@@ -150,33 +276,54 @@ export default function ClassicSaaSProfile() {
           {/* Section 3: Address */}
           <div className="bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm space-y-6">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-2 text-slate-400">Headquarters Address</h2>
-            
+
             <div className="space-y-4">
               <div className="relative">
                 <MapPin size={16} className="absolute left-3 top-3 text-slate-300" />
-                <textarea 
+                <textarea
                   placeholder="Street Address Line 1"
                   rows={2}
+                  value={formData.street_address}
+                  onChange={(e) => handleChange('street_address', e.target.value)}
                   className="w-full border border-slate-200 rounded-md pl-10 pr-4 py-2 text-sm outline-none focus:border-blue-500 transition-all resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <input placeholder="City" className="w-full border border-slate-200 rounded-md px-4 py-2 text-sm outline-none focus:border-blue-500" />
-                <input placeholder="Postal Code" className="w-full border border-slate-200 rounded-md px-4 py-2 text-sm outline-none focus:border-blue-500" />
+                <input
+                  placeholder="City"
+                  value={formData.city}
+                  onChange={(e) => handleChange('city', e.target.value)}
+                  className="w-full border border-slate-200 rounded-md px-4 py-2 text-sm outline-none focus:border-blue-500"
+                />
+                <input
+                  placeholder="Postal Code"
+                  value={formData.zip_code}
+                  onChange={(e) => handleChange('zip_code', e.target.value)}
+                  className="w-full border border-slate-200 rounded-md px-4 py-2 text-sm outline-none focus:border-blue-500"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <select className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm appearance-none bg-white outline-none">
-                    <option>Delhi</option>
-                    <option>Maharashtra</option>
+                  <select
+                    value={formData.state}
+                    onChange={(e) => handleChange('state', e.target.value)}
+                    className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm appearance-none bg-white outline-none"
+                  >
+                    <option value="">Select State</option>
+                    {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
                 <div className="relative">
                   <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input placeholder="Phone" className="w-full border border-slate-200 rounded-md pl-9 pr-4 py-2 text-sm outline-none focus:border-blue-500" />
+                  <input
+                    placeholder="Phone"
+                    value={formData.phone}
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                    className="w-full border border-slate-200 rounded-md pl-9 pr-4 py-2 text-sm outline-none focus:border-blue-500"
+                  />
                 </div>
               </div>
             </div>
@@ -188,15 +335,16 @@ export default function ClassicSaaSProfile() {
               <ShieldCheck size={16} style={{ color: colors.blue }} />
               <span className="text-xs font-medium">Auto-syncing to secure cloud</span>
             </div>
-            
+
             <div className="flex w-full sm:w-auto gap-3">
-              <button 
+              <button
                 type="button"
+                onClick={handleDiscard}
                 className="flex-1 sm:flex-none px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
               >
                 Discard
               </button>
-              <button 
+              <button
                 type="submit"
                 disabled={isSaving}
                 className="flex-1 sm:flex-none px-10 py-2.5 rounded text-sm font-bold text-white shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-70"
