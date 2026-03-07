@@ -124,7 +124,7 @@ const BillingPage: FC = () => {
           ))}
         </div>
 
-        {/* Billing Address Section */}
+        {/* Billing Address Section
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
@@ -179,7 +179,7 @@ const BillingPage: FC = () => {
               </a>
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Table Container */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">

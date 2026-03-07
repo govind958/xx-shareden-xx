@@ -50,6 +50,7 @@ export interface PurchasedStack {
 export interface BillingAddress {
   id: string;
   user_id: string;
+  address_type: 'headquarters' | 'office';
   company_name: string | null;
   phone: string | null;
   country: string;

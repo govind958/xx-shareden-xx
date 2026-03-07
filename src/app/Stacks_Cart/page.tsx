@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   Tag,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 import BuyNowButton from '@/src/components/buynowbutton';
 import { getBillingAddress, saveBillingAddress } from '@/src/modules/billing';
@@ -88,6 +89,9 @@ export default function ZohoStyleCheckout() {
   });
   const [billingAddressLoaded, setBillingAddressLoaded] = useState(false);
 
+  // When checked, this address is saved as 'office' (invoice-only) instead of 'headquarters'
+  const [useOfficeAddress, setUseOfficeAddress] = useState(false);
+
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
@@ -111,8 +115,15 @@ export default function ZohoStyleCheckout() {
         setProfileData({ email: user.email || '', name: prof.data?.name || '' });
         setOrganizationData({ name: org.data?.org_name || '' });
 
-        // Load existing billing address
-        const savedAddress = await getBillingAddress(user.id);
+        // Load existing billing address — try office first, fall back to headquarters
+        const savedOffice = await getBillingAddress(user.id, 'office');
+        const savedHQ = await getBillingAddress(user.id, 'headquarters');
+        const savedAddress = savedOffice || savedHQ;
+
+        if (savedOffice) {
+          setUseOfficeAddress(true);
+        }
+
         if (savedAddress) {
           setBillingAddress({
             company_name: savedAddress.company_name || '',
@@ -126,15 +137,15 @@ export default function ZohoStyleCheckout() {
         } else {
           // Pre-fill company name from org data
           const orgData = await supabase.from('organizations').select('org_name, phone, country, state, street_address, city, zip_code').eq('user_id', user.id).single();
-           setBillingAddress({
-          company_name: orgData.data?.org_name || org.data?.org_name || '',
-          phone: orgData.data?.phone || '',
-          country: orgData.data?.country || 'India',
-          state: orgData.data?.state || '',
-          street_address: orgData.data?.street_address || '',
-          city: orgData.data?.city || '',
-          zip_code: orgData.data?.zip_code || '',
-        });
+          setBillingAddress({
+            company_name: orgData.data?.org_name || org.data?.org_name || '',
+            phone: orgData.data?.phone || '',
+            country: orgData.data?.country || 'India',
+            state: orgData.data?.state || '',
+            street_address: orgData.data?.street_address || '',
+            city: orgData.data?.city || '',
+            zip_code: orgData.data?.zip_code || '',
+          });
         }
         setBillingAddressLoaded(true);
 
@@ -275,10 +286,12 @@ export default function ZohoStyleCheckout() {
     setBillingAddress(prev => ({ ...prev, [field]: value }));
   };
 
+  // Save as 'office' if checkbox is checked, otherwise 'headquarters'
   const handleSaveBillingAddress = useCallback(async () => {
     if (!user) return;
-    await saveBillingAddress(user.id, billingAddress);
-  }, [user, billingAddress]);
+    const type = useOfficeAddress ? 'office' : 'headquarters';
+    await saveBillingAddress(user.id, billingAddress, type);
+  }, [user, billingAddress, useOfficeAddress]);
 
   // Calculations
   const subtotal = useMemo(() => {
@@ -427,6 +440,36 @@ export default function ZohoStyleCheckout() {
                     <FormGroup label="Street Address" isFull placeholder="Building, Street, Area" value={billingAddress.street_address} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('street_address', e.target.value)} onBlur={handleSaveBillingAddress} />
                     <FormGroup label="City" value={billingAddress.city} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('city', e.target.value)} onBlur={handleSaveBillingAddress} />
                     <FormGroup label="ZIP/Postal Code" value={billingAddress.zip_code} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('zip_code', e.target.value)} onBlur={handleSaveBillingAddress} />
+                  </div>
+
+                  {/* Office Address Checkbox */}
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={useOfficeAddress}
+                          onChange={(e) => {
+                            setUseOfficeAddress(e.target.checked);
+                            // Re-save with the new type on toggle
+                            if (user) {
+                              const type = e.target.checked ? 'office' : 'headquarters';
+                              saveBillingAddress(user.id, billingAddress, type);
+                            }
+                          }}
+                          className="w-[18px] h-[18px] accent-[#2B6CB0] cursor-pointer rounded"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Building2 size={16} className="text-[#2B6CB0]" />
+                        <span className="text-sm font-semibold text-[#1A365D] group-hover:text-[#2B6CB0] transition-colors">
+                          This is an office address (won&apos;t appear in settings)
+                        </span>
+                      </div>
+                    </label>
+                    <p className="text-[11px] text-slate-400 mt-1.5 ml-[30px]">
+                      When checked, this address will only be used for invoicing and won&apos;t update your organization profile.
+                    </p>
                   </div>
                 </div>
 

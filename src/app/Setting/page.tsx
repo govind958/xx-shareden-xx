@@ -96,7 +96,7 @@ export default function ClassicSaaSProfile() {
         // Fetch org data and billing address in parallel
         const [orgData, addressData] = await Promise.all([
           getUserOrganization(),
-          getBillingAddress(user.id),
+          getBillingAddress(user.id, 'headquarters'),
         ]);
 
         const loaded: FormData = {
@@ -191,7 +191,7 @@ export default function ClassicSaaSProfile() {
         street_address: formData.street_address,
         city: formData.city,
         zip_code: formData.zip_code,
-      });
+      }, 'headquarters');
 
       setSavedData(formData);
       setIsSaved(true);
