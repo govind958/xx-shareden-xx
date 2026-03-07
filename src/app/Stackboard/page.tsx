@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -28,6 +28,12 @@ export default function Stackboard() {
   // State for the active chat room
   const [selectedStackId, setSelectedStackId] = useState<string | null>(null);
   const [selectedStackName, setSelectedStackName] = useState<string>('Select a Stack');
+
+  // Unread message counts: { [stackId]: count }
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Use a ref for the active stack ID so our real-time listener always has the latest value
+  const activeStackIdRef = useRef<string | null>(null);
 
   const { user, loading: authLoading } = useAuth();
 
@@ -118,6 +124,55 @@ export default function Stackboard() {
     };
   }, [user?.id, purchasedStacks.length]);
 
+  // Keep activeStackIdRef in sync
+  useEffect(() => {
+    activeStackIdRef.current = selectedStackId;
+  }, [selectedStackId]);
+
+  // Real-time subscription for unread messages across ALL stacks
+  useEffect(() => {
+    if (!user?.id || purchasedStacks.length === 0) return;
+
+    const supabase = createClient();
+    const stackIds = purchasedStacks.map(s => s.id);
+
+    const channel = supabase
+      .channel(`unread_messages_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'project_messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          const msgStackId = newMsg.order_item_id;
+
+          // Only count messages for stacks we own and that aren't currently open
+          if (
+            stackIds.includes(msgStackId) &&
+            msgStackId !== activeStackIdRef.current &&
+            newMsg.sender_id !== user.id // Don't count our own messages
+          ) {
+            setUnreadCounts(prev => ({
+              ...prev,
+              [msgStackId]: (prev[msgStackId] || 0) + 1
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Stackboard] Realtime: Connected for unread messages');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, purchasedStacks.length]);
+
   // 3. Handle Stack Selection
   const handleStackSelect = async (stack: PURCHASED_STACKS) => {
     if (selectedStackId === stack.id) return;
@@ -125,6 +180,9 @@ export default function Stackboard() {
     setSelectedStackId(stack.id);
     setSelectedStackName(stack.name);
     setPurchasedSubStacks([]); // Clear while loading
+
+    // Reset unread count for this stack
+    setUnreadCounts(prev => ({ ...prev, [stack.id]: 0 }));
 
     try {
       const substacks = await getPurchasedSubStacks(stack.id);
@@ -195,17 +253,30 @@ export default function Stackboard() {
                     : "hover:bg-slate-50"
                 )}
               >
-                <div className="w-11 h-11 rounded-full bg-slate-100 border flex items-center justify-center text-[#1A365D] font-semibold text-sm">
+                <div className="w-11 h-11 rounded-full bg-slate-100 border flex items-center justify-center text-[#1A365D] font-semibold text-sm shrink-0">
                   {stack.name.charAt(0)}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-semibold truncate text-[#1A365D]">
+                    <h3 className={cn(
+                      "text-sm truncate text-[#1A365D]",
+                      unreadCounts[stack.id] > 0 ? "font-bold" : "font-semibold"
+                    )}>
                       {stack.name}
                     </h3>
+
+                    {/* Unread message badge */}
+                    {unreadCounts[stack.id] > 0 && (
+                      <div className="w-5 h-5 ml-2 shrink-0 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm animate-pulse">
+                        {unreadCounts[stack.id] > 99 ? '99+' : unreadCounts[stack.id]}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 truncate">
+                  <p className={cn(
+                    "text-xs mt-1 truncate",
+                    unreadCounts[stack.id] > 0 ? "text-slate-800 font-medium" : "text-slate-500"
+                  )}>
                     {stack.progress_percent}% • {getStatusLabel(stack.status)}
                   </p>
                 </div>
