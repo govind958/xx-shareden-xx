@@ -14,10 +14,12 @@ export interface BillingAddressInput {
 }
 
 /**
- * Fetch the billing address for a user
+ * Fetch the billing address for a user by address type.
+ * @param addressType - 'headquarters' (default, used by Settings) or 'office' (used by checkout)
  */
 export async function getBillingAddress(
-    userId: string
+    userId: string,
+    addressType: 'headquarters' | 'office' = 'headquarters'
 ): Promise<BillingAddress | null> {
     const supabase = await createClient();
 
@@ -25,6 +27,7 @@ export async function getBillingAddress(
         .from("billing_addresses")
         .select("*")
         .eq("user_id", userId)
+        .eq("address_type", addressType)
         .single();
 
     if (error) {
@@ -39,11 +42,13 @@ export async function getBillingAddress(
 
 /**
  * Upsert (insert or update) the billing address for a user.
- * Uses the unique user_id constraint to decide insert vs update.
+ * Uses the unique (user_id, address_type) constraint to decide insert vs update.
+ * @param addressType - 'headquarters' (default) or 'office'
  */
 export async function saveBillingAddress(
     userId: string,
-    input: BillingAddressInput
+    input: BillingAddressInput,
+    addressType: 'headquarters' | 'office' = 'headquarters'
 ): Promise<{ success: boolean; data?: BillingAddress; error?: string }> {
     try {
         const supabase = await createClient();
@@ -53,6 +58,7 @@ export async function saveBillingAddress(
             .upsert(
                 {
                     user_id: userId,
+                    address_type: addressType,
                     company_name: input.company_name ?? null,
                     phone: input.phone ?? null,
                     country: input.country ?? "India",
@@ -61,7 +67,7 @@ export async function saveBillingAddress(
                     city: input.city ?? null,
                     zip_code: input.zip_code ?? null,
                 },
-                { onConflict: "user_id" }
+                { onConflict: "user_id, address_type" }
             )
             .select()
             .single();
