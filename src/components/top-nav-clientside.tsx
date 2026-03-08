@@ -37,15 +37,15 @@ export function TopNav() {
       {/* --- LEFT SECTION: SYSTEM BRANDING --- */}
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-2.5 group cursor-pointer">
-          <div className="h-7 w-7 bg-[#1A365D] border border-[#2B6CB0]/50 rounded-lg flex items-center justify-center transition-all group-hover:border-[#2B6CB0] group-hover:shadow-[0_0_12px_rgba(43,108,176,0.4)]">
-            <div className="h-3 w-3 bg-white rotate-45 transition-transform group-hover:scale-110" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-black text-white uppercase tracking-[0.15em] leading-none">
-              Stack<span className="text-[#2B6CB0]">AI</span>
-            </span>
-            <span className="text-[8px] text-neutral-500 font-bold tracking-widest mt-0.5">V3.0_PRO</span>
-          </div>
+           <div className="h-7 w-7 bg-[#1A365D] border border-[#2B6CB0]/50 rounded-lg flex items-center justify-center transition-all group-hover:border-[#2B6CB0] group-hover:shadow-[0_0_12px_rgba(43,108,176,0.4)]">
+              <div className="h-3 w-3 bg-white rotate-45 transition-transform group-hover:scale-110" />
+           </div>
+           <div className="flex flex-col">
+             <span className="text-sm font-black text-white uppercase tracking-[0.15em] leading-none">
+               StackBoard<span className="text-[#2B6CB0]">AI</span>
+             </span>
+             <span className="text-[8px] text-neutral-500 font-bold tracking-widest mt-0.5">V1.0_PRO</span>
+           </div>
         </div>
 
         {/* Global Search Interface */}
