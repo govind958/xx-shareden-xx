@@ -22,9 +22,9 @@ export function TopNav() {
            </div>
            <div className="flex flex-col">
              <span className="text-sm font-black text-white uppercase tracking-[0.15em] leading-none">
-               Stack<span className="text-[#2B6CB0]">AI</span>
+               StackBoard<span className="text-[#2B6CB0]">AI</span>
              </span>
-             <span className="text-[8px] text-neutral-500 font-bold tracking-widest mt-0.5">V3.0_PRO</span>
+             <span className="text-[8px] text-neutral-500 font-bold tracking-widest mt-0.5">V1.0_PRO</span>
            </div>
         </div>
 
@@ -58,7 +58,7 @@ export function TopNav() {
           </button>
           <button className="ml-2 flex items-center gap-2 px-3 py-1.5 bg-[#2B6CB0] hover:bg-[#2B6CB0]/90 text-white rounded text-[11px] font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20">
             <Plus size={14} />
-            <span className="hidden xl:inline">NEW PROJECT</span>
+            <span className="hidden xl:inline">NEW STACKS</span>
           </button>
         </div>
 

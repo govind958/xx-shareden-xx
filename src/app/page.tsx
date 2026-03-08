@@ -1,289 +1,363 @@
-"use client";
-
-import React, { FC, useEffect, useState } from "react";
-import { Button } from "@/src/components/ui/button";
-import Footer from "@/src/components/Footer";
+import React, { FC } from "react";
+import Link from "next/link";
 import {
-  // NavigationMenu,
-  // NavigationMenuItem,
-  // NavigationMenuList,
-} from "@/src/components/ui/navigation-menu"; // Commented out unused imports
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetHeader,
-  SheetTitle,
-} from "@/src/components/ui/sheet";
-import { Menu, ArrowRight, CheckCircle2 } from "lucide-react";
-import mixpanel from "mixpanel-browser"; // Removed Dict import
+  MessageSquare,
+  Layers,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Users,
+  ChevronDown,
+  GripVertical,
+  Play
+} from "lucide-react";
 
-// ⚡ Initialize Mixpanel (Safe Check)
-if (typeof window !== "undefined") {
-  mixpanel.init("YOUR_MIXPANEL_TOKEN", {
-    debug: false,
-    track_pageview: false,
-    persistence: "localStorage",
-  });
-}
-
-// ────────────────────────────────────────────
-// UTILITY FUNCTIONS MOVED OUTSIDE COMPONENT
-// ────────────────────────────────────────────
-
-const getQueryParam = (param: string): string | null => {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get(param);
-};
-
-const getDeviceType = (): string => {
-  if (typeof window === "undefined") return "unknown";
-  const ua = navigator.userAgent;
-  return /Mobile|Android|iP(hone|od)/.test(ua) ? "mobile" : "desktop";
-};
-
-// ────────────────────────────────────────────
-// MAIN COMPONENT
-// ────────────────────────────────────────────
-
-const App: FC = () => {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  /* ────────────────────────────────────────────
-      TRACK PAGE VIEW
-  ──────────────────────────────────────────── */
-  useEffect(() => {
-    // Using Record<string, string> ensures specific typing for event properties
-    const eventProps: Record<string, string> = {
-      page_name: "shareden-homepage",
-      source: getQueryParam("utm_source") || "direct",
-      campaign: getQueryParam("utm_campaign") || "none",
-      medium: getQueryParam("utm_medium") || "none",
-      device: getDeviceType(),
-    };
-
-    mixpanel.track("Page Viewed", eventProps);
-  }, []); // Empty dependency array is safe now that utilities are outside
-
-  /* ────────────────────────────────────────────
-      TRACK CTA CLICKS
-  ──────────────────────────────────────────── */
-  const handleCTAClick = (buttonType: string, href: string) => {
-    mixpanel.track("CTA Clicked", {
-      page_name: "shareden-homepage",
-      button_type: buttonType,
-    });
-
-    window.location.href = href;
-  };
-
-  const menuItems = [
-      { name: "Explore Stacks", href: "/stacks" },
-      { name: "Pricing", href: "/pricing" },
-      { name: "Events", href: "/Event" }, // NEW ITEM
-      { name: "Login", href: "/login" },
-  ];
-
+const StackboardClassic: FC = () => {
   return (
-    <main className="flex flex-col min-h-screen bg-[#050505] text-neutral-50 font-sans selection:bg-teal-500/30">
-
-      {/* 1. Global Background Effects */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[20%] -left-[10%] w-[800px] h-[800px] bg-teal-600/10 rounded-full blur-[120px]" />
-        <div className="absolute top-[40%] -right-[10%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      </div>
-
-      {/* 2. Navbar */}
-      <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#050505]/80 backdrop-blur-xl transition-all">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          
-          {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <div className="w-8 h-8 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20">
-               <div className="w-4 h-4 bg-black/20 rounded-sm" />
+    <div className="min-h-screen bg-[#F7FAFC] text-[#1A365D] font-sans antialiased">
+      {/* NAVBAR */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition">
+            <div className="w-8 h-8 rounded-lg bg-[#1A365D] flex items-center justify-center">
+              <Layers className="w-4 h-4 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">ShareDen</span>
+            <span className="font-bold text-lg tracking-tight text-[#1A365D]">
+              Stackboard
+            </span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+            {["Product", "Solutions", "Pricing", "Resources"].map((item) => (
+              <Link key={item} href={`/${item.toLowerCase()}`} className="hover:text-[#2B6CB0] transition-colors">
+                {item}
+              </Link>
+            ))}
           </div>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="/stacks" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
-              Explore Stacks
-            </a>
-            <a href="/pricing" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
-              Pricing
-            </a>
-            {/* ADDED EVENTS LINK */}
-            <a href="/Event" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
-              Events
-            </a>
-            {/* END ADDED EVENTS LINK */}
-            <div className="h-4 w-px bg-white/10"></div>
-            <a href="/login" className="text-sm font-medium text-white hover:text-teal-400 transition-colors" onClick={() => handleCTAClick("Login Nav", "/login")}>
-              Login
-            </a>
-            <Button
-              size="sm"
-              className="bg-white text-black hover:bg-neutral-200 font-semibold rounded-full px-6"
-              onClick={() => handleCTAClick("Start Now Nav", "/register")}
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/login" 
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-[#1A365D] transition"
+            >
+              Sign In
+            </Link>
+            <Link 
+              href="/signup" 
+              className="px-5 py-2 text-sm font-semibold bg-[#2B6CB0] text-white rounded-lg hover:bg-[#1e4e80] transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               Get Started
-            </Button>
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="md:hidden">
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-neutral-400">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              
-              {/* 👇 FIXED: Added pt-20 to push content down, away from the Close button */}
-              <SheetContent side="right" className="bg-[#0a0a0a] border-l border-white/10 text-white pt-20 w-[300px]">
-                
-                <SheetHeader className="text-left pb-8">
-                  <SheetTitle className="text-xl font-bold text-white flex items-center gap-2">
-                     {/* Added logo icon here for consistency */}
-                     <div className="w-6 h-6 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-md flex items-center justify-center">
-                        <div className="w-3 h-3 bg-black/20 rounded-sm" />
-                     </div>
-                     ShareDen
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="flex flex-col gap-6">
-                    {/* Updated to map the array for all navigation items */}
-                    {menuItems.slice(0, 3).map((item) => ( // Show Explore, Pricing, Events
-                        <a 
-                          key={item.name} 
-                          href={item.href} 
-                          className="text-lg font-medium text-neutral-400 hover:text-teal-400 hover:pl-2 transition-all"
-                          onClick={() => {
-                            // Track the click and close the sheet
-                            handleCTAClick(`${item.name} Mobile Nav`, item.href);
-                            setIsSheetOpen(false);
-                          }}
-                        >
-                          {item.name}
-                        </a>
-                    ))}
-                    {/* Separate Login link using handleCTAClick */}
-                    <a 
-                      key="Login" 
-                      href={menuItems.find(i => i.name === 'Login')?.href || "#"} 
-                      className="text-lg font-medium text-neutral-400 hover:text-teal-400 hover:pl-2 transition-all"
-                      onClick={() => {
-                        handleCTAClick("Login Mobile Nav", "/login");
-                        setIsSheetOpen(false);
-                      }}
-                    >
-                      Login
-                    </a>
-
-                    <Button 
-                      className="bg-teal-500 hover:bg-teal-400 text-neutral-950 w-full mt-4 font-bold"
-                      onClick={() => handleCTAClick("Get Started Mobile", "/register")}
-                    >
-                      Get Started
-                    </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
+            </Link>
           </div>
         </div>
       </nav>
 
-      {/* 3. Hero Section */}
-      <section className="relative z-10 flex-grow flex items-center pt-20 pb-32">
-        <div className="container mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
-          
-          {/* Text Content */}
-          <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-medium mb-6">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-              </span>
-              New Stacks Added Weekly
-            </div>
-            
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 text-white">
-              Rent the <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-teal-200">Stack</span> <br />
-              Your Startup Needs.
+      <main>
+        {/* HERO */}
+        <section className="py-20 md:py-32 px-6 bg-white border-b border-slate-100">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#1A365D] leading-[1.1]">
+              Centralized platform for
+              <br />
+              <span className="text-[#2B6CB0]">agile project teams.</span>
             </h1>
 
-            <p className="text-lg text-neutral-400 mb-8 leading-relaxed max-w-lg">
-              Don&apos;t hire a full team. Rent the <b>systems, processes, and skills</b> you need by the hour. Scale your startup without the overhead.
+            <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+              Stackboard combines project management, collaboration, and
+              resource planning into one unified workspace to keep your teams
+              aligned and productive.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                size="lg"
-                className="bg-teal-500 hover:bg-teal-400 text-neutral-950 font-bold text-base h-12 px-8 rounded-full shadow-[0_0_20px_rgba(20,184,166,0.3)] hover:shadow-[0_0_30px_rgba(20,184,166,0.5)] transition-all"
-                onClick={() => handleCTAClick("Discover Stacks Hero", "/discover")}
+            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-6">
+              <Link 
+                href="/signup" 
+                className="px-8 py-3.5 bg-[#2B6CB0] text-white rounded-xl text-base font-semibold hover:bg-[#1e4e80] transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center hover:-translate-y-0.5"
               >
-                Discover Stacks <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-              
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/10 bg-white/5 hover:bg-white/10 text-white h-12 px-8 rounded-full backdrop-blur-sm transition-all"
-                onClick={() => handleCTAClick("List Stack Hero", "/stacks")}
+                Start Free Trial
+              </Link>
+              <Link 
+                href="/demo" 
+                className="px-8 py-3.5 border-2 border-[#1A365D] text-[#1A365D] rounded-xl text-base font-semibold hover:bg-slate-50 transition-all flex items-center justify-center hover:-translate-y-0.5"
               >
-                List Your Stack
-              </Button>
-            </div>
-
-            {/* Social Proof / Trust */}
-            <div className="mt-12 pt-8 border-t border-white/5 flex flex-col gap-4">
-               <p className="text-xs text-neutral-500 uppercase tracking-wider">Trusted by founders at</p>
-               <div className="flex gap-6 opacity-40 grayscale">
-                   <div className="h-6 w-20 bg-white/20 rounded"></div>
-                   <div className="h-6 w-20 bg-white/20 rounded"></div>
-                   <div className="h-6 w-20 bg-white/20 rounded"></div>
-               </div>
+                Book Demo
+              </Link>
             </div>
           </div>
+        </section>
 
-          {/* Visual Content: The "Stack" Representation */}
-          <div className="relative h-[400px] md:h-[500px] w-full flex items-center justify-center perspective-1000 hidden lg:flex">
-             <div className="relative w-64 h-80">
-                <div className="absolute top-0 left-12 w-full h-full bg-neutral-900 border border-white/5 rounded-2xl transform rotate-6 scale-90 opacity-40 shadow-2xl"></div>
-                <div className="absolute top-4 left-6 w-full h-full bg-neutral-800 border border-white/10 rounded-2xl transform rotate-3 scale-95 opacity-70 shadow-2xl"></div>
-                <div className="absolute top-8 left-0 w-full h-full bg-gradient-to-br from-neutral-800 to-neutral-900 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 flex flex-col justify-between overflow-hidden group hover:-translate-y-2 transition-transform duration-500">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-teal-500 to-transparent opacity-50"></div>
+        {/* CUSTOMIZATION SECTION */}
+        <section className="py-24 px-6 bg-[#2B6CB0] text-white overflow-hidden">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-center mb-16">
+              <div className="flex gap-1 p-1 bg-white/10 rounded-full border border-white/10">
+                <button className="rounded-full bg-white text-[#2B6CB0] px-5 py-2 text-xs font-bold transition">
+                  Customize projects
+                </button>
+                <button className="rounded-full text-white hover:bg-white/10 px-5 py-2 text-xs font-medium transition">
+                  Automate workflows
+                </button>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <div className="space-y-8">
+                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+                  Customize your experience
+                </h2>
+                <p className="text-lg text-blue-100/90 leading-relaxed">
+                  Build your projects from end-to-end to capture unique
+                  requirements. Create personalized fields, modules, statuses,
+                  and workflows to manage and track industry-specific work
+                  metrics.
+                </p>
+                <Link
+                  href="/features/customization"
+                  className="inline-flex items-center gap-2 text-white font-semibold group hover:underline underline-offset-8 decoration-2"
+                >
+                  Learn more about project customization
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+
+                <div className="bg-[#1e4e80]/50 p-8 rounded-2xl border border-white/10 backdrop-blur-sm mt-12 max-w-md">
+                  <p className="text-lg text-blue-50 mb-6 italic leading-relaxed">
+                    "Stackboard helped us achieve about 300% growth rate for our business by unifying our data."
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src="https://avatar.iran.liara.run/public/30" 
+                      alt="User" 
+                      className="w-10 h-10 rounded-full border-2 border-white/20 bg-slate-200" 
+                    />
                     <div>
-                        <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center mb-4">
-                            <CheckCircle2 className="text-teal-400 w-6 h-6" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white">Growth Stack</h3>
-                        <p className="text-sm text-neutral-400 mt-2">SEO, Content, & Ads setup.</p>
+                      <p className="font-bold text-sm text-white">Hassan Al-aidy</p>
+                      <p className="text-blue-300 text-xs">CEO, InnovateX</p>
                     </div>
-
-                    <div className="space-y-2">
-                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                            <div className="h-full w-3/4 bg-teal-500 rounded-full"></div>
-                        </div>
-                        <div className="flex justify-between text-xs text-neutral-400">
-                            <span>Availability</span>
-                            <span className="text-teal-400">High</span>
-                        </div>
-                    </div>
+                  </div>
                 </div>
-             </div>
+              </div>
+
+              {/* UI MOCKUP */}
+              <div className="relative">
+                <div className="bg-[#1e4e80] p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-[10px] font-bold text-blue-300 uppercase tracking-[0.2em]">
+                      Task Information
+                    </h4>
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-red-400/80" />
+                      <div className="w-2 h-2 rounded-full bg-yellow-400/80" />
+                      <div className="w-2 h-2 rounded-full bg-green-400/80" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
+                    <InputField label="Owner" icon={Users} />
+                    <div />
+                    <StatusField />
+                    <DatePickerField label="Due Date" />
+                    <div className="border border-dashed border-white/20 rounded-xl h-12 flex items-center justify-center">
+                      <ArrowRight className="w-4 h-4 text-white/20" />
+                    </div>
+                    <DatePickerField label="Start Date" />
+                    <InputField label="Rate / Hour" />
+                    <SelectField label="Billing Type" />
+                  </div>
+                </div>
+
+                {/* OVERLAY DIALOG */}
+                <div className="absolute -bottom-10 -left-6 md:-left-12 bg-white rounded-2xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.2)] w-64 border border-slate-100 text-slate-800 hidden sm:block">
+                  <div className="flex gap-4 border-b border-slate-100 mb-4 pb-3 text-xs">
+                    <span className="font-bold text-[#2B6CB0] border-b-2 border-[#2B6CB0] pb-3 -mb-[13px]">
+                      New Fields
+                    </span>
+                    <span className="text-slate-400">Available</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <FieldItem label="Single Line" />
+                    <FieldItem label="Multi-Select" />
+                    <FieldItem label="Pick List" active />
+                    <FieldItem label="Date" />
+                    <FieldItem label="User List" />
+                    <FieldItem label="Currency" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
+        {/* SUCCESS STORIES */}
+        <section className="py-24 px-6 bg-white">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+            <div className="relative group cursor-pointer">
+              <div className="absolute -inset-4 bg-blue-50 rounded-[2rem] -z-10 group-hover:scale-105 transition duration-500 opacity-0 group-hover:opacity-100" />
+              <div className="relative rounded-2xl overflow-hidden aspect-video shadow-2xl">
+                <img
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
+                  alt="Team collaboration"
+                  className="w-full h-full object-cover transition duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-[#1A365D]/40 flex items-center justify-center transition-opacity group-hover:bg-[#1A365D]/20">
+                  <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-[#2B6CB0] shadow-2xl group-hover:scale-110 transition duration-300">
+                    <Play className="w-5 h-5 fill-current ml-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#1A365D] leading-tight">
+                Hear firsthand how we transform businesses
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed">
+                Witness how Stackboard streamlines operations, enhances
+                customer service, and drives profitability. Learn about success stories from leaders who leverage our agile platform.
+              </p>
+              <Link 
+                href="/success-stories" 
+                className="inline-block px-8 py-3.5 bg-[#1A365D] text-white rounded-full text-sm font-bold hover:bg-black transition-all hover:shadow-xl active:scale-95"
+              >
+                Explore success stories
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* FEATURE CAROUSEL */}
+        <section className="py-24 px-6 bg-[#F7FAFC]">
+          <div className="max-w-4xl mx-auto space-y-12">
+            <div className="bg-white p-10 md:p-14 rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#2B6CB0]" />
+              <h3 className="text-3xl font-bold text-[#1A365D] mb-6">Plan faster</h3>
+              <div className="space-y-6 text-lg text-slate-600 leading-relaxed">
+                <p>
+                  <strong className="text-[#2B6CB0]">Offer a seamless planning experience</strong> for your teams using agile tools. Drag and adjust timelines in moments with over 10 methodologies.
+                </p>
+                <p>Plan offline and sync once you're back. Use your mobile device to scan requirements directly into the backlog.</p>
+              </div>
+
+              <div className="flex items-center gap-4 mt-10">
+                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-[#2B6CB0] hover:border-[#2B6CB0]">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-[#2B6CB0] hover:border-[#2B6CB0]">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === 0 ? "w-6 bg-[#2B6CB0]" : "w-1.5 bg-slate-300"}`} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="py-24 px-6 text-center bg-[#1A365D] text-white">
+          <div className="max-w-2xl mx-auto space-y-10">
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">Ready to unify your teams?</h2>
+            <Link 
+              href="/signup" 
+              className="inline-block px-10 py-4 bg-[#2B6CB0] text-white rounded-xl text-lg font-bold hover:bg-[#3182ce] transition-all shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-1 active:scale-95"
+            >
+              Get Started Today — It's Free
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-white border-t border-slate-200 pt-20 pb-10 px-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-12">
+          <div className="col-span-2 md:col-span-1">
+            <div className="flex items-center gap-2 mb-6">
+              <Layers className="w-5 h-5 text-[#1A365D]" />
+              <span className="font-bold text-lg">Stackboard</span>
+            </div>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Making project management simple, visual, and highly productive for modern teams.
+            </p>
+          </div>
+          {FOOTER_LINKS.map((col) => (
+            <div key={col.title}>
+              <h5 className="font-bold text-slate-900 mb-6 uppercase text-[10px] tracking-widest">{col.title}</h5>
+              <ul className="space-y-4 text-sm text-slate-600">
+                {col.links.map((link) => (
+                  <li key={link}><Link href="#" className="hover:text-[#2B6CB0] transition">{link}</Link></li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-      </section>
+        <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-slate-100 text-center text-slate-400 text-[11px] uppercase tracking-widest">
+          © 2026 Stackboard Inc. All rights reserved.
+        </div>
+      </footer>
 
-      {/* 4. Footer */}
-      <Footer />
-    </main>
+      {/* FLOATING ACTION */}
+      <button className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-[#319795] text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all z-50 group">
+        <MessageSquare className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+      </button>
+    </div>
   );
 };
 
-export default App;
+// --- HELPER UI COMPONENTS ---
+
+const InputField = ({ label, icon: Icon }: { label: string; icon?: any }) => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 transition hover:bg-white/10 cursor-default">
+    <span>{label}</span>
+    {Icon && <Icon className="w-3.5 h-3.5 text-white/30" />}
+  </div>
+);
+
+const StatusField = () => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60">
+    <span>Status</span>
+    <div className="flex items-center gap-2 bg-[#1A365D] px-2 py-0.5 rounded border border-white/10 text-[9px] text-white font-bold cursor-pointer hover:bg-blue-900 transition">
+      OPEN <ChevronDown className="w-2.5 h-2.5 text-blue-300" />
+    </div>
+  </div>
+);
+
+const DatePickerField = ({ label }: { label: string }) => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 cursor-pointer hover:bg-white/10 transition">
+    <span>{label}</span>
+    <Calendar className="w-3.5 h-3.5 text-white/30" />
+  </div>
+);
+
+const SelectField = ({ label }: { label: string }) => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 cursor-pointer hover:bg-white/10 transition">
+    <span>{label}</span>
+    <ChevronDown className="w-3.5 h-3.5 text-white/30" />
+  </div>
+);
+
+const FieldItem = ({ label, active }: { label: string; active?: boolean }) => (
+  <div
+    className={`p-2 rounded-lg border transition-all cursor-grab flex items-center justify-between group ${
+      active 
+        ? "bg-teal-50 border-teal-200 text-teal-700 shadow-sm" 
+        : "bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-300"
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <div className={`w-1 h-1 rounded-full ${active ? "bg-teal-500" : "bg-slate-300"}`} />
+      <span className="font-semibold">{label}</span>
+    </div>
+    <GripVertical className={`w-3 h-3 ${active ? "text-teal-300" : "text-slate-300"}`} />
+  </div>
+);
+
+const FOOTER_LINKS = [
+  { title: "Product", links: ["Features", "Integrations", "Pricing", "Changelog"] },
+  { title: "Solutions", links: ["Engineering", "Marketing", "HR", "Operations"] },
+  { title: "Resources", links: ["Documentation", "Help Center", "Community", "Blog"] },
+  { title: "Company", links: ["About", "Careers", "Legal", "Privacy"] },
+];
+
+export default StackboardClassic;
