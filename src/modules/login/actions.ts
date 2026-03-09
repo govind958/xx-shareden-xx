@@ -29,13 +29,11 @@ export async function login(formData: FormData) {
   const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    redirect('/error')
+    redirect('/login?error=' + encodeURIComponent('Invalid credentials. If you\'re new here, please sign up first.'))
   }
 
-  // Check if user is an employee trying to use user login
   const userType = authData.user?.user_metadata?.user_type
   if (userType === 'employee') {
-    // Sign them out and redirect to employee login
     await supabase.auth.signOut()
     redirect('/Employee_portal/login?error=use_employee_login')
   }
@@ -51,22 +49,34 @@ export async function signup(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.signUp({
+  if (!email || !password) {
+    redirect('/login?error=' + encodeURIComponent('Please enter both email and password.'))
+  }
+
+  if (password.length < 6) {
+    redirect('/login?error=' + encodeURIComponent('Password must be at least 6 characters long.'))
+  }
+
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: getURL(),
       data: {
-        user_type: 'user', // Mark as regular user
+        user_type: 'user',
       },
     },
   })
 
   if (error) {
-    redirect('/error')
+    redirect('/login?error=' + encodeURIComponent(error.message))
   }
 
-  revalidatePath('/private', 'layout')
+  // Supabase returns a user with empty identities when the email already exists
+  if (signUpData?.user?.identities?.length === 0) {
+    redirect('/login?error=' + encodeURIComponent('An account with this email already exists. Please log in instead.'))
+  }
+
   redirect('/verify-email')
 }
 
