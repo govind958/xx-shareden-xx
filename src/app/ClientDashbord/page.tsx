@@ -10,6 +10,9 @@ import {
   ChevronRight,
   HelpCircle
 } from "lucide-react"
+import { useAuth } from '@/src/context/AuthContext';
+import { getPurchasedStacks } from '@/src/modules/stack_board/action';
+import { PURCHASED_STACKS } from '@/src/modules/stack_board/types';
 
 /* ---------------- BRAND COLORS ---------------- */
 const BRAND_PRIMARY = "#1A365D"
@@ -41,14 +44,37 @@ const LoadingPage = () => (
 
 export default function DashboardPage() {
   const [initialLoading, setInitialLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const [stacks, setStacks] = useState<PURCHASED_STACKS[]>([]);
 
   // Simulate initial data fetch
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (authLoading) return;
+    if (!user) {
       setInitialLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+      return;
+    }
+    const fetchData = async () => {
+      try {
+        const data = await getPurchasedStacks(user.id);
+        setStacks(data);
+
+      } catch (err) {
+        console.error("Error fetching stacks", err);
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+    fetchData();
+
+  }, [user, authLoading]);
+
+  const openTasks = stacks.filter(s =>
+    ['initiated', 'processing', 'in_progress'].includes(s.status.toLowerCase())
+  ).length;
+  const closedTasks = stacks.filter(s =>
+    s.status.toLowerCase() === 'completed'
+  ).length;
 
   if (initialLoading) {
     return <LoadingPage />;
@@ -73,8 +99,8 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
-            <StatCard label="Open Tasks" count={0} color="blue" icon={<ClipboardList size={20} />} />
-            <StatCard label="Closed Tasks" count={0} color="blue" icon={<ClipboardList size={20} />} />
+            <StatCard label="Open Tasks" count={openTasks} color="blue" icon={<ClipboardList size={20} />} />
+            <StatCard label="Closed Tasks" count={closedTasks} color="blue" icon={<ClipboardList size={20} />} />
             <StatCard label="Open Issues" count={0} color="red" icon={<AlertCircle size={20} />} />
             <StatCard label="Closed Issues" count={0} color="red" icon={<AlertCircle size={20} />} />
             <StatCard label="Open Phases" count={0} color="teal" icon={<Flag size={20} />} />
@@ -84,7 +110,55 @@ export default function DashboardPage() {
 
         {/* WORKSPACE GRID */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <EmptyStateSection title="My Tasks" highlight="#2B6CB0" />
+          {/* <EmptyStateSection title="My Tasks" highlight="#2B6CB0" /> */}
+          {stacks.length > 0 ? (
+            <div className={SECTION_CARD}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 rounded-full bg-[#2B6CB0]" />
+                  <h3 className="font-bold tracking-tight text-[#1A365D]">My Tasks</h3>
+                </div>
+                <span className="text-xs font-bold text-slate-400">{stacks.length} total</span>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-3">
+                {stacks.map(stack => {
+                  const status = stack.status.toLowerCase();
+                  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+                    initiated: { label: 'Queued', bg: 'bg-slate-100', text: 'text-slate-600' },
+                    processing: { label: 'Assigned', bg: 'bg-blue-50', text: 'text-blue-700' },
+                    in_progress: { label: 'In Progress', bg: 'bg-amber-50', text: 'text-amber-700' },
+                    completed: { label: 'Completed', bg: 'bg-green-50', text: 'text-green-700' },
+                  };
+                  const cfg = statusConfig[status] || statusConfig.initiated;
+                  return (
+                    <div key={stack.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#F7FAFC] transition-colors group">
+                      <div className="w-9 h-9 rounded-lg bg-[#2B6CB0]/10 text-[#2B6CB0] flex items-center justify-center font-bold text-sm shrink-0">
+                        {stack.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[#1A365D] truncate">{stack.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[#2B6CB0] rounded-full transition-all duration-500"
+                              style={{ width: `${stack.progress_percent}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 shrink-0">{stack.progress_percent}%</span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide shrink-0 ${cfg.bg} ${cfg.text}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <EmptyStateSection title="My Tasks" highlight="#2B6CB0" />
+          )}
+
           <EmptyStateSection title="My Issues" highlight="#E53E3E" />
           <EmptyStateSection title="Due Today" highlight="#319795" />
           <EmptyStateSection title="Overdue" highlight="#E53E3E" />
