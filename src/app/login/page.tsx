@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
-import { GithubIcon, RectangleGogglesIcon, GalleryVerticalEnd, Quote } from "lucide-react";
+import { GithubIcon, RectangleGogglesIcon, GalleryVerticalEnd, Quote, AlertCircle } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
 import Image from "next/image";
 
-// Placeholder for the testimonial portrait
-import JaneDoePortrait from "@/src/app/Image/alert.png"; // Assuming you have this image
+import JaneDoePortrait from "@/src/app/Image/alert.png";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+
   useEffect(() => {
     mixpanel.track("Login Page Viewed");
   }, []);
 
   return (
-    /* Changed bg-black to the Billing Page background #FDFDFD and text-white to text-slate-900 */
     <div className="grid min-h-svh lg:grid-cols-2 bg-[#FDFDFD] text-slate-900 font-sans">
       
       {/* LEFT SIDE: FORM SECTION */}
@@ -24,7 +26,6 @@ export default function LoginPage() {
         {/* Brand Logo */}
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
-            {/* Matches the Billing Header Navy #1A365D */}
             <div className="flex size-6 items-center justify-center rounded-md bg-[#1A365D] text-white">
               <GalleryVerticalEnd className="size-4" />
             </div>
@@ -39,14 +40,22 @@ export default function LoginPage() {
             {/* Header Text */}
             <div className="flex flex-col space-y-2 text-center">
               <h1 className="text-2xl font-bold tracking-tight text-[#1A365D]">
-                Login to your account
+                Welcome to Stackboard
               </h1>
               <p className="text-sm text-slate-500">
-                Enter your email below to login to your account
+                Login to your account or create a new one
               </p>
             </div>
 
-            {/* Main Login Form */}
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Main Form */}
             <form className="space-y-4">
               <div className="grid gap-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="email">
@@ -58,7 +67,6 @@ export default function LoginPage() {
                   type="email"
                   placeholder="m@example.com"
                   required
-                  /* Matches Billing Input styles: white bg, slate borders */
                   className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
                 />
               </div>
@@ -68,9 +76,6 @@ export default function LoginPage() {
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="password">
                     Password
                   </label>
-                  <a href="#" className="ml-auto inline-block text-sm font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]">
-                    Forgot your password?
-                  </a>
                 </div>
                 <input
                   id="password"
@@ -79,15 +84,26 @@ export default function LoginPage() {
                   required
                   className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
                 />
+                  <a href="#" className="ml-auto inline-block text-xs font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]">
+                    Forgot your password?
+                  </a>
               </div>
 
-              <Button
-                formAction={login}
-                /* Matches "Upgrade Plan" button: #2B6CB0 blue */
-                className="w-full bg-[#2B6CB0] text-white hover:bg-[#1A365D] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
-              >
-                Login
-              </Button>
+              {/* Login & Sign Up buttons side by side */}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  formAction={login}
+                  className="flex-1 bg-[#2B6CB0] text-white hover:bg-[#1A365D] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
+                >
+                  Log in
+                </Button>
+                <Button
+                  formAction={signup}
+                  className="flex-1 bg-[#1A365D] text-white hover:bg-[#2B6CB0] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
+                >
+                  Sign up
+                </Button>
+              </div>
             </form>
 
             {/* Divider */}
@@ -106,11 +122,10 @@ export default function LoginPage() {
                 variant="outline"
                 type="button"
                 onClick={signInWithGoogle}
-                /* Matches Billing secondary button/table styles */
                 className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
               >
                 <RectangleGogglesIcon size={16} className="text-blue-600" />
-                Login with Google
+                Continue with Google
               </Button>
               
               <Button
@@ -120,19 +135,16 @@ export default function LoginPage() {
                 className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
               >
                 <GithubIcon size={16} className="text-slate-800" />
-                Login with GitHub
+                Continue with GitHub
               </Button>
             </div>
 
-            {/* Footer Sign Up Link */}
-            <div className="text-center text-sm text-slate-500">
-              Don&apos;t have an account?{" "}
-              <button 
-                formAction={signup} 
-                className="font-bold text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]"
-              >
-                Sign up
-              </button>
+            {/* Terms */}
+            <div className="text-center text-xs text-slate-400">
+              By continuing, you agree to our{" "}
+              <a href="#" className="underline underline-offset-4 hover:text-[#2B6CB0]">Terms of Service</a>{" "}
+              and{" "}
+              <a href="#" className="underline underline-offset-4 hover:text-[#2B6CB0]">Privacy Policy</a>.
             </div>
           </div>
         </div>
