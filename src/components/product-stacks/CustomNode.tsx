@@ -1,7 +1,5 @@
-import { CheckCircle2, LayoutGrid, Lock, ShoppingCart, ChevronDown } from 'lucide-react';
+import { CheckCircle2, LayoutGrid, Lock, ShoppingCart } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
-import { SubscriptionLimit } from '@/src/types/product_stacks';
-import { SUBSCRIPTION_LIMITS, formatSubscriptionLimit, DEFAULT_SUBSCRIPTION_LIMIT } from '@/src/modules/product_stacks';
 
 interface CustomNodeProps {
   id: string;
@@ -12,11 +10,9 @@ interface CustomNodeProps {
   height?: number;
   isSaved?: boolean;
   price?: number;
-  subscriptionLimit?: SubscriptionLimit;
   onResizeStart?: (e: React.MouseEvent) => void;
   onConnectStart: (e: React.MouseEvent, id: string) => void;
   onBuy: (id: string) => void;
-  onSubscriptionChange?: (id: string, limit: SubscriptionLimit) => void;
   onRename?: (id: string, name: string) => void;
 }
 
@@ -29,18 +25,14 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
   height,
   isSaved,
   price,
-  subscriptionLimit = DEFAULT_SUBSCRIPTION_LIMIT,
   onResizeStart,
   onConnectStart,
   onBuy,
-  onSubscriptionChange,
   onRename,
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -74,20 +66,6 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
       setIsEditing(false);
     }
   };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isDropdownOpen]);
 
   // GROUP NODE RENDERING (Resizeable Box)
   if (type === 'group') {
@@ -144,52 +122,9 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
         <div className="flex-grow" />
 
         {/* Purchase Footer */}
-        {/* Buy Footer */}
         <div className="px-4 py-3 border-t border-neutral-800/50 flex items-center justify-between bg-[#050505]/50 rounded-b-xl">
           <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">Total Estimate</p>
-
-              {/* Subscription Dropdown */}
-              {!isSaved ? (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    className="flex items-center gap-1 text-[8px] font-mono text-teal-600 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 hover:border-teal-500/50 transition-colors"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsDropdownOpen(!isDropdownOpen);
-                    }}
-                  >
-                    {formatSubscriptionLimit(subscriptionLimit)} <ChevronDown size={8} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {/* Dropdown Menu */}
-                  {isDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 w-24 bg-[#111] border border-neutral-800 rounded-md shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      {SUBSCRIPTION_LIMITS.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onSubscriptionChange) {
-                              onSubscriptionChange(id, opt);
-                            }
-                            setIsDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-2 py-1.5 text-[9px] hover:bg-neutral-800 transition-colors ${subscriptionLimit === opt ? 'text-teal-500 font-bold' : 'text-neutral-400'}`}
-                        >
-                          {formatSubscriptionLimit(opt)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span className="text-[8px] font-mono text-neutral-600 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">
-                  {formatSubscriptionLimit(subscriptionLimit)}
-                </span>
-              )}
-            </div>
+            <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider mb-0.5">Total Estimate</p>
             <p className={`text-sm font-mono ${isSaved ? 'text-green-500' : 'text-teal-500'}`}>
               ₹{(price || 0).toLocaleString()}
             </p>

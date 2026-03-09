@@ -1,403 +1,200 @@
 "use client";
 
-import React, { FC, useEffect, useState } from "react";
+import React, { FC } from "react";
 import { Button } from "@/src/components/ui/button";
-import Footer from "@/src/components/Footer";
 import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetHeader,
-  SheetTitle,
-} from "@/src/components/ui/sheet";
-import {
-  Menu,
+  MessageSquare,
+  Command,
   ArrowRight,
-  Zap,
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  TrendingUp,
-  Target,
-} from "lucide-react"; 
-import { Event } from "@/src/types/event";
-import mixpanel from "mixpanel-browser";
+  CheckCircle2,
+} from "lucide-react";
 
-// ⚡ Initialize Mixpanel (Safe Check)
-if (typeof window !== "undefined") {
-  mixpanel.init("YOUR_MIXPANEL_TOKEN", {
-    debug: false,
-    track_pageview: false,
-    persistence: "localStorage",
-  });
-}
-
-// ────────────────────────────────────────────
-// MOCK DATA & UTILITIES
-// ────────────────────────────────────────────
-
-
-const UPCOMING_EVENTS: Event[] = [
-  {
-    id: 101,
-    title: "SaaS Sales Stack Review",
-    date: "December 10, 2025",
-    time: "9:00 AM EST",
-    type: "Webinar",
-    icon: Target,
-    description: "Deep dive into renting an outbound Sales Development Stack. Learn metrics and ROI.",
-    link: "/event/sales-stack-review",
-  },
-  {
-    id: 102,
-    title: "Scaling Engineering Capacity",
-    date: "January 5, 2026",
-    time: "2:00 PM PST",
-    type: "Workshop",
-    icon: Users,
-    description: "How to rent an Engineering Stack to manage peak loads without hiring permanent staff.",
-    link: "/event/engineering-capacity",
-  },
-  {
-    id: 103,
-    title: "Series B Growth Secrets",
-    date: "January 20, 2026",
-    time: "11:00 AM EST",
-    type: "Panel",
-    icon: TrendingUp,
-    description: "Expert panel discussion on transitioning from founder-led sales to dedicated revenue stacks.",
-    link: "/event/series-b-secrets",
-  },
-];
-
-
-const getQueryParam = (param: string): string | null => {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get(param);
-};
-
-const getDeviceType = (): string => {
-  if (typeof window === "undefined") return "unknown";
-  const ua = navigator.userAgent;
-  return /Mobile|Android|iP(hone|od)/.test(ua) ? "mobile" : "desktop";
-};
-
-// ────────────────────────────────────────────
-// MAIN COMPONENT: Event Page
-// ────────────────────────────────────────────
-
-const EventPage: FC = () => {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-  // Define eventName as a static constant outside of the state/memoization for clarity
-  const eventName = "Scaling Workshop Q4 2025"; 
-
-  /* ────────────────────────────────────────────
-      TRACK PAGE VIEW
-  ──────────────────────────────────────────── */
-  useEffect(() => {
-    const eventProps: Record<string, string> = {
-      page_name: "shareden-event-page",
-      event_name: eventName,
-      source: getQueryParam("utm_source") || "direct",
-      campaign: getQueryParam("utm_campaign") || "none",
-      medium: getQueryParam("utm_medium") || "none",
-      device: getDeviceType(),
-    };
-
-    mixpanel.track("Page Viewed", eventProps);
-  }, [eventName]); // eventName is correctly included as a dependency
-
-  /* ────────────────────────────────────────────
-      TRACK CTA CLICKS
-  ──────────────────────────────────────────── */
-  const handleCTAClick = (buttonType: string, href: string) => {
-    mixpanel.track("CTA Clicked", {
-      page_name: "shareden-event-page",
-      event_name: eventName,
-      button_type: buttonType,
-    });
-
-    // In a real application, you'd likely use router.push or link tags for internal navigation
-    if (href.startsWith('/')) {
-        // Mock internal navigation
-    } else {
-        window.location.href = href;
-    }
-  };
-
-  const navItems = ['Explore Stacks', 'Pricing', 'Login'];
-
+const AetherClassic: FC = () => {
   return (
-    <main className="flex flex-col min-h-screen bg-[#050505] text-neutral-50 font-sans selection:bg-teal-500/30">
+    <div className="min-h-screen bg-white text-slate-800 font-sans">
 
-      {/* 1. Global Background Effects */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[20%] -left-[10%] w-[800px] h-[800px] bg-teal-600/10 rounded-full blur-[120px]" />
-        <div className="absolute top-[40%] -right-[10%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      </div>
-
-      {/* 2. Navbar (Copied from original) */}
-      <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#050505]/80 backdrop-blur-xl transition-all">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          
-          {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <div className="w-8 h-8 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20">
-               <div className="w-4 h-4 bg-black/20 rounded-sm" />
+      {/* NAVBAR */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center">
+              <Command className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">ShareDen</span>
+            <span className="font-semibold text-lg tracking-tight">
+              Aether
+            </span>
           </div>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="/stacks" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
-              Explore Stacks
-            </a>
-            <a href="/pricing" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
-              Pricing
-            </a>
-            <div className="h-4 w-px bg-white/10"></div>
-            <a href="/login" className="text-sm font-medium text-white hover:text-teal-400 transition-colors" onClick={() => handleCTAClick("Login Nav", "/login")}>
-              Login
-            </a>
-            <Button
-              size="sm"
-              className="bg-white text-black hover:bg-neutral-200 font-semibold rounded-full px-6"
-              onClick={() => handleCTAClick("Start Now Nav", "/register")}
-            >
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+            <a href="#" className="hover:text-slate-900 transition">Product</a>
+            <a href="#" className="hover:text-slate-900 transition">Solutions</a>
+            <a href="#" className="hover:text-slate-900 transition">Pricing</a>
+            <a href="#" className="hover:text-slate-900 transition">Resources</a>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" className="text-slate-600">
+              Sign In
+            </Button>
+            <Button className="bg-slate-900 text-white hover:bg-slate-800">
               Get Started
             </Button>
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="md:hidden">
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-neutral-400">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="bg-[#0a0a0a] border-l border-white/10 text-white pt-20 w-[300px]">
-                
-                <SheetHeader className="text-left pb-8">
-                  <SheetTitle className="text-xl font-bold text-white flex items-center gap-2">
-                     <div className="w-6 h-6 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-md flex items-center justify-center">
-                        <div className="w-3 h-3 bg-black/20 rounded-sm" />
-                     </div>
-                     ShareDen
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="flex flex-col gap-6">
-                    {navItems.map((item) => (
-                        <a 
-                          key={item} 
-                          href="#" 
-                          className="text-lg font-medium text-neutral-400 hover:text-teal-400 hover:pl-2 transition-all"
-                          onClick={() => setIsSheetOpen(false)}
-                        >
-                          {item}
-                        </a>
-                    ))}
-                    <Button 
-                      className="bg-teal-500 hover:bg-teal-400 text-neutral-950 w-full mt-4 font-bold"
-                      onClick={() => handleCTAClick("Get Started Mobile", "/register")}
-                    >
-                      Get Started
-                    </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </nav>
 
-      <div className="relative z-10 flex-grow flex flex-col">
+      <main>
 
-        {/* 3. Event Hero Section (Main Event) */}
-        <section className="bg-[#050505]/70 pt-20 pb-32">
-          <div className="container mx-auto px-6 max-w-4xl text-center">
-            
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium mb-6">
-              <Zap className="w-3 h-3" /> Live Webinar
-            </div>
-
-            <h1 className="text-5xl sm:text-6xl font-bold tracking-tight mb-6 text-white">
-              The <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-green-300">Unbundling</span> of Scale:
-              <br /> A Workshop for Series A Founders
+        {/* HERO */}
+        <section className="py-28 px-8">
+          <div className="max-w-5xl mx-auto text-center space-y-8">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
+              Build smarter teams.
+              <br />
+              Close deals faster.
             </h1>
 
-            <p className="text-xl text-neutral-400 mb-10 leading-relaxed">
-              Learn how to leverage **Rentable Stacks** to bypass massive payroll costs and achieve $1M ARR faster than traditional scaling models.
+            <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              Aether helps modern businesses collaborate, automate workflows,
+              and scale revenue — all in one intelligent workspace.
             </p>
 
-            <div className="flex justify-center flex-wrap gap-6 mb-12 text-neutral-300">
-                <div className="flex items-center gap-2 text-base">
-                    <Calendar className="w-5 h-5 text-teal-400" />
-                    <span>**November 28, 2025**</span>
-                </div>
-                <div className="flex items-center gap-2 text-base">
-                    <Clock className="w-5 h-5 text-teal-400" />
-                    <span>10:00 AM PST (90 min)</span>
-                </div>
-                <div className="flex items-center gap-2 text-base">
-                    <MapPin className="w-5 h-5 text-teal-400" />
-                    <span>Online (Zoom Link via Email)</span>
-                </div>
+            <div className="flex justify-center gap-4 pt-6">
+              <Button className="px-8 py-6 bg-slate-900 text-white hover:bg-slate-800">
+                Start Free Trial
+              </Button>
+              <Button variant="outline" className="px-8 py-6">
+                Book Demo
+              </Button>
             </div>
-
-            <Button
-              size="lg"
-              className="bg-teal-500 hover:bg-teal-400 text-neutral-950 font-bold text-lg h-14 px-10 rounded-full shadow-[0_0_20px_rgba(20,184,166,0.3)] hover:shadow-[0_0_30px_rgba(20,184,166,0.5)] transition-all"
-              onClick={() => handleCTAClick("Register Hero", "/event/register/scaling-workshop")}
-            >
-              Reserve Your Spot (Free) <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-            <p className="mt-4 text-xs text-neutral-500">Limited to 50 founders.</p>
           </div>
         </section>
 
-        ---
+        {/* TRUSTED BY */}
+        <section className="py-16 border-t border-b border-slate-100 bg-slate-50">
+          <div className="max-w-6xl mx-auto px-8 text-center space-y-10">
+            <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+              Trusted by 300,000+ companies
+            </p>
 
-        {/* 4. Event Agenda/Details Section */}
-        <section className="py-24 bg-[#0a0a0a]">
-            <div className="container mx-auto px-6 max-w-5xl">
-                
-                <h2 className="text-4xl font-bold text-center mb-16 text-white">
-                    What You Will Learn
-                </h2>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                    {/* Agenda Item 1 */}
-                    <div className="bg-neutral-900/50 p-6 rounded-xl border border-white/10 hover:border-teal-500/50 transition-all">
-                        <div className="w-10 h-10 bg-teal-500/20 text-teal-400 rounded-lg flex items-center justify-center mb-4">
-                            <Zap className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2 text-white">
-                            The Fractional Model
-                        </h3>
-                        <p className="text-neutral-400 text-sm">
-                            How top startups are replacing full-time hires with **Fractional Systems** (Stacks) for $100k+ annual savings.
-                        </p>
-                    </div>
-
-                    {/* Agenda Item 2 */}
-                    <div className="bg-neutral-900/50 p-6 rounded-xl border border-white/10 hover:border-teal-500/50 transition-all">
-                        <div className="w-10 h-10 bg-teal-500/20 text-teal-400 rounded-lg flex items-center justify-center mb-4">
-                            <ArrowRight className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2 text-white">
-                            Stack Selection Strategy
-                        </h3>
-                        <p className="text-neutral-400 text-sm">
-                            A step-by-step guide to identifying the right **Marketing, Sales, and Ops Stacks** for your current growth stage.
-                        </p>
-                    </div>
-
-                    {/* Agenda Item 3 */}
-                    <div className="bg-neutral-900/50 p-6 rounded-xl border border-white/10 hover:border-teal-500/50 transition-all">
-                        <div className="w-10 h-10 bg-teal-500/20 text-teal-400 rounded-lg flex items-center justify-center mb-4">
-                            <Clock className="w-5 h-5" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2 text-white">
-                            Implementation in 7 Days
-                        </h3>
-                        <p className="text-neutral-400 text-sm">
-                            Our proprietary framework for deploying a complete, pre-vetted **Shareden Stack** in under one week.
-                        </p>
-                    </div>
-                </div>
-
+            <div className="flex flex-wrap justify-center gap-10 text-slate-400 font-semibold text-lg">
+              <span>TAFE</span>
+              <span>Blue Star</span>
+              <span>Joyalukkas</span>
+              <span>Hotstar</span>
+              <span>IIFL</span>
+              <span>Mercedes</span>
             </div>
+          </div>
         </section>
-        
-        ---
 
-        {/* 5. Upcoming Events Section */}
-        <section className="py-24 bg-[#050505]">
-            <div className="container mx-auto px-6 max-w-5xl">
-                <h2 className="text-4xl font-bold text-center mb-16 text-white">
-                    🔥 Other Upcoming Events
-                </h2>
-                
-                <div className="grid md:grid-cols-3 gap-8">
-                    {UPCOMING_EVENTS.map((event) => {
-                        const EventIcon = event.icon;
-                        return (
-                            <div 
-                                key={event.id}
-                                className="bg-neutral-900 p-6 rounded-xl border border-white/10 flex flex-col justify-between hover:shadow-lg hover:shadow-teal-500/10 transition-all"
-                            >
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3 text-sm font-medium text-teal-400">
-                                        <EventIcon className="w-4 h-4" />
-                                        <span>{event.type}</span>
-                                    </div>
-                                    <h3 className="text-xl font-bold mb-2 text-white">
-                                        {event.title}
-                                    </h3>
-                                    <p className="text-neutral-400 text-sm mb-4">
-                                        {event.description}
-                                    </p>
-                                </div>
-                                
-                                <div className="mt-4 pt-4 border-t border-white/5">
-                                    <div className="flex items-center justify-between text-xs text-neutral-400 mb-4">
-                                        <div className="flex items-center gap-1">
-                                            <Calendar className="w-3 h-3 text-neutral-500" />
-                                            <span>{event.date}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="w-3 h-3 text-neutral-500" />
-                                            <span>{event.time}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full border-teal-500/50 text-teal-400 hover:bg-teal-500/10"
-                                        onClick={() => handleCTAClick(`View Event ${event.id}`, event.link)}
-                                    >
-                                        View Details
-                                    </Button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+        {/* COLLABORATION SECTION */}
+        <section className="py-24 px-8">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+            
+            <div className="space-y-6">
+              <h2 className="text-4xl font-bold text-slate-900">
+                Teams that win together
+              </h2>
+
+              <p className="text-lg text-slate-600 leading-relaxed">
+                Sales, marketing, and operations collaborate seamlessly inside
+                shared workspaces. AI-powered insights help teams move faster
+                and close smarter.
+              </p>
+
+              <a
+                href="#"
+                className="inline-flex items-center gap-2 text-slate-900 font-semibold hover:gap-3 transition-all"
+              >
+                Learn more
+                <ArrowRight className="w-4 h-4" />
+              </a>
             </div>
-        </section>
-        
-        ---
 
-        {/* 6. Final CTA Section (Moved down) */}
-        <section className="py-20">
-            <div className="container mx-auto px-6 max-w-4xl text-center">
-                <h2 className="text-3xl font-bold mb-4 text-white">
-                    Ready to scale smarter, not harder?
-                </h2>
-                <p className="text-lg text-neutral-400 mb-8">
-                    Stop burning cash on headcount. Start renting the expertise your business needs today.
-                </p>
-                <Button
-                    size="lg"
-                    className="bg-teal-500 hover:bg-teal-400 text-neutral-950 font-bold text-lg h-14 px-10 rounded-full shadow-[0_0_20px_rgba(20,184,166,0.3)]"
-                    onClick={() => handleCTAClick("Register Footer", "/event/register/scaling-workshop")}
+            <div className="bg-slate-100 rounded-2xl h-[320px] flex items-center justify-center text-slate-400">
+              Product Preview
+            </div>
+          </div>
+        </section>
+
+        {/* TESTIMONIALS */}
+        <section className="py-24 px-8 bg-slate-50 border-t border-slate-100">
+          <div className="max-w-7xl mx-auto space-y-16">
+            <h2 className="text-3xl font-bold text-center text-slate-900">
+              What our customers say
+            </h2>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[
+                {
+                  quote:
+                    "Aether increased our productivity by 80% within one year.",
+                  name: "Thomas John",
+                  role: "Managing Director",
+                },
+                {
+                  quote:
+                    "Reporting tools gave us insights we never had before.",
+                  name: "Samer Zughul",
+                  role: "Managing Partner",
+                },
+                {
+                  quote:
+                    "Collaboration improved dramatically across teams.",
+                  name: "Ari Hernandez",
+                  role: "Marketing Director",
+                },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm"
                 >
-                    Register for the Free Workshop <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
+                  <p className="text-slate-700 leading-relaxed mb-6">
+                    "{item.quote}"
+                  </p>
+
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      {item.name}
+                    </p>
+                    <p className="text-sm text-slate-500">{item.role}</p>
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
         </section>
 
-      </div>
+        {/* CTA */}
+        <section className="py-24 px-8 text-center">
+          <div className="max-w-3xl mx-auto space-y-8">
+            <h2 className="text-4xl font-bold text-slate-900">
+              Ready to scale your business?
+            </h2>
 
-      {/* 7. Footer (Copied from original) */}
-      <Footer />
-    </main>
+            <p className="text-lg text-slate-600">
+              Join thousands of modern companies using Aether to grow faster.
+            </p>
+
+            <Button className="px-10 py-6 bg-slate-900 text-white hover:bg-slate-800">
+              Get Started Today
+            </Button>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="border-t border-slate-200 py-10 text-center text-sm text-slate-500">
+        Aether © 2026. All rights reserved.
+      </footer>
+
+      {/* CHAT BUTTON */}
+      <button className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg hover:scale-105 transition">
+        <MessageSquare className="w-6 h-6" />
+      </button>
+    </div>
   );
 };
 
-export default EventPage;
+export default AetherClassic;

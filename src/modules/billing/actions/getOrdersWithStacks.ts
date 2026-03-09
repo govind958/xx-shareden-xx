@@ -19,6 +19,7 @@ export async function getOrdersWithStacks(
       id,
       total_amount,
       created_at,
+      subscription_duration,
       order_items (
         id,
         stack_id,
@@ -30,8 +31,7 @@ export async function getOrdersWithStacks(
           id,
           name,
           type,
-          base_price,
-          subscription_duration
+          base_price
         )
       )
     `
@@ -58,7 +58,6 @@ export async function getOrdersWithStacks(
         name: string;
         type: string | null;
         base_price: number;
-        subscription_duration: SubscriptionLimit;
       } | null;
     }>;
 
@@ -69,6 +68,7 @@ export async function getOrdersWithStacks(
       id: order.id,
       total_amount: order.total_amount,
       created_at: order.created_at,
+      subscription_duration: (order as { subscription_duration?: SubscriptionLimit }).subscription_duration,
       stacks: activeOrderItems.map((item) => ({
         id: item.id,
         stack_id: item.stack_id,
@@ -79,7 +79,6 @@ export async function getOrdersWithStacks(
         created_at: item.created_at,
         order_id: order.id,
         base_price: item.stacks?.base_price || 0,
-        subscription_duration: item.stacks?.subscription_duration,
       })),
     };
   });

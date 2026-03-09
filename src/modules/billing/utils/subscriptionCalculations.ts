@@ -1,6 +1,13 @@
 import { SubscriptionLimit } from "@/src/types/product_stacks";
 
 /**
+ * Get months for subscription duration
+ */
+const getMonthsForDuration = (duration: SubscriptionLimit): number => {
+  return duration === 'yearly' ? 12 : 1;
+};
+
+/**
  * Calculate next payment date based on created_at + subscription_duration
  */
 export const calculateNextPayment = (
@@ -10,8 +17,7 @@ export const calculateNextPayment = (
   const created = new Date(createdAt);
   const now = new Date();
 
-  // Extract the number from duration (e.g., "3 month" -> 3)
-  const months = parseInt(duration.split(" ")[0]);
+  const months = getMonthsForDuration(duration);
 
   // Calculate next payment date
   const nextPayment = new Date(created);
@@ -35,7 +41,7 @@ export const calculateNextPayment = (
  * Format subscription cycle for display
  */
 export const formatSubscriptionCycle = (duration: SubscriptionLimit): string => {
-  return duration.replace("month", "Month");
+  return duration.charAt(0).toUpperCase() + duration.slice(1);
 };
 
 /**
@@ -47,7 +53,7 @@ export const calculateRemainingDays = (
 ): number => {
   const created = new Date(createdAt);
   const now = new Date();
-  const months = parseInt(duration.split(" ")[0]);
+  const months = getMonthsForDuration(duration);
   const nextPayment = new Date(created);
   nextPayment.setMonth(nextPayment.getMonth() + months);
   
