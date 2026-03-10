@@ -597,6 +597,8 @@ export default function ZohoStyleCheckout() {
                       }}
                       cartItems={cartStacks}
                       billingCycle={billingCycle === 'Monthly' ? 'monthly' : 'yearly'}
+                      mode={activeTab === 'Recurring' ? 'recurring' : 'one-time'}
+                      recurringMethod={recurringMethod === 'Credit Card' ? 'card' : 'upi'}
                       onSuccess={() => alert('Payment Successful!')}
                       disabled={!isBillingComplete}
                     />

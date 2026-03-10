@@ -32,6 +32,8 @@ export interface OrderWithStacks {
   total_amount: number;
   created_at: string;
   subscription_duration?: SubscriptionLimit;
+  is_recurring?: boolean;
+  subscription_status?: string | null;
   stacks: PurchasedStack[];
 }
 

@@ -197,6 +197,8 @@ const BillingPage: FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {purchasedStacks.map((stack) => {
                   const { date, days } = getBillingInfo(stack);
+                  const parentOrder = orders.find((o) => o.id === stack.order_id);
+                  const isRecurring = parentOrder?.is_recurring || !!parentOrder?.subscription_status;
                   const statusLabel = stack.status === "active" ? "Active" : stack.status.charAt(0).toUpperCase() + stack.status.slice(1);
                   const isActive = stack.status === "active";
                   return (
@@ -221,7 +223,14 @@ const BillingPage: FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-sm text-slate-600 font-medium">{date}</span>
+                          <span className="text-sm text-slate-600 font-medium">
+                            {date}
+                            {isRecurring && (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-100">
+                                Auto-renews
+                              </span>
+                            )}
+                          </span>
                           <span className="text-[11px] text-blue-500 font-semibold">{days} days remaining</span>
                         </div>
                       </td>

@@ -20,6 +20,8 @@ export async function getOrdersWithStacks(
       total_amount,
       created_at,
       subscription_duration,
+      is_recurring,
+      subscription_status,
       order_items (
         id,
         stack_id,
@@ -64,11 +66,22 @@ export async function getOrdersWithStacks(
     // Filter only active order items
     const activeOrderItems = (orderItems || []).filter((item) => item.is_active !== false);
 
+    const baseOrder = order as {
+      id: string;
+      total_amount: number;
+      created_at: string;
+      subscription_duration?: SubscriptionLimit;
+      is_recurring?: boolean;
+      subscription_status?: string | null;
+    };
+
     return {
       id: order.id,
-      total_amount: order.total_amount,
-      created_at: order.created_at,
-      subscription_duration: (order as { subscription_duration?: SubscriptionLimit }).subscription_duration,
+      total_amount: baseOrder.total_amount,
+      created_at: baseOrder.created_at,
+      subscription_duration: baseOrder.subscription_duration,
+      is_recurring: baseOrder.is_recurring,
+      subscription_status: baseOrder.subscription_status,
       stacks: activeOrderItems.map((item) => ({
         id: item.id,
         stack_id: item.stack_id,
