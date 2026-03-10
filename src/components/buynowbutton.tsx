@@ -2,7 +2,12 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createOrder, verifyPaymentAndCreateStackOrder } from "@/src/modules/razorpay/payment"
+import {
+  createOrder,
+  createRecurringSubscription,
+  verifyPaymentAndCreateStackOrder,
+  verifySubscriptionPaymentAndCreateStackOrder,
+} from "@/src/modules/razorpay/payment"
 
 import { Button } from "@/src/components/ui/button"
 import {
@@ -34,6 +39,9 @@ interface CartItem {
   isUnsaved?: boolean;
 }
 
+type PaymentMode = "recurring" | "one-time"
+type RecurringMethod = "card" | "upi"
+
 interface UserDetails {
   name?: string;
   email?: string;
@@ -50,6 +58,8 @@ interface BuyNowButtonProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSuccess?: (verification: any) => void;
   disabled?: boolean;
+  mode?: PaymentMode;
+  recurringMethod?: RecurringMethod;
 }
 
 // This function loads the Razorpay script
@@ -63,7 +73,18 @@ const loadRazorpayScript = () => {
   })
 }
 
-export default function BuyNowButton({ amount, discountAmount, couponId, userDetails, cartItems, billingCycle, onSuccess, disabled }: BuyNowButtonProps) {
+export default function BuyNowButton({
+  amount,
+  discountAmount,
+  couponId,
+  userDetails,
+  cartItems,
+  billingCycle,
+  onSuccess,
+  disabled,
+  mode = "one-time",
+  recurringMethod,
+}: BuyNowButtonProps) {
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState<"success" | "error">("success")
@@ -84,54 +105,104 @@ export default function BuyNowButton({ amount, discountAmount, couponId, userDet
       return
     }
 
-    // 2. Create an order from your server
     const cartData = { cartItems, totalAmount: amount }
-    const order = await createOrder(amount, "INR", cartData)
-    if (order.error) {
-      setDialogType("error")
-      setDialogMessage(`Error: ${order.error}`)
-      setDialogOpen(true)
-      setLoading(false)
-      return
+
+    const isRecurring = mode === "recurring"
+
+    let checkoutConfig:
+      | {
+          id: string
+          amount: number
+          currency: string
+          type: "order"
+        }
+      | {
+          id: string
+          amount: number
+          currency: string
+          type: "subscription"
+        }
+
+    if (isRecurring) {
+      const subscription = await createRecurringSubscription(amount, billingCycle, cartData)
+      if ((subscription as { error?: string }).error) {
+        setDialogType("error")
+        setDialogMessage(`Error: ${(subscription as { error: string }).error}`)
+        setDialogOpen(true)
+        setLoading(false)
+        return
+      }
+
+      checkoutConfig = {
+        id: (subscription as { id: string }).id,
+        amount: (subscription as { amount: number }).amount,
+        currency: (subscription as { currency: string }).currency,
+        type: "subscription",
+      }
+    } else {
+      const orderResult = await createOrder(amount, "INR", cartData)
+      if ("error" in orderResult) {
+        setDialogType("error")
+        setDialogMessage(`Error: ${orderResult.error}`)
+        setDialogOpen(true)
+        setLoading(false)
+        return
+      }
+
+      checkoutConfig = {
+        id: orderResult.id,
+        amount: Number(orderResult.amount),
+        currency: orderResult.currency,
+        type: "order",
+      }
     }
 
     // 3. Configure Razorpay options
     const options = {
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: order.amount,
-      currency: order.currency,
+      amount: checkoutConfig.amount,
+      currency: checkoutConfig.currency,
       name: "Shareden",
       description: "Stack Purchase",
-      order_id: order.id,
+      ...(checkoutConfig.type === "order"
+        ? { order_id: checkoutConfig.id }
+        : { subscription_id: checkoutConfig.id }),
 
       // 4. This function runs after payment
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async function (response: any) {
-        console.log('Payment successful, verifying...', response)
+        console.log("Payment successful, verifying...", response)
 
-        // 5. Verify payment and create order
-        const verification = await verifyPaymentAndCreateStackOrder({
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
-          cartItems: cartItems,
-          discountAmount: discountAmount,
-          couponId: couponId,
-          billingCycle: billingCycle,
-        })
+        const verification = isRecurring
+          ? await verifySubscriptionPaymentAndCreateStackOrder({
+              razorpay_subscription_id: response.razorpay_subscription_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              cartItems: cartItems,
+              discountAmount: discountAmount,
+              couponId: couponId,
+              billingCycle: billingCycle,
+            })
+          : await verifyPaymentAndCreateStackOrder({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              cartItems: cartItems,
+              discountAmount: discountAmount,
+              couponId: couponId,
+              billingCycle: billingCycle,
+            })
 
         if (verification.error) {
           setDialogType("error")
           setDialogMessage(`Payment failed: ${verification.error}`)
           setDialogOpen(true)
         } else {
-          // 6. Payment successful!
           setDialogType("success")
           setDialogMessage("Payment successful! Your stacks are being prepared.")
-          setPaymentId(verification.paymentId || '')
+          setPaymentId(verification.paymentId || "")
           setDialogOpen(true)
 
-          // Call onSuccess callback if provided
           if (onSuccess) {
             onSuccess(verification)
           }
