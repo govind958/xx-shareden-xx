@@ -128,7 +128,7 @@ export default function AdminEmployeesPage() {
               <Filter size={14} /> Filter Matrix
             </button>
             <button 
-              onClick={() => window.location.href = '/Employee_portal'} 
+              onClick={() => window.location.href = '/Employee_portal/login'} 
               className="flex items-center gap-3 px-6 py-3 bg-neutral-900 border border-teal-500/30 text-teal-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-500/10 transition"
             >
               <ExternalLink size={14} /> Employee Portal

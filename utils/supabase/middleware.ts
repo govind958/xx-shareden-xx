@@ -52,9 +52,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/error')
   ) {
-    // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    const isEmployeeRoute = request.nextUrl.pathname.startsWith('/Employee_portal')
+    url.pathname = isEmployeeRoute ? '/Employee_portal/login' : '/login'
     return NextResponse.redirect(url)
   }
 
