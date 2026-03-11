@@ -1,61 +1,263 @@
 "use client";
 
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useEffect, useState, useRef, useTransition, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Zap, Send, Paperclip, MoreHorizontal, Search, 
   Smile, Mic, CheckCheck, Terminal, Bell
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
+import { toast } from 'sonner';
+
 
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 const supabase = createClient();
 
 // --- SAMPLE DATA ---
-const MOCK_TASKS = [
-  { id: '1', stacks: { name: 'NEXT.JS_ENTERPRISE_CORE' }, status: 'in_progress', progress_percent: 75, unread: 3 },
-  { id: '2', stacks: { name: 'STRIPE_PAYMENT_GATEWAY' }, status: 'completed', progress_percent: 100, unread: 0 },
-  { id: '3', stacks: { name: 'SUPABASE_AUTH_PROTOCOL' }, status: 'initiated', progress_percent: 15, unread: 12 },
-];
+// const MOCK_TASKS = [
+//   { id: '1', stacks: { name: 'NEXT.JS_ENTERPRISE_CORE' }, status: 'in_progress', progress_percent: 75, unread: 3 },
+//   { id: '2', stacks: { name: 'STRIPE_PAYMENT_GATEWAY' }, status: 'completed', progress_percent: 100, unread: 0 },
+//   { id: '3', stacks: { name: 'SUPABASE_AUTH_PROTOCOL' }, status: 'initiated', progress_percent: 15, unread: 12 },
+// ];
 
 function StackboardMessagingUI() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderItemId = searchParams.get('id');
 
-  const [orders, setOrders] = useState<any[]>(MOCK_TASKS);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [activeStack, setActiveStack] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: items } = await supabase.from('order_items').select('*, stacks(name)').eq('assigned_to', user.id);
-        if (items?.length) setOrders(items);
-      }
+        // Get Supabase Auth session (required for realtime to work)
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          console.error('No valid auth session found');
+          setLoading(false);
+          router.push('/Employee_portal/login');
+            return;
+        }
+              // Verify user is an employee
+      const { data: employee, error: empError } = await supabase
+      .from('employees')
+      .select('id, email, name, role, is_active')
+      .eq('id', authUser.id)
+      .eq('is_active', true)
+      .single();
+
+    if (empError || !employee) {
+      console.error('User is not an employee');
+      setLoading(false);
+      return;
+    }
+
+    setUser({ id: employee.id, email: employee.email });
+    setEmployeeId(employee.id);
+          // Fetch order_items assigned to this employee
+          const { data: cartItems } = await supabase
+          .from('order_items')
+          .select('*, stacks(name)')
+          .eq('assigned_to', employee.id)
+          .order('created_at', { ascending: false });
+  
+        setOrders(cartItems || []);
       
+      // If an ID is in URL, fetch that specific stack's details
       if (orderItemId) {
-        const { data: msgs } = await supabase.from('project_messages').select('*').eq('order_item_id', orderItemId).order('created_at', { ascending: true });
-        setMessages(msgs || []);
+        const { data: currentTask } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('id', orderItemId)
+          .single();
+        setActiveStack(currentTask);
+
+        const { data: history } = await supabase
+          .from('project_messages')
+          .select('*')
+          .eq('order_item_id', orderItemId)
+          .order('created_at', { ascending: true });
+        setMessages(history || []);
       }
       setLoading(false);
     }
     init();
   }, [orderItemId]);
 
+  // 2. Real-time Listeners (Messages & Progress)
+  useEffect(()=>{
+    if(!orderItemId) return;
+
+    //Function to fetch messages (used for polling fallback)
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from('project_messages')
+        .select('*')
+        .eq('order_item_id', orderItemId)
+        .order('created_at', { ascending: true });
+      
+      if (data) {
+        // Always use the fresh data from DB to avoid duplicates
+        setMessages(data);
+      }
+    };
+    console.log('Setting up realtime for order:', orderItemId);
+        // Debug: Check auth state
+        supabase.auth.getSession().then(({ data, error }) => {
+          console.log('Current auth session:', data?.session ? 'EXISTS' : 'NONE', error);
+          if (data?.session) {
+            console.log('Session user:', data.session.user.email);
+          }
+        });
+    
+        const channel = supabase.channel(`nexus_${orderItemId}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'project_messages',
+            filter: `order_item_id=eq.${orderItemId}`
+          }, (payload) => {
+            console.log('Realtime INSERT received:', payload);
+            const newMsg = payload.new as any;
+            // Deduplicate: only add if not already in state
+            setMessages(prev => {
+              const exists = prev.find(m => m.id === newMsg.id);
+              return exists ? prev : [...prev, newMsg];
+            });
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'order_items',
+            filter: `id=eq.${orderItemId}`
+          }, (payload) => {
+            setActiveStack(payload.new);
+          })
+          .subscribe((status, err) => {
+            console.log('Realtime subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+              console.log('Realtime: Connected to channel (Employee Portal)');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Realtime: Channel error', err);
+            } else if (status === 'TIMED_OUT') {
+              console.error('Realtime: Connection timed out');
+            }
+          });
+    
+        // Polling fallback - fetch every 3 seconds in case realtime doesn't work
+        const pollInterval = setInterval(fetchMessages, 3000);
+    
+        return () => { 
+          clearInterval(pollInterval);
+          supabase.removeChannel(channel); 
+        };
+  }, [orderItemId]);
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    const newMsg = { id: Date.now().toString(), content: input, sender_role: 'employee', created_at: new Date().toISOString() };
-    setMessages([...messages, newMsg]);
-    setInput("");
+    if (!input.trim() || !user || !orderItemId) return;
+
+    const messageContent = input.trim();
+    setInput(""); // Clear input immediately for better UX
+
+    const { data, error } = await supabase.from('project_messages').insert({
+      order_item_id: orderItemId,
+      content: messageContent,
+      sender_id: user.id,
+      sender_role: 'employee'
+    }).select().single();
+
+    // Add message to local state immediately (optimistic update)
+    if (!error && data) {
+      setMessages(prev => {
+        // Avoid duplicates if realtime already added it
+        const exists = prev.find(m => m.id === data.id);
+        return exists ? prev : [...prev, data];
+      });
+    }
+  };
+
+  // Handle status update
+  const handleStatusUpdate = (newStatus: OrderItemStatus) => {
+    if (!orderItemId) return;
+    
+    startStatusTransition(async () => {
+      const result = await updateOrderItemStatus(orderItemId, newStatus);
+      
+      if (result.success) {
+        // Update local state optimistically
+        setActiveStack((prev: any) => prev ? { 
+          ...prev, 
+          status: newStatus,
+          progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : prev.progress_percent
+        } : prev);
+        
+        // Also update in orders list
+        setOrders(prev => prev.map(order => 
+          order.id === orderItemId 
+            ? { 
+                ...order, 
+                status: newStatus,
+                progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : order.progress_percent
+              } 
+            : order
+        ));
+        
+        toast.success(
+          newStatus === 'in_progress' 
+            ? 'Started working on task!' 
+            : newStatus === 'completed' 
+              ? 'Task marked as completed!' 
+              : 'Status updated!'
+        );
+      } else {
+        toast.error(result.error || 'Failed to update status');
+      }
+    });
+  };
+
+  // Handle progress update
+  const handleProgressUpdate = async (newProgress: number) => {
+    if (!orderItemId) return;
+    
+    const result = await updateOrderItemProgress(orderItemId, newProgress);
+    
+    if (result.success) {
+      setActiveStack((prev: any) => prev ? { ...prev, progress_percent: newProgress } : prev);
+      setOrders(prev => prev.map(order => 
+        order.id === orderItemId ? { ...order, progress_percent: newProgress } : order
+      ));
+    } else {
+      toast.error(result.error || 'Failed to update progress');
+    }
+  };
+
+  // Get status display info
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'initiated':
+        return { label: 'Not Started', color: 'text-neutral-400', bg: 'bg-neutral-800' };
+      case 'processing':
+        return { label: 'Assigned', color: 'text-blue-400', bg: 'bg-blue-500/20' };
+      case 'in_progress':
+        return { label: 'Working', color: 'text-amber-400', bg: 'bg-amber-500/20' };
+      case 'completed':
+        return { label: 'Completed', color: 'text-green-400', bg: 'bg-green-500/20' };
+      default:
+        return { label: status, color: 'text-neutral-400', bg: 'bg-neutral-800' };
+    }
   };
 
   // --- DYNAMIC THEME CLASSES ---
@@ -181,7 +383,7 @@ function StackboardMessagingUI() {
             <footer className={cn("p-4 flex items-center gap-3 border-t", theme.header)}>
               <Smile size={22} className="text-neutral-400 cursor-pointer hover:text-teal-500" />
               <Paperclip size={22} className="text-neutral-400 cursor-pointer hover:text-teal-500" />
-              <form onSubmit={handleSend} className="flex-1">
+              <form onSubmit={sendMessage} className="flex-1">
                 <input 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -190,7 +392,7 @@ function StackboardMessagingUI() {
                 />
               </form>
               <button 
-                onClick={handleSend}
+                onClick={sendMessage}
                 className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 active:scale-95 transition-all", theme.accentBg)}
               >
                 <Send size={20} />
