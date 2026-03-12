@@ -1,7 +1,13 @@
-import { CheckCircle2, LayoutGrid, Lock, ShoppingCart, ChevronDown } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
-import { SubscriptionLimit } from '@/src/types/product_stacks';
-import { SUBSCRIPTION_LIMITS, formatSubscriptionLimit, DEFAULT_SUBSCRIPTION_LIMIT } from '@/src/modules/product_stacks';
+'use client';
+
+import {
+  CheckCircle2,
+  LayoutGrid,
+  Lock,
+  ShoppingCart
+} from "lucide-react";
+
+import React, { useState, useEffect, useRef } from "react";
 
 interface CustomNodeProps {
   id: string;
@@ -12,11 +18,10 @@ interface CustomNodeProps {
   height?: number;
   isSaved?: boolean;
   price?: number;
-  subscriptionLimit?: SubscriptionLimit;
+  childrenCount?: number;
   onResizeStart?: (e: React.MouseEvent) => void;
   onConnectStart: (e: React.MouseEvent, id: string) => void;
   onBuy: (id: string) => void;
-  onSubscriptionChange?: (id: string, limit: SubscriptionLimit) => void;
   onRename?: (id: string, name: string) => void;
 }
 
@@ -29,20 +34,17 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
   height,
   isSaved,
   price,
-  subscriptionLimit = DEFAULT_SUBSCRIPTION_LIMIT,
+  childrenCount = 0,
   onResizeStart,
   onConnectStart,
   onBuy,
-  onSubscriptionChange,
   onRename,
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Focus input when entering edit mode
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -50,149 +52,107 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
     }
   }, [isEditing]);
 
-  // Update editValue when label prop changes
   useEffect(() => {
     setEditValue(label);
   }, [label]);
 
-  const handleSaveRename = () => {
-    const trimmedValue = editValue.trim();
-    if (trimmedValue && trimmedValue !== label && onRename) {
-      onRename(id, trimmedValue);
-    } else {
-      setEditValue(label); // Reset if empty or unchanged
-    }
+  const saveRename = () => {
+    const value = editValue.trim();
+    if (value && onRename) onRename(id, value);
     setIsEditing(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation();
-    if (e.key === 'Enter') {
-      handleSaveRename();
-    } else if (e.key === 'Escape') {
-      setEditValue(label);
-      setIsEditing(false);
-    }
+
+    if (e.key === "Enter") saveRename();
+    if (e.key === "Escape") setIsEditing(false);
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
+  /* =====================================================
+     GROUP NODE (STACK CONTAINER)
+  ===================================================== */
 
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isDropdownOpen]);
-
-  // GROUP NODE RENDERING (Resizeable Box)
-  if (type === 'group') {
+  if (type === "group") {
     return (
+
       <div
-        style={{ width: width || 380, height: height || 240 }}
+        style={{ width: width || 420, height: height || 260 }}
         className={`
-          rounded-xl border-2 border-dashed transition-all relative flex flex-col
-          ${isSelected
-            ? 'border-teal-500 bg-teal-500/5 shadow-[0_0_20px_rgba(20,184,166,0.1)]'
-            : isSaved
-              ? 'border-green-500/50 bg-green-500/5'
-              : 'border-neutral-700 bg-neutral-900/30 hover:border-neutral-600'
-          }
+        rounded-xl border flex flex-col relative bg-[#020617]
+        ${isSelected
+          ? "border-[#18C7C1] shadow-[0_0_20px_rgba(24,199,193,0.35)]"
+          : isSaved
+          ? "border-green-500"
+          : "border-[#1E293B]"
+        }
         `}
       >
-        <div className="absolute -top-3 left-4 px-2 bg-[#080808] flex items-center gap-2">
-          {isSaved ? (
-            <Lock size={12} className="text-green-500" />
-          ) : (
-            <LayoutGrid size={12} className="text-neutral-500" />
-          )}
-          {isSaved ? (
-            <span className="text-[10px] font-mono uppercase tracking-widest text-green-500 font-bold">
-              Purchased Stack
-            </span>
-          ) : isEditing ? (
+
+        {/* HEADER */}
+
+        <div className="absolute -top-3 left-4 px-3 bg-[#020617] flex items-center gap-2">
+
+          <LayoutGrid size={12} className="text-slate-400" />
+
+          {isEditing ? (
             <input
               ref={inputRef}
-              type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSaveRename}
+              onBlur={saveRename}
               onKeyDown={handleKeyDown}
               onMouseDown={(e) => e.stopPropagation()}
-              className="text-[10px] font-mono uppercase tracking-widest text-neutral-200 bg-neutral-800 border border-teal-500/50 rounded px-2 py-0.5 outline-none focus:border-teal-500 min-w-[100px]"
-              placeholder="Stack Name"
+              className="text-[10px] uppercase tracking-wider bg-[#020617] border border-[#18C7C1] rounded px-2 py-0.5 text-white"
             />
           ) : (
             <span
-              className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 cursor-text hover:text-teal-400 transition-colors"
+              className="text-[10px] uppercase tracking-wider text-slate-300 cursor-text hover:text-[#18C7C1]"
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 setIsEditing(true);
               }}
-              title="Double-click to rename"
             >
-              {label}
+              BUILD STACK
             </span>
           )}
+
         </div>
 
-        {/* Content Area */}
+        {/* EMPTY STATE */}
+
+        {childrenCount === 0 && (
+          <div className="flex flex-col items-center justify-center flex-grow text-center">
+
+            <p className="text-[11px] text-slate-500">
+              Add modules to build your stack
+            </p>
+
+          </div>
+        )}
+
         <div className="flex-grow" />
 
-        {/* Purchase Footer */}
-        {/* Buy Footer */}
-        <div className="px-4 py-3 border-t border-neutral-800/50 flex items-center justify-between bg-[#050505]/50 rounded-b-xl">
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">Total Estimate</p>
+        {/* FOOTER */}
 
-              {/* Subscription Dropdown */}
-              {!isSaved ? (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    className="flex items-center gap-1 text-[8px] font-mono text-teal-600 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 hover:border-teal-500/50 transition-colors"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsDropdownOpen(!isDropdownOpen);
-                    }}
-                  >
-                    {formatSubscriptionLimit(subscriptionLimit)} <ChevronDown size={8} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {/* Dropdown Menu */}
-                  {isDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 w-24 bg-[#111] border border-neutral-800 rounded-md shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      {SUBSCRIPTION_LIMITS.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onSubscriptionChange) {
-                              onSubscriptionChange(id, opt);
-                            }
-                            setIsDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-2 py-1.5 text-[9px] hover:bg-neutral-800 transition-colors ${subscriptionLimit === opt ? 'text-teal-500 font-bold' : 'text-neutral-400'}`}
-                        >
-                          {formatSubscriptionLimit(opt)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span className="text-[8px] font-mono text-neutral-600 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-800">
-                  {formatSubscriptionLimit(subscriptionLimit)}
-                </span>
-              )}
-            </div>
-            <p className={`text-sm font-mono ${isSaved ? 'text-green-500' : 'text-teal-500'}`}>
+        <div className="px-5 py-4 border-t border-[#1E293B] flex items-center justify-between bg-[#010409] rounded-b-xl">
+
+          <div>
+
+            {childrenCount > 0 && (
+              <p className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">
+                Modules {childrenCount}
+              </p>
+            )}
+
+            <p className="text-[9px] text-slate-500 uppercase tracking-wider">
+              Total Estimate
+            </p>
+
+            <p className={`text-lg font-mono ${isSaved ? "text-green-500" : "text-[#18C7C1]"}`}>
               ₹{(price || 0).toLocaleString()}
             </p>
+
           </div>
 
           <button
@@ -202,72 +162,100 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
             }}
             disabled={isSaved}
             className={`
-               flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all
-               ${isSaved
-                ? 'bg-green-500/10 text-green-500 cursor-default border border-green-500/20'
-                : 'bg-teal-600 text-black hover:bg-teal-500 hover:shadow-[0_0_15px_rgba(20,184,166,0.4)]'
-              }
-             `}
+            flex items-center gap-2 px-5 py-3 rounded-xl text-[11px] font-bold uppercase tracking-wider
+            ${isSaved
+              ? "bg-green-500/10 text-green-500 border border-green-500/30"
+              : "bg-[#18C7C1] text-black hover:bg-[#22E2DC] shadow-[0_0_15px_rgba(24,199,193,0.4)]"
+            }
+            `}
           >
             {isSaved ? (
-              <>Purchased <CheckCircle2 size={12} /></>
+              <>
+                Purchased <CheckCircle2 size={14} />
+              </>
             ) : (
-              <>Buy Stack <ShoppingCart size={12} /></>
+              <>
+                Buy Stack <ShoppingCart size={14} />
+              </>
             )}
           </button>
+
         </div>
 
-        {/* Resize Handle (Only if NOT saved) */}
+        {/* RESIZE HANDLE */}
+
         {!isSaved && (
           <div
-            className="absolute bottom-1 right-1 w-6 h-6 flex items-end justify-end cursor-nwse-resize p-1 z-30 group/handle"
+            className="absolute bottom-1 right-1 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-1"
             onMouseDown={(e) => {
               e.stopPropagation();
-              if (onResizeStart) onResizeStart(e);
+              onResizeStart?.(e);
             }}
           >
-            <div className="w-2 h-2 border-r-2 border-b-2 border-neutral-600 group-hover/handle:border-teal-500 transition-colors" />
+            <div className="w-2 h-2 border-r-2 border-b-2 border-slate-500" />
           </div>
         )}
+
       </div>
     );
   }
 
-  // STANDARD NODE RENDERING
+  /* =====================================================
+     MODULE NODE
+  ===================================================== */
+
   return (
-    <div className={`
-      px-4 py-3 shadow-2xl rounded-lg bg-[#0a0a0a] border min-w-[150px] group transition-all relative
+
+    <div
+      className={`
+      px-5 py-4 rounded-xl bg-[#020617] border min-w-[260px] relative
       ${isSelected
-        ? 'border-teal-500 ring-1 ring-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.2)]'
-        : 'border-neutral-800 hover:border-teal-500/50'
+        ? "border-[#18C7C1] shadow-[0_0_12px_rgba(24,199,193,0.25)]"
+        : "border-[#1E293B]"
       }
-      ${isSaved ? 'cursor-not-allowed opacity-90' : 'cursor-move'}
-    `}>
+      `}
+    >
+
       <div className="flex items-center gap-3">
-        <div
-          className={`w-2 h-2 rounded-full ${isSelected ? 'bg-teal-400' : 'bg-teal-600'
-            } shadow-[0_0_8px_rgba(20,184,166,0.8)] animate-pulse`}
-        />
-        <span className="text-[10px] font-bold text-white uppercase tracking-wider">{label}</span>
+
+        <div className="w-2 h-2 rounded-full bg-[#18C7C1] shadow-[0_0_8px_rgba(24,199,193,0.8)]" />
+
+        <div className="flex flex-col">
+
+          <span className="text-[11px] font-semibold text-white tracking-wide">
+            {label}
+          </span>
+
+          <span className="text-[9px] text-slate-500 uppercase">
+            service module
+          </span>
+
+        </div>
+
       </div>
 
-      {/* Price Tag for Node */}
-      {price !== undefined && price > 0 && (
-        <div className="absolute -bottom-3 right-2 bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded text-[8px] font-mono text-neutral-400">
+      {price !== undefined && (
+
+        <div className="absolute right-4 top-4 text-[11px] font-mono text-slate-300 bg-[#020617] border border-[#1E293B] px-2 py-1 rounded-lg">
           ₹{price.toLocaleString()}
         </div>
+
       )}
 
-      {/* Visual Connection Points (Interactive) */}
-      <div
-        onMouseDown={(e) => onConnectStart(e, id)}
-        className="absolute top-1/2 -left-1.5 w-3 h-3 bg-neutral-600 hover:bg-teal-500 rounded-full -translate-y-1/2 cursor-crosshair transition-colors border border-[#0a0a0a] z-50"
-      />
-      <div
-        onMouseDown={(e) => onConnectStart(e, id)}
-        className="absolute top-1/2 -right-1.5 w-3 h-3 bg-neutral-600 hover:bg-teal-500 rounded-full -translate-y-1/2 cursor-crosshair transition-colors border border-[#0a0a0a] z-50"
-      />
-    </div>
-  );
-};
+      {/* CONNECTION POINTS */}
 
+      <div
+        onMouseDown={(e) => onConnectStart(e, id)}
+        className="absolute top-1/2 -left-1.5 w-3 h-3 bg-slate-600 hover:bg-[#18C7C1] rounded-full -translate-y-1/2 cursor-crosshair border border-[#020617]"
+      />
+
+      <div
+        onMouseDown={(e) => onConnectStart(e, id)}
+        className="absolute top-1/2 -right-1.5 w-3 h-3 bg-slate-600 hover:bg-[#18C7C1] rounded-full -translate-y-1/2 cursor-crosshair border border-[#020617]"
+      />
+
+    </div>
+
+  );
+
+};
