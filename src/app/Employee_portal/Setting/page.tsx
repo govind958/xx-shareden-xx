@@ -57,10 +57,10 @@ export default function EmployeeSettings() {
           name: data.name || '',
           email: user.email || '',
           role: data.role || '',
-          department: data.department || '',
+          department: data.specialization || '',
           phone: data.phone || '',
-          emergency_contact_name: data.emergency_contact_name || '',
-          emergency_contact_phone: data.emergency_contact_phone || '',
+          emergency_contact_name: data.emergency_contact_name || 'govind anand',
+          emergency_contact_phone: data.emergency_contact_phone || '+917739018221',
           notifications: data.notifications ?? true,
           last_login: data.last_login || '',
           two_factor_enabled: data.two_factor_enabled || false,
@@ -85,11 +85,8 @@ export default function EmployeeSettings() {
       .update({
         name: profile.name,
         role: profile.role,
-        department: profile.department,
+        specialization: profile.department,
         phone: profile.phone,
-        emergency_contact_name: profile.emergency_contact_name,
-        emergency_contact_phone: profile.emergency_contact_phone,
-        notifications: profile.notifications,
         updated_at: new Date().toISOString(),
       })
       .eq('id', profile.id);
@@ -266,17 +263,15 @@ export default function EmployeeSettings() {
           </p>
 
           <input
-            placeholder="Contact Name"
             value={profile.emergency_contact_name}
-            onChange={(e) => setProfile({ ...profile, emergency_contact_name: e.target.value })}
-            className="w-full p-4 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black text-xs font-bold"
+            disabled
+            className="w-full p-4 border border-neutral-200 dark:border-neutral-800 bg-zinc-100 dark:bg-neutral-900 text-xs font-bold cursor-not-allowed text-neutral-500"
           />
 
           <input
-            placeholder="Contact Phone"
             value={profile.emergency_contact_phone}
-            onChange={(e) => setProfile({ ...profile, emergency_contact_phone: e.target.value })}
-            className="w-full p-4 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black text-xs font-bold"
+            disabled
+            className="w-full p-4 border border-neutral-200 dark:border-neutral-800 bg-zinc-100 dark:bg-neutral-900 text-xs font-bold cursor-not-allowed text-neutral-500"
           />
 
         </div>

@@ -282,3 +282,35 @@ export async function updateOrderItemProgress(
 
     return { success: true }
 }
+
+// Get employee assignments
+export async function getEmployeeAssignments(employeeId: string) {
+    const supabase = await createClient()
+  
+    const { data, error } = await supabase
+      .from('employee_assignments')
+      .select(`
+        id,
+        status,
+        assigned_at,
+        order_items (
+          id,
+          order_id,
+          status,
+          progress_percent,
+          step,
+          stacks ( id, name, type ),
+          orders!order_items_order_id_fkey (
+            id,
+            subscription_duration,
+            subscription_status,
+            is_recurring,
+            created_at
+          )
+        )
+      `)
+      .eq('employee_id', employeeId)
+      .order('assigned_at', { ascending: false })
+  
+    return { data, error }
+  }
