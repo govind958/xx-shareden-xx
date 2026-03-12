@@ -22,6 +22,10 @@ export async function getOrdersWithStacks(
       subscription_duration,
       is_recurring,
       subscription_status,
+      discount_amount,
+      coupon_id,
+      payment_method,
+      payment_id,
       order_items (
         id,
         stack_id,
@@ -73,6 +77,10 @@ export async function getOrdersWithStacks(
       subscription_duration?: SubscriptionLimit;
       is_recurring?: boolean;
       subscription_status?: string | null;
+      discount_amount?: number;
+      coupon_id?: string | null;
+      payment_method?: string | null;
+      payment_id?: string | null;
     };
 
     return {
@@ -82,6 +90,10 @@ export async function getOrdersWithStacks(
       subscription_duration: baseOrder.subscription_duration,
       is_recurring: baseOrder.is_recurring,
       subscription_status: baseOrder.subscription_status,
+      discount_amount: baseOrder.discount_amount,
+      coupon_id: baseOrder.coupon_id,
+      payment_method: baseOrder.payment_method,
+      payment_id: baseOrder.payment_id,
       stacks: activeOrderItems.map((item) => ({
         id: item.id,
         stack_id: item.stack_id,

@@ -11,18 +11,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  MapPin,
-  Pencil
 } from "lucide-react";
 import { OrderWithStacks, PurchasedStack, BillingAddress } from "@/src/types/billing";
 import {
-  formatSubscriptionCycle,
   calculateNextPayment,
   cancelSubscription,
   getOrdersWithStacks,
   getBillingAddress
 } from "@/src/modules/billing";
 import { useAuth } from "@/src/context/AuthContext";
+import { generateInvoice } from "@/src/modules/billing/generateInvoice";
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -238,7 +236,14 @@ const BillingPage: FC = () => {
                         ₹{stack.base_price.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-300 hover:text-blue-600 transition-all">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (parentOrder) generateInvoice(parentOrder, billingAddress);
+                          }}
+                          className="p-2 text-slate-300 hover:text-blue-600 transition-all"
+                          title="Download Invoice"
+                        >
                           <Download size={18} />
                         </button>
                       </td>

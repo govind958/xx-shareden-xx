@@ -34,6 +34,10 @@ export interface OrderWithStacks {
   subscription_duration?: SubscriptionLimit;
   is_recurring?: boolean;
   subscription_status?: string | null;
+  discount_amount?: number;
+  coupon_id?: string | null;
+  payment_method?: string | null;
+  payment_id?: string | null;
   stacks: PurchasedStack[];
 }
 
