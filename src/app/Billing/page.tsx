@@ -100,9 +100,9 @@ const BillingPage: FC = () => {
             <h1 className="text-2xl font-bold tracking-tight text-[#1A365D]">Billing & Subscriptions</h1>
             <p className="text-slate-500 text-sm mt-1">Manage your workspace plans and payment history.</p>
           </div>
-          <button className="px-5 py-2.5 text-sm font-bold text-white bg-[#2B6CB0] rounded shadow-md hover:bg-[#1A365D] transition-all active:scale-95">
+          {/* <button className="px-5 py-2.5 text-sm font-bold text-white bg-[#2B6CB0] rounded shadow-md hover:bg-[#1A365D] transition-all active:scale-95">
             Upgrade Plan
-          </button>
+          </button> */}
         </div>
 
         {/* Stats Grid */}
