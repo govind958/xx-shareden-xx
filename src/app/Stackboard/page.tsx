@@ -356,7 +356,7 @@ export default function Stackboard() {
         {/* Content Wrapper (Messages + Info Panel) */}
         <div className="flex-1 flex overflow-hidden">
           {/* Messages Dashboard */}
-          <div className="flex-1 min-w-0 relative">
+          <div className="flex-1 min-w-0 relative flex flex-col">
             <MessageDashboard
               activeStackId={selectedStackId}
               activeStackName={selectedStackName}

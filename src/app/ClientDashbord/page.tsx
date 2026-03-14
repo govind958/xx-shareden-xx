@@ -13,14 +13,10 @@ import {
 import { useAuth } from '@/src/context/AuthContext';
 import { getPurchasedStacks } from '@/src/modules/stack_board/action';
 import { PURCHASED_STACKS } from '@/src/modules/stack_board/types';
-
-/* ---------------- BRAND COLORS ---------------- */
-const BRAND_PRIMARY = "#1A365D"
-const BRAND_ACTION = "#2B6CB0"
-const BRAND_TEAL = "#319795"
-const BRAND_BG = "#F7FAFC"
-const BRAND_SUCCESS = "#38A169"
-const BRAND_ERROR = "#E53E3E"
+import SupportModal from '@/src/components/SupportModal';
+import { getSupportTicketCounts } from '@/src/modules/support/action';
+import { getSupportTickets } from '@/src/modules/support/action';
+import { SUPPORT_TICKETS } from "@/src/types/support";
 
 /* ---------------- STYLE HELPERS ---------------- */
 const STAT_CARD =
@@ -44,9 +40,12 @@ const LoadingPage = () => (
 
 export default function DashboardPage() {
   const [initialLoading, setInitialLoading] = useState(true);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const [stacks, setStacks] = useState<PURCHASED_STACKS[]>([]);
-
+  const [openIssues, setOpenIssues] = useState(0);
+  const [closedIssues, setClosedIssues] = useState(0);  
+  const [tickets, setTickets] = useState<SUPPORT_TICKETS[]>([]);
   // Simulate initial data fetch
   useEffect(() => {
     if (authLoading) return;
@@ -55,12 +54,18 @@ export default function DashboardPage() {
       return;
     }
     const fetchData = async () => {
-      try {
-        const data = await getPurchasedStacks(user.id);
+      try{
+        const [data, ticketCounts, tickets] = await Promise.all([
+          getPurchasedStacks(user.id),
+          getSupportTicketCounts(user.id),
+          getSupportTickets(user.id),
+        ]);
         setStacks(data);
-
+        setOpenIssues(ticketCounts.open);
+        setClosedIssues(ticketCounts.closed);
+        setTickets(tickets);
       } catch (err) {
-        console.error("Error fetching stacks", err);
+        console.error("Error fetching data", err);
       } finally {
         setInitialLoading(false);
       }
@@ -101,8 +106,8 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
             <StatCard label="Open Tasks" count={openTasks} color="blue" icon={<ClipboardList size={20} />} />
             <StatCard label="Closed Tasks" count={closedTasks} color="blue" icon={<ClipboardList size={20} />} />
-            <StatCard label="Open Issues" count={0} color="red" icon={<AlertCircle size={20} />} />
-            <StatCard label="Closed Issues" count={0} color="red" icon={<AlertCircle size={20} />} />
+            <StatCard label="Open Issues" count={openIssues} color="red" icon={<AlertCircle size={20} />} />
+            <StatCard label="Closed Issues" count={closedIssues} color="red" icon={<AlertCircle size={20} />} />
             <StatCard label="Open Phases" count={0} color="teal" icon={<Flag size={20} />} />
             <StatCard label="Closed Phases" count={0} color="teal" icon={<Flag size={20} />} />
           </div>
@@ -159,7 +164,50 @@ export default function DashboardPage() {
             <EmptyStateSection title="My Tasks" highlight="#2B6CB0" />
           )}
 
-          <EmptyStateSection title="My Issues" highlight="#E53E3E" />
+          {/* MY ISSUES SECTION (Updated) */}
+          {tickets.length > 0 ? (
+            <div className={SECTION_CARD}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 rounded-full bg-[#E53E3E]" />
+                  <h3 className="font-bold tracking-tight text-[#1A365D]">My Issues</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                     <span className="w-2 h-2 rounded-full bg-red-500"></span> Open ({openIssues})
+                   </div>
+                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                     <span className="w-2 h-2 rounded-full bg-slate-300"></span> Closed ({closedIssues})
+                   </div>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-200">
+                {tickets.map(ticket => {
+                  const isOpen = ticket.status === 'open';
+                  return (
+                    <div key={ticket.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#F7FAFC] border border-transparent hover:border-[#1A365D]/5 transition-all group cursor-pointer">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-red-50 text-red-500 group-hover:bg-red-100' : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100'}`}>
+                        <AlertCircle size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold truncate ${isOpen ? 'text-[#1A365D]' : 'text-slate-500'}`}>
+                          {ticket.title}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Last updated: {ticket.date}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide shrink-0 ${isOpen ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {ticket.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+             <EmptyStateSection title="My Issues" highlight="#E53E3E" />
+          )}
+
           <EmptyStateSection title="Due Today" highlight="#319795" />
           <EmptyStateSection title="Overdue" highlight="#E53E3E" />
         </section>
@@ -167,11 +215,27 @@ export default function DashboardPage() {
 
       {/* FLOATING SUPPORT */}
       <div className="fixed bottom-8 right-8">
-        <button className="bg-[#1A365D] text-white px-5 py-2.5 rounded-xl shadow-xl flex items-center gap-2 font-medium hover:bg-[#2B6CB0] transition-all text-sm">
+        <button
+          onClick={() => setShowSupportModal(true)}
+          className="bg-[#1A365D] text-white px-5 py-2.5 rounded-xl shadow-xl flex items-center gap-2 font-medium hover:bg-[#2B6CB0] transition-all text-sm"
+        >
           <HelpCircle size={18} />
           Support
         </button>
       </div>
+
+      {/* SUPPORT MODAL */}
+      {showSupportModal && user && (
+        <SupportModal
+          userId={user.id}
+          onClose={async () => {
+            setShowSupportModal(false);
+            const counts = await getSupportTicketCounts(user.id);
+            setOpenIssues(counts.open);
+            setClosedIssues(counts.closed);
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -270,3 +334,4 @@ function EmptyStateSection({
     </div>
   )
 }
+
