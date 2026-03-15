@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MessageSquare, X, Paperclip, Loader2, CheckCircle } from "lucide-react";
 import { createSupportTicket } from "@/src/modules/support/action";
+import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
+
+const ACCEPT_ATTACHMENTS = "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/json";
+const MAX_ATTACHMENT_MB = 10;
 
 interface SupportModalProps {
   onClose: () => void;
@@ -13,6 +17,8 @@ interface SupportModalProps {
 export default function SupportModal({ onClose, userId }: SupportModalProps) {
     const [step, setStep] = useState<'form' | 'submitting' | 'success'>('form');
     const [ticketId, setTicketId] = useState<number | null>(null);
+    const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [formData, setFormData] = useState({
       subject: '',
       category: 'technical',
@@ -28,12 +34,29 @@ export default function SupportModal({ onClose, userId }: SupportModalProps) {
       }
       setStep('submitting');
 
+      let attachmentUrl: string | null = null;
+      if (attachmentFile) {
+        const supabase = createClient();
+        const filePath = `${userId}/${Date.now()}_${attachmentFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('support-attachments')
+          .upload(filePath, attachmentFile, { upsert: false });
+        if (uploadError) {
+          setStep('form');
+          toast.error("Failed to upload attachment. " + (uploadError.message || "Please try again."));
+          return;
+        }
+        const { data: urlData } = supabase.storage.from('support-attachments').getPublicUrl(filePath);
+        attachmentUrl = urlData.publicUrl;
+      }
+
       const fd = new FormData();
       fd.set('user_id', userId);
       fd.set('subject', formData.subject);
       fd.set('category', formData.category);
       fd.set('priority', formData.priority);
       fd.set('description', formData.description);
+      if (attachmentUrl) fd.set('attachment_url', attachmentUrl);
 
       const result = await createSupportTicket(fd);
 
@@ -44,6 +67,23 @@ export default function SupportModal({ onClose, userId }: SupportModalProps) {
         setStep('form');
         toast.error(result.error ?? "Failed to submit ticket. Please try again.");
       }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+        toast.error(`File must be under ${MAX_ATTACHMENT_MB}MB`);
+        e.target.value = "";
+        return;
+      }
+      setAttachmentFile(file);
+      e.target.value = "";
+    };
+
+    const clearAttachment = () => {
+      setAttachmentFile(null);
+      fileInputRef.current?.value && (fileInputRef.current.value = "");
     };
   
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -125,7 +165,7 @@ export default function SupportModal({ onClose, userId }: SupportModalProps) {
                   </div>
   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex justify-between">
+                    <label className="flex text-sm font-medium text-gray-700 mb-1 justify-between">
                       Description
                       <span className="text-gray-400 font-normal">Required</span>
                     </label>
@@ -140,14 +180,36 @@ export default function SupportModal({ onClose, userId }: SupportModalProps) {
                     ></textarea>
                   </div>
   
-                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPT_ATTACHMENTS}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      aria-label="Attach file"
+                    />
                     <button 
                       type="button" 
+                      onClick={() => fileInputRef.current?.click()}
                       className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
                     >
                       <Paperclip size={16} />
-                      Attach file (Optional)
+                      Attach file (Optional, max {MAX_ATTACHMENT_MB}MB)
                     </button>
+                    {attachmentFile && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                        <span className="truncate flex-1">{attachmentFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={clearAttachment}
+                          className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                          aria-label="Remove attachment"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </form>
               </div>

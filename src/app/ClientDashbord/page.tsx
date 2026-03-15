@@ -17,6 +17,7 @@ import SupportModal from '@/src/components/SupportModal';
 import { getSupportTicketCounts } from '@/src/modules/support/action';
 import { getSupportTickets } from '@/src/modules/support/action';
 import { SUPPORT_TICKETS } from "@/src/types/support";
+import { useRouter } from 'next/navigation';
 
 /* ---------------- STYLE HELPERS ---------------- */
 const STAT_CARD =
@@ -39,6 +40,7 @@ const LoadingPage = () => (
 );
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [initialLoading, setInitialLoading] = useState(true);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -98,7 +100,8 @@ export default function DashboardPage() {
               Key Performance Indicators
             </h2>
 
-            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline">
+            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline" 
+            onClick={() => router.push('/private?tab=stackboard')}>
               View Detailed Analytics <ChevronRight size={14} />
             </button>
           </div>
