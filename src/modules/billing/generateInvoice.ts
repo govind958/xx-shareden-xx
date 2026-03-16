@@ -25,7 +25,9 @@ function buildInvoiceHTML(
   const discount = order.discount_amount ?? 0;
   const taxableAmount = Math.max(0, subtotal - discount);
   const gst = taxableAmount * GST_RATE;
-  const total = taxableAmount + gst;
+  const calculatedTotal = taxableAmount + gst;
+  // Use actual paid amount from order (cart/payment already includes GST)
+  const total = order.total_amount ?? calculatedTotal;
 
   const addressLines: string[] = [];
   if (billingAddress) {
@@ -37,16 +39,40 @@ function buildInvoiceHTML(
     if (billingAddress.phone) addressLines.push("Phone: " + billingAddress.phone);
   }
 
+  let rowNum = 0;
   const itemRows = order.stacks
-    .map(
-      (stack, i) => `
-        <tr>
-          <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;">${i + 1}</td>
-          <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#0f172a; font-weight:600; font-size:13px;">${stack.stack_name}</td>
-          <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px;">${stack.stack_type ?? "\u2014"}</td>
-          <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:13px; width:140px;">${fmt(stack.base_price)}</td>
-        </tr>`
-    )
+    .flatMap((stack) => {
+      const hasSubStacks = stack.sub_stacks && stack.sub_stacks.length > 0;
+      const rows: string[] = [];
+
+      if (hasSubStacks) {
+        rows.push(`
+          <tr>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;">${++rowNum}</td>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#0f172a; font-weight:600; font-size:13px;">${stack.stack_name}</td>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px;">${stack.stack_type ?? "\u2014"}</td>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:13px; width:140px;">${fmt(stack.base_price)}</td>
+          </tr>`);
+        for (const sub of stack.sub_stacks!) {
+          rows.push(`
+          <tr>
+            <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;"></td>
+            <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; color:#475569; font-size:12px; padding-left:28px;">↳ ${sub.name}</td>
+            <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:12px;">Add-on</td>
+            <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:12px; width:140px;">${fmt(sub.price)}</td>
+          </tr>`);
+        }
+      } else {
+        rows.push(`
+          <tr>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;">${++rowNum}</td>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#0f172a; font-weight:600; font-size:13px;">${stack.stack_name}</td>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px;">${stack.stack_type ?? "\u2014"}</td>
+            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:13px; width:140px;">${fmt(stack.base_price)}</td>
+          </tr>`);
+      }
+      return rows;
+    })
     .join("");
 
   const discountRow = discount > 0

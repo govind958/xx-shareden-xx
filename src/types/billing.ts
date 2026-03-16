@@ -41,6 +41,12 @@ export interface OrderWithStacks {
   stacks: PurchasedStack[];
 }
 
+export interface PurchasedSubStack {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface PurchasedStack {
   id: string;
   stack_id: string;
@@ -51,6 +57,7 @@ export interface PurchasedStack {
   created_at: string;
   order_id: string;
   base_price: number;
+  sub_stacks?: PurchasedSubStack[];
 }
 
 export interface BillingAddress {

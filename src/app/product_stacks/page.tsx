@@ -131,7 +131,7 @@ export default function ProductStacksPage() {
 
         {/* STACK LIBRARY */}
 
-        <section className="max-w-7xl mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <section className=" mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
 
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
 

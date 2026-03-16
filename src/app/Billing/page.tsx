@@ -79,8 +79,16 @@ const BillingPage: FC = () => {
     return calculateNextPayment(stack.created_at, duration);
   };
 
-  // Computed stats from real data
-  const totalBalance = purchasedStacks.reduce((sum, s) => sum + s.base_price, 0);
+  // Sum each active stack's proportional share of its order total (already includes GST)
+  const totalBalance = purchasedStacks.reduce((sum, stack) => {
+    const parentOrder = orders.find(o => o.id === stack.order_id);
+    if (!parentOrder) return sum;
+    const orderBaseSum = parentOrder.stacks.reduce((s, st) => s + st.base_price, 0);
+    const stackShare = orderBaseSum > 0
+      ? (stack.base_price / orderBaseSum) * parentOrder.total_amount
+      : 0;
+    return sum + stackShare;
+  }, 0);
   const activeCount = purchasedStacks.length;
   const nearestRenewalDays = purchasedStacks.length > 0
     ? Math.min(...purchasedStacks.map(s => getBillingInfo(s).days))
@@ -199,6 +207,13 @@ const BillingPage: FC = () => {
                   const isRecurring = parentOrder?.is_recurring || !!parentOrder?.subscription_status;
                   const statusLabel = stack.status === "active" ? "Active" : stack.status.charAt(0).toUpperCase() + stack.status.slice(1);
                   const isActive = stack.status === "active";
+
+                  // Proportional share of order total (which already includes GST)
+                  const orderTotal = parentOrder?.total_amount ?? 0;
+                  const orderBaseSum = parentOrder?.stacks.reduce((s, st) => s + st.base_price, 0) ?? 1;
+                  const stackPayable = orderBaseSum > 0
+                    ? (stack.base_price / orderBaseSum) * orderTotal
+                    : stack.base_price;
                   return (
                     <tr
                       key={stack.id}
@@ -233,7 +248,7 @@ const BillingPage: FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-slate-800">
-                        ₹{stack.base_price.toFixed(2)}
+                        ₹{stackPayable.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button

@@ -112,7 +112,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
                 setIsEditing(true);
               }}
             >
-              BUILD STACK
+              {label || 'Build Stack'}
             </span>
           )}
 

@@ -112,7 +112,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
 
       if (error) throw error;
 
-      router.push('/Stacks_Cart');
+      router.push('/private?tab=stacks_cart');
 
     } catch (err) {
 
