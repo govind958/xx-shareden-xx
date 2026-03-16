@@ -4,7 +4,17 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { sendStatusNotificationEmail, type OrderStatus } from '@/src/modules/email/send-status-notification'
+import {
+        sendEmployeeInviteEmail,
+        sendAdminNewEmployeeNotification,
+        sendEmployeeApprovalEmail,
+    } from "@/src/modules/email/send-employee-invite";
+import { randomBytes } from "crypto";
+
+// Generate a secure invite token
+function generateInviteToken(): string {
+    return randomBytes(32).toString("hex");
+  }
 
 // Employee signup - Uses Supabase Auth with auto-confirmed email
 export async function employeeSignup(formData: FormData) {
@@ -14,16 +24,40 @@ export async function employeeSignup(formData: FormData) {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const employeeRole = formData.get('role') as string
+    const inviteToken = formData.get('invite_token') as string
 
     if (!name || !email || !password || !employeeRole) {
         redirect('/Employee_portal/signup?error=missing_fields')
     }
 
+    if (!inviteToken) {
+        redirect('/Employee_portal/signup?error=invalid_invite')
+    }
+
+    // Check if invitation exists and is valid
+    const { data: invitation, error: inviteError } = await supabase
+        .from('employee_invitations')
+        .select('id, email, status')
+        .eq('invite_token', inviteToken)
+        .eq('status', 'pending')
+        .single()
+
+    if (inviteError || !invitation) {
+        redirect('/Employee_portal/signup?error=invalid_invite')
+    }
+
+    // Ensure email matches invitation
+    const normalizedEmail = email.toLowerCase().trim();
+    if (invitation.email !== normalizedEmail) {
+        redirect("/Employee_portal/signup?error=invalid_invite");
+    }
+
+
     // Check if email already exists in employees table
     const { data: existing } = await supabase
         .from('employees')
         .select('id')
-        .eq('email', email.toLowerCase().trim())
+        .eq('email', normalizedEmail)
         .single()
 
     if (existing) {
@@ -34,7 +68,7 @@ export async function employeeSignup(formData: FormData) {
     const adminClient = createAdminClient()
     
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password: password,
         email_confirm: true, // Auto-confirm email for employees
         user_metadata: {
@@ -49,15 +83,16 @@ export async function employeeSignup(formData: FormData) {
         redirect('/Employee_portal/signup?error=auth_failed')
     }
 
-    // Create employee record linked to auth user
+    // Create employee record linked to auth user (pending approval)
     const { error: insertError } = await adminClient
         .from('employees')
         .insert({
             id: authData.user.id,
             name: name.trim(),
-            email: email.toLowerCase().trim(),
+            email: normalizedEmail,
             role: employeeRole.trim(),
-            is_active: true,
+            is_active: false,
+            approval_status: 'pending',
         })
 
     if (insertError) {
@@ -67,14 +102,24 @@ export async function employeeSignup(formData: FormData) {
         redirect('/Employee_portal/signup?error=creation_failed')
     }
 
-    // Sign in the user after signup
-    await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password: password,
-    })
+    // Mark invitation as accepted
+    await adminClient
+        .from("employee_invitations")
+        .update({ status: "accepted" })
+        .eq("id", invitation.id);
+
+          // Notify admin (get first admin email - you may want to fetch from admin_users)
+  const { data: adminUser } = await adminClient
+  .from("admin_users")
+  .select("email")
+  .eq("is_active", true)
+  .limit(1)
+  .single();
+const adminEmail = adminUser?.email || process.env.SMTP_USER || "";
+await sendAdminNewEmployeeNotification(name.trim(), normalizedEmail, adminEmail);
 
     revalidatePath('/Employee_portal', 'layout')
-    redirect('/Employee_portal')
+    redirect('/Employee_portal/pending-approval')
 }
 
 // Employee login - Uses Supabase Auth and verifies employee role
@@ -99,18 +144,26 @@ export async function employeeLogin(formData: FormData) {
         redirect('/Employee_portal/login?error=invalid_credentials')
     }
 
-    // Verify user is an employee (check employees table)
+    // Verify user is an employee (check employees table - query without is_active to detect pending/rejected)
     const { data: employee } = await supabase
         .from('employees')
-        .select('id, is_active')
+        .select('id, is_active, approval_status')
         .eq('id', authData.user.id)
-        .eq('is_active', true)
         .single()
 
     if (!employee) {
-        // Not an employee, sign them out
         await supabase.auth.signOut()
         redirect('/Employee_portal/login?error=not_employee')
+    }
+
+    if (!employee.is_active && employee.approval_status === 'pending') {
+        await supabase.auth.signOut()
+        redirect('/Employee_portal/login?error=pending_approval')
+    }
+
+    if (!employee.is_active || employee.approval_status === 'rejected') {
+        await supabase.auth.signOut()
+        redirect('/Employee_portal/login?error=account_rejected')
     }
 
     revalidatePath('/Employee_portal', 'layout')
@@ -326,3 +379,134 @@ export async function updateOrderItemProgress(
 
     return { success: true }
 }
+
+// Get employee assignments
+export async function getEmployeeAssignments(employeeId: string) {
+    const supabase = await createClient()
+  
+    const { data, error } = await supabase
+      .from('employee_assignments')
+      .select(`
+        id,
+        status,
+        assigned_at,
+        order_items (
+          id,
+          order_id,
+          status,
+          progress_percent,
+          step,
+          stacks ( id, name, type ),
+          orders!order_items_order_id_fkey (
+            id,
+            subscription_duration,
+            subscription_status,
+            is_recurring,
+            created_at
+          )
+        )
+      `)
+      .eq('employee_id', employeeId)
+      .order('assigned_at', { ascending: false })
+  
+    return { data, error }
+  }
+
+  // Admin: Send Employee invitation
+
+  export async function sendEmployeeInvite(email: string): Promise<{ success: boolean; error?: string }> {
+    const adminClient = createAdminClient()
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const {data: existingEmp} = await adminClient
+    .from("employees")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .single()
+
+    if (existingEmp) {
+        return { success: false, error: 'Employee already exists' }
+    }
+
+    const { data: pendingInvite } = await adminClient
+    .from("employee_invitations")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .eq("status", "pending")
+    .gt("expires_at", new Date().toISOString())
+    .single();
+  if (pendingInvite) {
+    return { success: false, error: "An invitation for this email is already pending" };
+  }
+
+  const inviteToken = generateInviteToken();
+  const { error: insertError } = await adminClient.from("employee_invitations").insert({
+    email: normalizedEmail,
+    invite_token: inviteToken,
+    status: "pending",
+  });
+
+  if (insertError) {
+    return { success: false, error: insertError.message };
+  }
+
+  const result = await sendEmployeeInviteEmail(normalizedEmail, inviteToken);
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to send email" };
+  }
+  return { success: true };
+}
+
+// Validate invite token (for signup page)
+export async function validateInviteToken(token: string): Promise<{ email: string } | null> {
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from("employee_invitations")
+      .select("email")
+      .eq("invite_token", token)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
+      .single();
+    if (error || !data) return null;
+    return { email: data.email };
+  }
+
+// Admin: Approve employee
+export async function approveEmployee(employeeId: string): Promise<{ success: boolean; error?: string }> {
+    const adminClient = createAdminClient();
+    const { data: emp, error: fetchError } = await adminClient
+      .from("employees")
+      .select("id, email")
+      .eq("id", employeeId)
+      .single();
+    if (fetchError || !emp) return { success: false, error: "Employee not found" };
+  
+    const { error: updateError } = await adminClient
+      .from("employees")
+      .update({ is_active: true, approval_status: "approved" })
+      .eq("id", employeeId);
+    if (updateError) return { success: false, error: updateError.message };
+  
+    await sendEmployeeApprovalEmail(emp.email, true);
+    return { success: true };
+  }
+
+// Admin: Reject employee
+export async function rejectEmployee(employeeId: string): Promise<{ success: boolean; error?: string }> {
+    const adminClient = createAdminClient();
+    const { data: emp, error: fetchError } = await adminClient
+      .from("employees")
+      .select("id, email")
+      .eq("id", employeeId)
+      .single();
+    if (fetchError || !emp) return { success: false, error: "Employee not found" };
+  
+    const { error: updateError } = await adminClient
+      .from("employees")
+      .update({ is_active: false, approval_status: "rejected" })
+      .eq("id", employeeId);
+    if (updateError) return { success: false, error: updateError.message };
+  
+    await sendEmployeeApprovalEmail(emp.email, false);
+    return { success: true };
+  }

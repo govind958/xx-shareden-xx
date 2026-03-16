@@ -1,5 +1,3 @@
-"use client"
-
 import React from 'react';
 import { 
   Activity, 
@@ -9,6 +7,8 @@ import {
   ArrowUpRight, 
   MoreHorizontal 
 } from 'lucide-react';
+import { getEmployeeAssignments, verifyEmployeeSession } from '@/src/modules/employee/actions';
+import { redirect } from 'next/navigation';
 
 const StatCard = ({ title, value, change, icon: Icon, trend: TrendIcon }: any) => (
   <div className="bg-white dark:bg-black border border-neutral-200 dark:border-neutral-800 p-6 rounded-none">
@@ -25,7 +25,12 @@ const StatCard = ({ title, value, change, icon: Icon, trend: TrendIcon }: any) =
   </div>
 );
 
-const Dashboard = () => {
+export default async function Dashboard() {
+  const { isValid, employee } = await verifyEmployeeSession();
+  if (!isValid || !employee) redirect('/Employee_portal/login');
+
+  const { data: assignments } = await getEmployeeAssignments(employee.id);
+
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
@@ -42,7 +47,7 @@ const Dashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Active Nodes" value="1,284" change="+12%" icon={Server} trend={ArrowUpRight} />
+        <StatCard title="Active Nodes" value={assignments?.length} change="+12%" icon={Server} trend={ArrowUpRight} />
         <StatCard title="Power Load" value="84.2%" change="+2.4%" icon={Zap} trend={ArrowUpRight} />
         <StatCard title="Security Index" value="99.9%" change="Stable" icon={ShieldCheck} trend={Activity} />
         <StatCard title="Bandwidth" value="4.2gb/s" change="+18%" icon={Activity} trend={ArrowUpRight} />
@@ -53,7 +58,7 @@ const Dashboard = () => {
         {/* Activity Feed */}
         <div className="lg:col-span-2 bg-white dark:bg-black border border-neutral-200 dark:border-neutral-800">
           <div className="p-6 border-b border-neutral-100 dark:border-neutral-900 flex justify-between items-center">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">System logs</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">My Orders</h3>
             <button className="text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
               <MoreHorizontal size={16} />
             </button>
@@ -62,29 +67,41 @@ const Dashboard = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-neutral-100 dark:border-neutral-900">
-                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">ID</th>
-                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Event</th>
+                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Stack</th>
                   <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Status</th>
-                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Time</th>
+                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Progress</th>
+                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Duration</th>
+                  <th className="p-4 text-[9px] font-black uppercase text-neutral-400">Assigned</th>
                 </tr>
               </thead>
               <tbody className="text-xs font-mono">
-                {[
-                  { id: '0X441', event: 'Primary Uplink Established', status: 'Success', time: '12:00:14' },
-                  { id: '0X442', event: 'Sub-layer Encryption', status: 'Active', time: '11:58:22' },
-                  { id: '0X443', event: 'Protocol Divergence', status: 'Warning', time: '11:45:01' },
-                ].map((row, i) => (
-                  <tr key={i} className="border-b border-neutral-50 dark:border-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors">
-                    <td className="p-4 text-teal-500">{row.id}</td>
-                    <td className="p-4 dark:text-neutral-300">{row.event}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 text-[8px] font-black uppercase ${row.status === 'Warning' ? 'bg-red-500/10 text-red-500' : 'bg-teal-500/10 text-teal-500'}`}>
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-neutral-400">{row.time}</td>
+                {(!assignments || assignments.length === 0) ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-neutral-400">No orders assigned yet.</td>
                   </tr>
-                ))}
+                ) : (
+                  assignments.map((a: any) => (
+                    <tr key={a.id} className="border-b border-neutral-50 dark:border-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors">
+                      <td className="p-4 text-teal-500 font-bold">{a.order_items?.stacks?.name ?? 'Unknown'}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 text-[8px] font-black uppercase ${
+                          a.order_items?.status === 'completed' ? 'bg-teal-500/10 text-teal-500' :
+                          a.order_items?.status === 'cancelled' ? 'bg-red-500/10 text-red-500' :
+                          'bg-blue-500/10 text-blue-500'
+                        }`}>
+                          {a.order_items?.status?.replace('_', ' ') ?? '—'}
+                        </span>
+                      </td>
+                      <td className="p-4 dark:text-neutral-300">{a.order_items?.progress_percent ?? 0}%</td>
+                      <td className="p-4 dark:text-neutral-300">
+                        {a.order_items?.orders?.is_recurring
+                          ? (a.order_items.orders.subscription_duration ?? 'Recurring')
+                          : 'One-time'}
+                      </td>
+                      <td className="p-4 text-neutral-400">{new Date(a.assigned_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -117,6 +134,4 @@ const Dashboard = () => {
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

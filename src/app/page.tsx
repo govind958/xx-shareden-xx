@@ -51,7 +51,8 @@ const StackboardClassic: FC = () => {
             </Link>
           </div>
         </div>
-        </nav>
+      </nav>
+
       <main>
         {/* HERO */}
         <section className="py-20 md:py-32 px-6 bg-white border-b border-slate-100">
