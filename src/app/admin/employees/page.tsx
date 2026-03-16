@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from "react"
 import { createClient } from '@/utils/supabase/client'
 import { 
-  Users, UserCheck, Activity, Filter, 
+  Users, UserCheck, Filter, 
   ChevronRight, X, Mail, Trash2, Code2, 
-  Terminal, Cpu, Globe, ExternalLink
+  Terminal, Cpu, Globe, ExternalLink, Check, Clock
 } from "lucide-react"
+
+import { sendEmployeeInvite } from "@/src/modules/employee/actions";
+import { approveEmployee, rejectEmployee } from "@/src/modules/admin/employee-actions";
+import { toast } from "sonner";
 
 // --- TYPES ---
 type Employee = {
@@ -25,6 +29,8 @@ export default function AdminEmployeesPage() {
   const [loading, setLoading] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [pendingEmployees, setPendingEmployees] = useState<Employee[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -33,16 +39,12 @@ export default function AdminEmployeesPage() {
 
   async function fetchEmployees() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error fetching employees:", error);
-    } else {
-      setEmployees(data || []);
-    }
+    const [empRes, pendingRes] = await Promise.all([
+      supabase.from("employees").select("*").order("created_at", { ascending: false }),
+      supabase.from("employees").select("*").eq("is_active", false).eq("approval_status", "pending").order("created_at", { ascending: false }),
+    ]);
+    if (!empRes.error) setEmployees(empRes.data || []);
+    if (!pendingRes.error) setPendingEmployees(pendingRes.data || []);
     setLoading(false);
   }
 
@@ -67,13 +69,35 @@ export default function AdminEmployeesPage() {
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you'd insert into Supabase here
-    // For now, we'll simulate the UI addition
-    setIsPanelOpen(false);
-    setEmail("");
-    fetchEmployees(); // Refresh list
+    if (!email.trim()) return;
+    setInviteLoading(true);
+    const result = await sendEmployeeInvite(email.trim());
+    setInviteLoading(false);
+    if (result.success) {
+      toast.success("Invitation sent successfully");
+      setIsPanelOpen(false);
+      setEmail("");
+      fetchEmployees();
+    } else {
+      toast.error(result.error || "Failed to send invitation");
+    }
   };
 
+  const handleApprove = async (id: string) => {
+    const result = await approveEmployee(id);
+    if (result.success) {
+      toast.success("Employee approved");
+      fetchEmployees();
+    } else toast.error(result.error);
+  };
+  const handleReject = async (id: string) => {
+    const result = await rejectEmployee(id);
+    if (result.success) {
+      toast.success("Employee rejected");
+      fetchEmployees();
+    } else toast.error(result.error);
+  };
+  
   return (
     <div className="relative min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30 overflow-x-hidden">
       
@@ -104,14 +128,53 @@ export default function AdminEmployeesPage() {
                 />
               </div>
             </div>
-            <button className="w-full py-5 bg-teal-600 text-black rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] hover:bg-teal-400 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-teal-900/20">
-              Execute Invitation
+            <button
+              type="submit"
+              disabled={inviteLoading}
+              className="w-full py-5 bg-teal-600 text-black rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] hover:bg-teal-400 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-teal-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {inviteLoading ? "Sending..." : "Execute Invitation"}
             </button>
           </form>
         </div>
       </aside>
 
       <main className="max-w-[1600px] mx-auto p-8 lg:p-16 space-y-12">
+        {/* Pending Approvals Section */}
+{pendingEmployees.length > 0 && (
+  <section className="bg-amber-500/5 border border-amber-500/20 rounded-[32px] p-8">
+    <h2 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+      <Clock size={20} /> Pending Approvals ({pendingEmployees.length})
+    </h2>
+    <div className="space-y-4">
+      {pendingEmployees.map((emp) => (
+        <div
+          key={emp.id}
+          className="flex items-center justify-between bg-black/30 rounded-xl p-4 border border-amber-500/10"
+        >
+          <div>
+            <p className="font-bold text-white">{emp.name}</p>
+            <p className="text-sm text-neutral-500">{emp.email}</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleApprove(emp.id)}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-bold hover:bg-teal-500"
+            >
+              <Check size={14} /> Approve
+            </button>
+            <button
+              onClick={() => handleReject(emp.id)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600/80 text-white rounded-lg text-sm font-bold hover:bg-red-500"
+            >
+              <X size={14} /> Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
         
         {/* 2. HEADER SECTION */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">

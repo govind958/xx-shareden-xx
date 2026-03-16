@@ -42,7 +42,9 @@ export async function updateSession(request: NextRequest) {
   // Skip auth check for employee portal auth routes (handled via employee sessions)
   const isEmployeeAuthRoute =
     request.nextUrl.pathname.startsWith('/Employee_portal/login') ||
-    request.nextUrl.pathname.startsWith('/Employee_portal/signup')
+    request.nextUrl.pathname.startsWith('/Employee_portal/signup') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/pending-approval')
+    
 
   if (
     !user &&

@@ -20,6 +20,12 @@ export default function EmployeeLoginPage() {
       setErrorMessage("Invalid email or password.");
     } else if (error === "session_error") {
       setErrorMessage("Failed to create session. Please try again.");
+    } else if(error === "pending_approval") {
+      setErrorMessage("Your account is pending admin approval. Please wait for approval.");
+    } else if (error === "account_rejected") {
+      setErrorMessage("Your account request was rejected. Please contact your administrator.");
+    } else if (error === "not_employee") {
+      setErrorMessage("You are not registered as an employee. Please use the correct login portal.");
     }
   }, [error]);
 
