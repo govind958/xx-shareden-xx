@@ -100,8 +100,25 @@ export default function Stackboard() {
         table: 'order_items',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        const updatedItem = payload.new as any;
+        const updatedItem = payload.new as { id: string; is_active?: boolean; status?: string; progress_percent?: number };
         console.log('[Stackboard] Order item updated:', updatedItem);
+
+        // If order item was cancelled (is_active = false), remove it from the list
+        if (updatedItem.is_active === false) {
+          setPurchasedStacks(prev => {
+            const next = prev.filter(stack => stack.id !== updatedItem.id);
+            if (next.length > 0 && activeStackIdRef.current === updatedItem.id) {
+              setSelectedStackId(next[0].id);
+              setSelectedStackName(next[0].name);
+            } else if (next.length === 0) {
+              setSelectedStackId(null);
+              setSelectedStackName('Select a Stack');
+            }
+            return next;
+          });
+          toast('A subscription was cancelled and removed from your tasks.');
+          return;
+        }
 
         // Update the purchasedStacks state
         setPurchasedStacks(prev => prev.map(stack =>
@@ -121,8 +138,8 @@ export default function Stackboard() {
           'processing': '📋 Your order is being processed',
         };
 
-        if (statusMessages[updatedItem.status]) {
-          toast(statusMessages[updatedItem.status]);
+        if (statusMessages[updatedItem.status || '']) {
+          toast(statusMessages[updatedItem.status || '']);
         }
       })
       .subscribe((status) => {

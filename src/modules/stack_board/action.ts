@@ -26,7 +26,8 @@ export const getPurchasedStacks = async (userId: string) => {
                 type
             )
         `)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("is_active", true);
 
     if (error) {
         console.error("Error fetching order_items:", error);
@@ -100,7 +101,7 @@ export const getPurchasedSubStacks = async (orderItemId: string) => {
     return subStacks.map((subStack, index) => {
         let status: 'completed' | 'current' | 'pending' = 'pending';
 
-        // Determine status based on step/index
+        // Determine status based on step/indexn
         if (index + 1 < currentStep) {
             status = 'completed';
         } else if (index + 1 === currentStep) {
