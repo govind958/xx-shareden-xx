@@ -2,6 +2,13 @@
 
 import { createClient } from "@/utils/supabase/server";
 
+
+interface AssignedEmployee {
+    name: string;
+    role: string;
+    specialization: string;
+    assigned_at: string | null;
+}
 export const getPurchasedStacks = async (userId: string) => {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -12,6 +19,7 @@ export const getPurchasedStacks = async (userId: string) => {
             status,
             sub_stack_ids,
             progress_percent,
+            created_at,
             stacks (
                 id,
                 name,
@@ -19,7 +27,8 @@ export const getPurchasedStacks = async (userId: string) => {
                 type
             )
         `)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("is_active", true);
 
     if (error) {
         console.error("Error fetching order_items:", error);
@@ -93,7 +102,7 @@ export const getPurchasedSubStacks = async (orderItemId: string) => {
     return subStacks.map((subStack, index) => {
         let status: 'completed' | 'current' | 'pending' = 'pending';
 
-        // Determine status based on step/index
+        // Determine status based on step/indexn
         if (index + 1 < currentStep) {
             status = 'completed';
         } else if (index + 1 === currentStep) {
@@ -106,3 +115,33 @@ export const getPurchasedSubStacks = async (orderItemId: string) => {
         };
     });
 };
+
+export const getAssignedEmployee = async(orderItemId: string) => {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from("employee_assignments")
+        .select(`employee_id, assigned_at, employees (name, role, specialization)`)
+        .eq("order_item_id", orderItemId)
+        .order("assigned_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    console.log("getAssignedEmployee for", orderItemId, "->", JSON.stringify(data), error);
+
+    if (error || !data?.employee_id) {
+        return null;
+    }
+
+    const emp = Array.isArray(data.employees) ? data.employees[0] : data.employees;
+
+    const result: AssignedEmployee = {
+        name: emp?.name || 'Unknown Employee',
+        role: emp?.role || 'Unknown Role',
+        specialization: emp?.specialization || 'Unknown Specialization',
+        assigned_at: data.assigned_at ?? null,
+    };
+
+    return result;
+}

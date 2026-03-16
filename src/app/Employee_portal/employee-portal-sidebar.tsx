@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
     <aside className={`h-screen bg-white dark:bg-black border-r border-neutral-200 dark:border-neutral-800 flex flex-col sticky top-0 transition-all duration-300 shrink-0 ${isCollapsed ? 'w-20' : 'w-64'}`}>
       {/* Header */}
       <div className={`p-6 border-b border-neutral-100 dark:border-neutral-900 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-        {!isCollapsed && <h2 className="text-lg font-black text-black dark:text-white tracking-tighter italic">INFRA_SYS</h2>}
+        {!isCollapsed && <h2 className="text-lg font-black text-black dark:text-white tracking-tighter italic">EMPLOYE_SYS</h2>}
         <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-xl text-neutral-500 transition-colors">
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
@@ -72,9 +72,9 @@ const Sidebar: React.FC<SidebarProps> = ({ darkMode, setDarkMode }) => {
       {/* Navigation */}
       <nav className="flex-1 mt-6">
         <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/Employee_portal/Dashboard" isCollapsed={isCollapsed} />
-        <SidebarItem icon={Users} label="Requests" to="/Employee_portal/Requests" isCollapsed={isCollapsed} />
+       
         <SidebarItem icon={FolderTree} label="Projects" to="/Employee_portal/Project" isCollapsed={isCollapsed} />
-        <SidebarItem icon={BugIcon} label="Task" to="/Employee_portal/Task" isCollapsed={isCollapsed} />
+       
         <SidebarItem icon={Moon} label="Employee_Task" to="/Employee_portal/Task_Working_Space" isCollapsed={isCollapsed} />
         <SidebarItem icon={Settings} label="Employee_Settings" to="/Employee_portal/Setting" isCollapsed={isCollapsed} />
       </nav>

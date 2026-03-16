@@ -1,5 +1,5 @@
 // Subscription Limit Type - matches database enum: subscription_duration
-export type SubscriptionLimit = '1 month' | '3 month' | '6 month';
+export type SubscriptionLimit = 'monthly' | 'yearly';
 
 // Core Product Stack Types
 export interface SubStack {
@@ -23,7 +23,6 @@ export interface Stack {
   author_id?: string
   created_at: string
   sub_stacks?: SubStack[]
-  subscriptionLimit?: SubscriptionLimit
 }
 
 // Canvas-related Types
@@ -38,7 +37,6 @@ export interface CanvasNode {
   parentId?: string;
   isSaved?: boolean; // For clusters and locked children
   base_price?: number; // Price for pricing calculations
-  subscriptionLimit?: SubscriptionLimit;
 }
 
 export interface InteractionState {

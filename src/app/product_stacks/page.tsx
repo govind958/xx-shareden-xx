@@ -1,104 +1,176 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getStacks } from '@/src/modules/product_stacks';
 import { createClient } from '@/utils/supabase/client';
-import { Stack, SubStack } from '@/src/modules/product_stacks';
-import { TopNav } from '@/src/components/product-stacks';
-import { PageHeader } from '@/src/components/product-stacks';
-import { CanvasContainer } from '@/src/components/product-stacks';
-import { Footer } from '@/src/components/product-stacks';
-// 1. Import the new component
-import { PreMadeStacks } from '@/src/components/product-stacks'; 
-import { DnDProvider } from '@/src/modules/product_stacks';
+import { getStacks, Stack, SubStack, DnDProvider } from '@/src/modules/product_stacks';
+import { CanvasContainer, Footer, PreMadeStacks } from '@/src/components/product-stacks';
+
+/* --- LOADING --- */
+
+const LoadingPage = () => (
+  <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="flex gap-2">
+      <div className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-75" />
+      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-150" />
+      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-300" />
+      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-500" />
+    </div>
+  </div>
+);
 
 export default function ProductStacksPage() {
+
   const [stacks, setStacks] = useState<Stack[]>([]);
   const [subStacks, setSubStacks] = useState<SubStack[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadStacks = async () => {
+
+    try {
+
+      const data = await getStacks();
+
+      setStacks(data || []);
+
+      setSubStacks(data?.flatMap(s => s.sub_stacks as SubStack[]) || []);
+
+    } catch (error) {
+
+      console.error('Failed to load stacks:', error);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
 
   const handleDeleteStack = async (id: string) => {
+
+    if (!confirm('Are you sure you want to delete this stack?')) return;
+
     try {
+
       const supabase = createClient();
-      const { count, error: countError } = await supabase
+
+      const { count } = await supabase
         .from('order_items')
         .select('id', { count: 'exact', head: true })
         .eq('stack_id', id);
 
-      if (countError) throw countError;
       if ((count || 0) > 0) {
-        alert('This stack is already ordered and cannot be deleted.');
+
+        alert('Action restricted: Stack is currently in use.');
         return;
+
       }
 
-      const { error: cartError } = await supabase.from('cart_stacks').delete().eq('stack_id', id);
-      if (cartError) throw cartError;
-
-      const { error: subStacksError } = await supabase.from('sub_stacks').delete().eq('stack_id', id);
-      if (subStacksError) throw subStacksError;
+      await supabase.from('cart_stacks').delete().eq('stack_id', id);
+      await supabase.from('sub_stacks').delete().eq('stack_id', id);
 
       const { error } = await supabase.from('stacks').delete().eq('id', id);
+
       if (error) throw error;
 
       setStacks(prev => prev.filter(t => t.id !== id));
       setSubStacks(prev => prev.filter(s => s.stack_id !== id));
+
     } catch (error) {
-      console.error('Error deleting stack:', error);
-      alert('Unable to delete this stack right now.');
+
+      console.error('Delete operation failed');
+
     }
+
   };
 
   useEffect(() => {
-    setMounted(true);
-    async function loadStacks() {
-      try {
-        const data = await getStacks();
-        setStacks(data || []);
-        setSubStacks(data?.flatMap(stack => stack.sub_stacks as SubStack[]) || []);
-      } catch (error) {
-        console.error('Error loading stacks:', error);
-      }
-    }
     loadStacks();
   }, []);
 
-  if (!mounted) return <div className="min-h-screen bg-[#020202]" />;
+  if (loading) {
+    return <LoadingPage />;
+  }
 
   return (
-    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans">
-      <TopNav />
 
-      <main className="max-w-[1600px] mx-auto p-8 space-y-12"> {/* Increased space-y */}
-        <PageHeader />
-        
-        <CanvasContainer stacks={stacks} subStacks={subStacks} />
+    <main className="min-h-screen bg-slate-50 font-sans text-slate-900">
 
-        {/* 2. Inserted the new section here */}
-        <div className="bg-[#080808] border border-neutral-900 rounded-[24px] overflow-hidden flex flex-col shadow-2xl">
-          <div className="px-8 py-5 border-b border-neutral-900 bg-neutral-900/10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Template Library</span>
+      <div className="w-full space-y-10">
+
+        {/* PROJECT CANVAS */}
+
+        <section className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Project Canvas
+            </h2>
+
+          </div>
+
+          {/* FULL WIDTH CANVAS */}
+
+          <div className="p-4">
+
+            <div className="w-full h-[70vh] bg-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+
+              <CanvasContainer
+                stacks={stacks}
+                subStacks={subStacks}
+              />
+
             </div>
-          </div>
-          <div className="flex flex-grow overflow-hidden relative min-h-[520px]">
-            <DnDProvider>
-              {/* <Sidebar stacks={stacks} /> */}
-              <div className="flex-grow overflow-y-auto">
-                <PreMadeStacks stacks={stacks} onDelete={handleDeleteStack} />
-              </div>
-            </DnDProvider>
-          </div>
-        </div>
 
-        <Footer />
-      </main>
+          </div>
+
+        </section>
+
+
+        {/* STACK LIBRARY */}
+
+        <section className=" mx-auto bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Stack Library
+            </h2>
+
+          </div>
+
+          <div className="p-6">
+
+            <DnDProvider>
+
+              <PreMadeStacks
+                stacks={stacks}
+                onDelete={handleDeleteStack}
+              />
+
+            </DnDProvider>
+
+          </div>
+
+        </section>
+
+      </div>
 
       <style jsx global>{`
-        @keyframes dash {
-          to { stroke-dashoffset: -10; }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
         }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #E2E8F0;
+          border-radius: 10px;
+        }
+
       `}</style>
-    </div>
+
+    </main>
   );
 }

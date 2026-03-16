@@ -1,48 +1,47 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
-  Activity,
-  Cpu,
-  Shield,
-  Wifi,
-  Layers,
-  ArrowUpRight,
-  Database,
-  Lock,
+  Search,
   MoreHorizontal,
-  Zap,
-  CheckCircle2,
-  Server,
-  Terminal,
-  FileText,
-  Check,
+  Pin,
+  Info,
   X,
-  Paperclip,
-  Send,
-  Globe,
-  Command,
-  Clock,
-  Play
-} from 'lucide-react';
+  Briefcase,
+  Hash,
+  Calendar,
+} from "lucide-react";
+
 import { createClient } from '@/utils/supabase/client';
 import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
-import { getPurchasedStacks, getPurchasedSubStacks } from '@/src/modules/stack_board/action';
+import { getPurchasedStacks, getPurchasedSubStacks, getAssignedEmployee } from '@/src/modules/stack_board/action';
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
+import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
 
 /* ---------------- UTILS ---------------- */
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
-export default function TechNoirDashboard() {
+type AssignedEmployee = { name: string; role: string; specialization: string; assigned_at: string | null } | null;
+
+/* ---------------- MAIN COMPONENT ---------------- */
+export default function Stackboard() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [purchasedStacks, setPurchasedStacks] = useState<PURCHASED_STACKS[]>([]);
   const [purchasedSubStacks, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
 
   // State for the active chat room
   const [selectedStackId, setSelectedStackId] = useState<string | null>(null);
   const [selectedStackName, setSelectedStackName] = useState<string>('Select a Stack');
+
+  // Unread message counts: { [stackId]: count }
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Use a ref for the active stack ID so our real-time listener always has the latest value
+  const activeStackIdRef = useRef<string | null>(null);
 
   const { user, loading: authLoading } = useAuth();
 
@@ -58,8 +57,12 @@ export default function TechNoirDashboard() {
         if (stacks && stacks.length > 0 && !selectedStackId) {
           setSelectedStackId(stacks[0].id);
           setSelectedStackName(stacks[0].name);
-          const substacks = await getPurchasedSubStacks(stacks[0].id);
+          const [substacks, employee] = await Promise.all([
+            getPurchasedSubStacks(stacks[0].id),
+            getAssignedEmployee(stacks[0].id),
+          ]);
           setPurchasedSubStacks(substacks);
+          setAssignedEmployee(employee);
         }
       } catch (error) {
         console.error("Error fetching data: ", error);
@@ -88,7 +91,7 @@ export default function TechNoirDashboard() {
     if (!user?.id || purchasedStacks.length === 0) return;
 
     const supabase = createClient();
-    
+
     // Subscribe to changes on order_items for this user
     const channel = supabase.channel(`user_orders_${user.id}`)
       .on('postgres_changes', {
@@ -97,17 +100,34 @@ export default function TechNoirDashboard() {
         table: 'order_items',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        const updatedItem = payload.new as any;
+        const updatedItem = payload.new as { id: string; is_active?: boolean; status?: string; progress_percent?: number };
         console.log('[Stackboard] Order item updated:', updatedItem);
-        
+
+        // If order item was cancelled (is_active = false), remove it from the list
+        if (updatedItem.is_active === false) {
+          setPurchasedStacks(prev => {
+            const next = prev.filter(stack => stack.id !== updatedItem.id);
+            if (next.length > 0 && activeStackIdRef.current === updatedItem.id) {
+              setSelectedStackId(next[0].id);
+              setSelectedStackName(next[0].name);
+            } else if (next.length === 0) {
+              setSelectedStackId(null);
+              setSelectedStackName('Select a Stack');
+            }
+            return next;
+          });
+          toast('A subscription was cancelled and removed from your tasks.');
+          return;
+        }
+
         // Update the purchasedStacks state
-        setPurchasedStacks(prev => prev.map(stack => 
-          stack.id === updatedItem.id 
-            ? { 
-                ...stack, 
-                status: updatedItem.status?.toUpperCase() || stack.status,
-                progress_percent: updatedItem.progress_percent ?? stack.progress_percent
-              }
+        setPurchasedStacks(prev => prev.map(stack =>
+          stack.id === updatedItem.id
+            ? {
+              ...stack,
+              status: updatedItem.status?.toUpperCase() || stack.status,
+              progress_percent: updatedItem.progress_percent ?? stack.progress_percent
+            }
             : stack
         ));
 
@@ -117,14 +137,63 @@ export default function TechNoirDashboard() {
           'completed': '🎉 Your order has been completed!',
           'processing': '📋 Your order is being processed',
         };
-        
-        if (statusMessages[updatedItem.status]) {
-          toast(statusMessages[updatedItem.status]);
+
+        if (statusMessages[updatedItem.status || '']) {
+          toast(statusMessages[updatedItem.status || '']);
         }
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('[Stackboard] Realtime: Connected for order updates');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, purchasedStacks.length]);
+
+  // Keep activeStackIdRef in sync
+  useEffect(() => {
+    activeStackIdRef.current = selectedStackId;
+  }, [selectedStackId]);
+
+  // Real-time subscription for unread messages across ALL stacks
+  useEffect(() => {
+    if (!user?.id || purchasedStacks.length === 0) return;
+
+    const supabase = createClient();
+    const stackIds = purchasedStacks.map(s => s.id);
+
+    const channel = supabase
+      .channel(`unread_messages_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'project_messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          const msgStackId = newMsg.order_item_id;
+
+          // Only count messages for stacks we own and that aren't currently open
+          if (
+            stackIds.includes(msgStackId) &&
+            msgStackId !== activeStackIdRef.current &&
+            newMsg.sender_id !== user.id // Don't count our own messages
+          ) {
+            setUnreadCounts(prev => ({
+              ...prev,
+              [msgStackId]: (prev[msgStackId] || 0) + 1
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Stackboard] Realtime: Connected for unread messages');
         }
       });
 
@@ -139,547 +208,282 @@ export default function TechNoirDashboard() {
 
     setSelectedStackId(stack.id);
     setSelectedStackName(stack.name);
-    setPurchasedSubStacks([]); // Clear while loading
+    setPurchasedSubStacks([]);
+    setAssignedEmployee(null);
+
+    setUnreadCounts(prev => ({ ...prev, [stack.id]: 0 }));
 
     try {
-      const substacks = await getPurchasedSubStacks(stack.id);
+      const [substacks, employee] = await Promise.all([
+        getPurchasedSubStacks(stack.id),
+        getAssignedEmployee(stack.id),
+      ]);
       setPurchasedSubStacks(substacks);
+      setAssignedEmployee(employee);
     } catch (error) {
       console.error("Error fetching substacks:", error);
     }
   };
 
-  if (loading || authLoading) return <BootSequence />;
+  if (loading || authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F7FAFC]">
+        <p className="text-slate-500">Loading...</p>
+      </div>
+    );
+  }
 
-  // Get the selected stack's progress
-  const selectedStack = purchasedStacks.find(s => s.id === selectedStackId);
-  const progressPercent = selectedStack?.progress_percent || 0;
-  const selectedStatus = selectedStack?.status?.toLowerCase() || 'initiated';
+  // Get the selected stack's data
+  const activeStack = purchasedStacks.find(s => s.id === selectedStackId);
+  const progressPercent = activeStack?.progress_percent || 0;
+  const selectedStatus = activeStack?.status?.toLowerCase() || 'initiated';
 
   // Get status display for the selected stack
-  const getSelectedStatusInfo = () => {
-    switch (selectedStatus) {
-      case 'initiated':
-        return { label: 'Queued', color: 'text-neutral-400' };
-      case 'processing':
-        return { label: 'Assigned', color: 'text-blue-400' };
-      case 'in_progress':
-        return { label: 'Working', color: 'text-amber-400' };
-      case 'completed':
-        return { label: 'Completed', color: 'text-green-400' };
-      default:
-        return { label: selectedStatus, color: 'text-neutral-400' };
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'initiated': return 'Queued';
+      case 'processing': return 'Assigned';
+      case 'in_progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      default: return status;
     }
   };
-  const selectedStatusInfo = getSelectedStatusInfo();
 
   return (
-    <div className="min-h-screen bg-[#020202] text-neutral-500 font-sans selection:bg-teal-500/30 overflow-x-hidden p-4 lg:p-10">
+    <div className="flex h-screen w-full text-slate-800 overflow-hidden bg-[#F7FAFC]">
 
-      {/* ATMOSPHERIC GRADIENT BLURS */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-teal-500/5 blur-[160px] rounded-full" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-teal-900/10 blur-[120px] rounded-full" />
-      </div>
+      {/* Sidebar */}
+      <aside className="w-[30%] min-w-[320px] max-w-[400px] bg-white border-r border-slate-200 flex flex-col">
 
-      <div className="relative z-10 w-full max-w-[1700px] mx-auto space-y-8">
-
-        {/* --- INDUSTRIAL HEADER --- */}
-        <header className="flex flex-col md:flex-row items-center justify-between bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] shadow-2xl">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-1.5 h-1.5 bg-teal-500 animate-pulse" />
-              <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.6em]">System_Uplink: Active</span>
-            </div>
-            <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic flex items-baseline gap-1">
-              NEXUS<span className="text-neutral-800 not-italic">.OS</span>
+        {/* Header */}
+        <div className="p-6 flex items-center justify-between border-b border-slate-100">
+          <div>
+            <h1 className="text-xl font-bold text-[#1A365D]">
+              Messages
             </h1>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">
+              Stack Communications
+            </p>
           </div>
+          <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+            <Search size={18} />
+          </button>
+        </div>
 
-          <div className="flex items-center gap-12 mt-6 md:mt-0">
-            <div className="hidden xl:grid grid-cols-2 gap-x-8 gap-y-1">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-700">Latency</span>
-              <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-700">Timestamp</span>
-              <span className="text-[10px] font-mono text-teal-500/70">14ms</span>
-              <span className="text-[10px] font-mono text-white">{currentTime.toLocaleTimeString('en-GB')}</span>
-            </div>
-
-            <button className="group relative overflow-hidden bg-white text-black px-10 py-4 rounded-full text-[11px] font-black uppercase tracking-[0.3em] transition-all hover:pr-14">
-              <span className="relative z-10">Initialize_Deploy</span>
-              <ArrowUpRight className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all" size={18} />
-            </button>
-          </div>
-        </header>
-
-        {/* --- TECH-STACK HORIZONTAL SCROLL --- */}
-        <section className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
-          {purchasedStacks.length > 0 ? (
+        {/* Stack List */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {purchasedStacks.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">No purchased stacks yet.</p>
+          ) : (
             purchasedStacks.map((stack) => (
-              <div key={stack.id} className="flex-shrink-0 w-[320px]">
-                <StackCard
-                  stack={stack}
-                  isSelected={selectedStackId === stack.id}
-                  onClick={() => handleStackSelect(stack)}
+              <div
+                key={stack.id}
+                onClick={() => handleStackSelect(stack)}
+                className={cn(
+                  "group relative flex items-center gap-3 px-4 py-4 cursor-pointer transition-all rounded-lg",
+                  selectedStackId === stack.id
+                    ? "bg-[#F7FAFC] border-l-4 border-[#2B6CB0]"
+                    : "hover:bg-slate-50"
+                )}
+              >
+                <div className="w-11 h-11 rounded-full bg-slate-100 border flex items-center justify-center text-[#1A365D] font-semibold text-sm shrink-0">
+                  {stack.name.charAt(0)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <h3 className={cn(
+                      "text-sm truncate text-[#1A365D]",
+                      unreadCounts[stack.id] > 0 ? "font-bold" : "font-semibold"
+                    )}>
+                      {stack.name}
+                    </h3>
+
+                    {/* Unread message badge */}
+                    {unreadCounts[stack.id] > 0 && (
+                      <div className="w-5 h-5 ml-2 shrink-0 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm animate-pulse">
+                        {unreadCounts[stack.id] > 99 ? '99+' : unreadCounts[stack.id]}
+                      </div>
+                    )}
+                  </div>
+                  <p className={cn(
+                    "text-xs mt-1 truncate",
+                    unreadCounts[stack.id] > 0 ? "text-slate-800 font-medium" : "text-slate-500"
+                  )}>
+                    {stack.progress_percent}% • {getStatusLabel(stack.status)}
+                  </p>
+                </div>
+
+                <Pin
+                  size={14}
+                  className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
                 />
               </div>
             ))
-          ) : (
-            <div className="w-full text-center py-12 text-neutral-600">
-              <p className="text-sm">No purchased stacks found</p>
-            </div>
           )}
-        </section>
+        </div>
+      </aside>
 
-        {/* --- PRIMARY DATA INTERFACE --- */}
-        <main className="grid grid-cols-12 gap-8 items-start">
+      {/* Main Chat */}
+      <main className="flex-1 flex flex-col bg-white">
 
-          {/* LEFT: PROGRESS ARCHITECTURE */}
-          <aside className="col-span-12 lg:col-span-4 bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col">
-            <div className="p-8 border-b border-neutral-900">
-              <div className="flex items-center justify-between mb-4">
-                <div className="space-y-1">
-                  <p className="text-[9px] font-black text-neutral-600 uppercase tracking-[0.5em]">Stack_Progress</p>
-                  <h2 className="text-white text-lg font-bold tracking-tight">{selectedStackName}</h2>
-                </div>
-                <div className="text-right">
-                  <p className={cn("text-[10px] font-mono font-bold", selectedStatusInfo.color)}>{progressPercent}%</p>
-                  <div className="w-24 h-1.5 bg-neutral-900 mt-2 overflow-hidden rounded-full">
-                    <div 
-                      className={cn(
-                        "h-full rounded-full transition-all duration-700",
-                        selectedStatus === 'completed' ? 'bg-green-500' : 
-                        selectedStatus === 'in_progress' ? 'bg-amber-500' : 'bg-teal-500'
-                      )} 
-                      style={{ width: `${progressPercent}%` }} 
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Status Badge */}
-              <div className={cn(
-                "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-8",
-                selectedStatus === 'completed' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                selectedStatus === 'in_progress' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                selectedStatus === 'processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                'bg-neutral-800 text-neutral-400 border border-neutral-700'
-              )}>
-                {selectedStatus === 'in_progress' && <Play size={10} fill="currentColor" />}
-                {selectedStatus === 'completed' && <CheckCircle2 size={10} />}
-                {selectedStatus === 'processing' && <Clock size={10} />}
-                {selectedStatus === 'initiated' && <Clock size={10} />}
-                {selectedStatusInfo.label}
-              </div>
-
-              <div className="space-y-10 relative">
-                <div className="absolute left-[21px] top-2 bottom-2 w-[1px] bg-neutral-900" />
-                {purchasedSubStacks.length > 0 ? (
-                  purchasedSubStacks.map((step, idx) => (
-                    <ProgressStep key={idx} step={step} />
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-neutral-600">
-                    <p className="text-xs">No progress data available</p>
-                  </div>
-                )}
+        {/* Chat Header */}
+        <header className="h-20 border-b border-slate-200 px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-md bg-[#1A365D] text-white flex items-center justify-center font-semibold">
+              {selectedStackName.charAt(0)}
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#1A365D]">
+                {selectedStackName}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  selectedStatus === 'in_progress' || selectedStatus === 'processing' ? "bg-[#38A169]" : "bg-slate-300"
+                )} />
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                  {selectedStatus === 'in_progress' || selectedStatus === 'processing'
+                    ? 'Expert Assigned'
+                    : selectedStatus === 'completed'
+                      ? 'Completed'
+                      : 'Awaiting Assignment'}
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="p-6 bg-neutral-900/20 flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-[0.4em]">Kernel_Stream: Online</span>
-            </div>
-          </aside>
-
-          {/* RIGHT: COMMAND CENTER / MESSAGING */}
-          <div className="col-span-12 lg:col-span-8 flex flex-col gap-8">
-            {/* PASSING DATA TO MESSAGE DASHBOARD */}
+          <div className="flex gap-2 text-slate-400 shrink-0">
+            {/* Info Toggle Button */}
+            <button 
+              onClick={() => setShowInfoPanel(!showInfoPanel)}
+              className={cn(
+                "p-2 rounded-lg transition duration-200",
+                showInfoPanel ? "bg-[#EBF8FF] text-[#2B6CB0]" : "hover:bg-slate-100 hover:text-[#2B6CB0]"
+              )}
+            >
+              <Info size={18} />
+            </button>
+            <button className="p-2 hover:bg-slate-100 hover:text-[#2B6CB0] rounded-lg transition">
+              <MoreHorizontal size={18} />
+            </button>
+          </div>
+        </header>
+        
+        {/* Content Wrapper (Messages + Info Panel) */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Messages Dashboard */}
+          <div className="flex-1 min-w-0 relative flex flex-col">
             <MessageDashboard
               activeStackId={selectedStackId}
               activeStackName={selectedStackName}
               user={user}
             />
           </div>
-        </main>
-      </div>
-    </div>
-  );
-}
 
-/* ---------------- SUB-COMPONENTS ---------------- */
+          {/* RIGHT SIDE INFO PANEL */}
+          {showInfoPanel && activeStack && (
+            <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)] transition-all animate-in slide-in-from-right-8 duration-300 z-20">
+              
+              {/* Panel Header */}
+              <div className="h-16 border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
+                <h3 className="font-bold text-[#1A365D] text-sm">Stack Details</h3>
+                <button 
+                  onClick={() => setShowInfoPanel(false)} 
+                  className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
-// Create supabase client outside component to prevent recreation on each render
-const supabase = createClient();
-
-function MessageDashboard({
-  activeStackId,
-  activeStackName,
-  user
-}: {
-  activeStackId: string | null,
-  activeStackName: string,
-  user: any
-}) {
-  const [messages, setMessages] = useState<any[]>([]);
-  const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-
-  // 1. Fetch & Subscribe to Messages
-  useEffect(() => {
-    if (!activeStackId) return;
-
-    const fetchMessages = async () => {
-      setLoadingMessages(true);
-      const { data } = await supabase
-        .from('project_messages')
-        .select('*')
-        .eq('order_item_id', activeStackId)
-        .order('created_at', { ascending: true });
-
-      if (data) setMessages(data);
-      setLoadingMessages(false);
-    };
-
-    fetchMessages();
-
-    // Real-time Subscription
-    const channel = supabase.channel(`client_view_${activeStackId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'project_messages',
-        filter: `order_item_id=eq.${activeStackId}`
-      }, (payload) => {
-        setMessages(prev => {
-          // Prevent duplicates - check by ID or by content+sender for optimistic messages
-          const newMsg = payload.new as any;
-          const exists = prev.find(m => 
-            m.id === newMsg.id || 
-            (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number')
-          );
-          if (exists) {
-            // Replace optimistic message with real one
-            return prev.map(m => 
-              (m.content === newMsg.content && m.sender_id === newMsg.sender_id && typeof m.id === 'number') 
-                ? newMsg 
-                : m
-            );
-          }
-          return [...prev, newMsg];
-        });
-      })
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime: Connected to channel (Stackboard)');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime: Channel error', err);
-        } else if (status === 'TIMED_OUT') {
-          console.error('Realtime: Connection timed out');
-        }
-      });
-
-    return () => { supabase.removeChannel(channel); };
-  }, [activeStackId]);
-
-  // 2. Auto-scroll
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, loadingMessages]);
-
-  // 3. Send Message Handler
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !user || !activeStackId) return;
-
-    const content = input.trim();
-    const tempId = Date.now(); // Temp ID for optimistic UI
-
-    // Optimistic Update
-    const optimisticMsg = {
-      id: tempId,
-      content: content,
-      sender_id: user.id,
-      sender_role: 'client',
-      created_at: new Date().toISOString(),
-      order_item_id: activeStackId
-    };
-
-    setMessages(prev => [...prev, optimisticMsg]);
-    setInput("");
-
-    // DB Insert
-    const { data, error } = await supabase.from('project_messages').insert({
-      order_item_id: activeStackId,
-      content: content,
-      sender_id: user.id,
-      sender_role: 'client'
-    }).select().single();
-
-    if (error) {
-      console.error("Failed to send", error);
-      // Rollback
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-    } else {
-      // Replace temp ID with real ID
-      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
-    }
-  };
-
-  if (!activeStackId) {
-    return (
-      <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] h-[700px] flex items-center justify-center text-neutral-700">
-        <div className="flex flex-col items-center gap-4">
-          <Terminal size={48} strokeWidth={1} />
-          <p className="text-[10px] font-black uppercase tracking-[0.5em]">Select_Node_To_Initialize_Uplink</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[700px]">
-
-      {/* Header */}
-      <div className="p-6 border-b border-neutral-900 flex items-center justify-between bg-neutral-900/10">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
-            <Terminal size={18} />
-          </div>
-          <div>
-            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Deployment_Console</h3>
-            <p className="text-[9px] font-mono text-neutral-600 uppercase mt-0.5">Target: {activeStackName}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className={`w-2 h-2 rounded-full ${loadingMessages ? 'bg-yellow-500' : 'bg-teal-500'} animate-pulse`} />
-        </div>
-      </div>
-
-      {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-8 scrollbar-hide">
-        {messages.length === 0 && !loadingMessages ? (
-          <div className="h-full flex flex-col items-center justify-center opacity-30">
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-500">Channel_Open_No_Traffic</p>
-          </div>
-        ) : (
-          messages.map((m) => {
-            const isMe = m.sender_role === 'client';
-            return (
-              <div key={m.id} className={`flex flex-col gap-2 max-w-[450px] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
-                <span className={`text-[9px] font-bold uppercase tracking-widest ${isMe ? 'mr-1 text-teal-500/50' : 'ml-1 text-neutral-700'}`}>
-                  {isMe ? 'User_Auth' : 'System_Admin'}
-                </span>
-
-                <div className={cn(
-                  "p-5 text-[13px] font-bold leading-relaxed shadow-lg relative",
-                  isMe
-                    ? "bg-teal-500 text-black rounded-[24px] rounded-tr-none"
-                    : "bg-neutral-900/80 border border-neutral-800 text-neutral-300 rounded-[24px] rounded-tl-none"
-                )}>
-                  {m.content}
+              {/* Panel Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                
+                {/* 1. Expert Profile Section */}
+                <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
+                  <div className="relative mb-4">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#2B6CB0] to-[#4299E1] text-white flex items-center justify-center text-3xl font-bold shadow-md">
+                      {assignedEmployee?.name?.charAt(0) || '?'}
+                    </div>
+                    <div className={cn(
+                      "absolute bottom-0 right-1 w-4 h-4 rounded-full border-2 border-white",
+                      assignedEmployee ? "bg-green-500" : "bg-slate-400"
+                    )}></div>
+                  </div>
+                  <h4 className="font-bold text-[#1A365D] text-lg leading-tight">
+                    {assignedEmployee?.name || 'Unassigned'}
+                  </h4>
+                  <p className="text-sm text-slate-500 mt-1 flex items-center justify-center gap-1.5">
+                    <Briefcase size={14} />
+                    {assignedEmployee?.role || 'Awaiting Specialist'}
+                  </p>
+                  {assignedEmployee?.specialization && (
+                    <p className="text-xs text-slate-400 mt-1">{assignedEmployee.specialization}</p>
+                  )}
                 </div>
 
-                <span className="text-[8px] font-mono text-neutral-800 uppercase">
-                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                {/* 2. Order Information */}
+                <div className="py-6 space-y-5">
+                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Order Info</h5>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 p-2 bg-slate-50 rounded text-slate-400">
+                        <Hash size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Order ID</p>
+                        <p className="text-sm font-semibold text-[#1A365D]">{activeStack.id.substring(0, 8).toUpperCase()}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 p-2 bg-slate-50 rounded text-slate-400">
+                        <Calendar size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Assigned On</p>
+                        <p className="text-sm font-semibold text-[#1A365D]">
+                          {assignedEmployee?.assigned_at
+                            ? new Date(assignedEmployee.assigned_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : 'Not yet assigned'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Progress Status */}
+                <div className="pt-6 border-t border-slate-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progress</h5>
+                    <span className="text-xs font-bold text-[#2B6CB0]">{progressPercent}%</span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#2B6CB0] rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 mt-3 flex items-center gap-1.5">
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      activeStack.status === 'completed' ? "bg-slate-400" : "bg-green-500 animate-pulse"
+                    )} />
+                    Current Status: <span className="font-semibold text-slate-700 capitalize">{getStatusLabel(activeStack.status)}</span>
+                  </p>
+                </div>
+
               </div>
-            );
-          })
-        )}
-      </div>
+            </aside>
+          )}
 
-      {/* Input Area */}
-      <div className="p-8 bg-neutral-900/20 border-t border-neutral-900">
-        <form onSubmit={handleSendMessage} className="relative">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="EXECUTE TRANSMISSION..."
-            className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white font-mono focus:outline-none focus:border-teal-500/50 focus:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all placeholder:text-neutral-800"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-neutral-600 hover:text-teal-500 transition-colors disabled:opacity-50"
-          >
-            <span className="text-[10px] font-bold hidden sm:block">SEND</span>
-            <Send size={16} />
-          </button>
-        </form>
-      </div>
+        </div>
+
+      </main>
     </div>
   );
-}
-
-function StackCard({ stack, isSelected, onClick }: { stack: PURCHASED_STACKS; isSelected?: boolean; onClick?: () => void }) {
-  const getIconForType = (type: string) => {
-    switch (type?.toLowerCase()) {
-      case 'security': return Lock;
-      case 'payment': return Zap;
-      case 'infrastructure': return Server;
-      case 'storage': return Database;
-      default: return Layers;
-    }
-  };
-  const Icon = stack.icon || getIconForType(stack.type);
-
-  // Get status display info
-  const getStatusInfo = (status: string) => {
-    const normalizedStatus = status?.toLowerCase();
-    switch (normalizedStatus) {
-      case 'initiated':
-        return { label: 'Queued', color: 'text-neutral-400', bg: 'bg-neutral-800', border: 'border-neutral-700' };
-      case 'processing':
-        return { label: 'Assigned', color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500/30' };
-      case 'in_progress':
-        return { label: 'Working', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30' };
-      case 'completed':
-        return { label: 'Completed', color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500/30' };
-      default:
-        return { label: status, color: 'text-neutral-400', bg: 'bg-neutral-800', border: 'border-neutral-700' };
-    }
-  };
-
-  const statusInfo = getStatusInfo(stack.status);
-  const progress = stack.progress_percent || 0;
-
-  // Get progress bar color based on status
-  const getProgressColor = () => {
-    const normalizedStatus = stack.status?.toLowerCase();
-    if (normalizedStatus === 'completed') return 'bg-green-500';
-    if (normalizedStatus === 'in_progress') return 'bg-amber-500';
-    return 'bg-teal-500';
-  };
-
-  return (
-    <div
-      className={`group bg-[#0a0a0a] border p-8 rounded-[32px] transition-all duration-500 relative overflow-hidden cursor-pointer
-        ${isSelected
-          ? 'border-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.2)]'
-          : 'border-neutral-900 hover:border-teal-500/30'
-        }
-      `}
-      onClick={onClick}
-    >
-      <div className="flex justify-between items-start mb-6">
-        <div className={`p-3 rounded-2xl transition-colors duration-500 ${isSelected ? 'bg-teal-500 text-black' : 'bg-neutral-900 group-hover:bg-teal-500 group-hover:text-black text-neutral-400'}`}>
-          <Icon size={20} />
-        </div>
-        <div className={cn(
-          "text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border",
-          statusInfo.bg, statusInfo.color, statusInfo.border
-        )}>
-          {statusInfo.label}
-        </div>
-      </div>
-
-      <div className="space-y-1 mb-6">
-        <p className="text-[9px] font-black text-teal-500/60 uppercase tracking-[0.4em]">{stack.type}</p>
-        <h3 className="text-white font-black text-lg tracking-tighter uppercase">{stack.name}</h3>
-      </div>
-
-      {/* Progress Bar Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[8px] font-bold text-neutral-600 uppercase tracking-widest">Progress</span>
-          <span className={cn(
-            "text-[10px] font-mono font-bold",
-            progress === 100 ? "text-green-400" : progress > 0 ? "text-amber-400" : "text-neutral-500"
-          )}>
-            {progress}%
-          </span>
-        </div>
-        <div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden">
-          <div 
-            className={cn("h-full rounded-full transition-all duration-700 ease-out", getProgressColor())}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        {/* Status indicator text */}
-        <div className="flex items-center gap-2 mt-2">
-          {stack.status?.toLowerCase() === 'in_progress' && (
-            <>
-              <Play size={10} className="text-amber-400" fill="currentColor" />
-              <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">Work in progress</span>
-            </>
-          )}
-          {stack.status?.toLowerCase() === 'completed' && (
-            <>
-              <CheckCircle2 size={10} className="text-green-400" />
-              <span className="text-[8px] font-bold text-green-400 uppercase tracking-wider">Delivered</span>
-            </>
-          )}
-          {stack.status?.toLowerCase() === 'processing' && (
-            <>
-              <Clock size={10} className="text-blue-400" />
-              <span className="text-[8px] font-bold text-blue-400 uppercase tracking-wider">Assigned to team</span>
-            </>
-          )}
-          {stack.status?.toLowerCase() === 'initiated' && (
-            <>
-              <Clock size={10} className="text-neutral-500" />
-              <span className="text-[8px] font-bold text-neutral-500 uppercase tracking-wider">In queue</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="pt-6 border-t border-neutral-900 flex items-end justify-between">
-        <div>
-          <p className="text-[8px] font-bold text-neutral-700 uppercase tracking-[0.3em] mb-1">Value</p>
-          <p className="text-xl font-mono text-white font-bold tracking-tighter">₹{stack.price.toFixed(2)}</p>
-        </div>
-        <div className="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-600 group-hover:text-white group-hover:bg-neutral-800 transition-all">
-          <ArrowUpRight size={18} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProgressStep({ step }: { step: PURCHASED_SUBSTACKS }) {
-  const isCompleted = step.status === 'completed';
-  const isCurrent = step.status === 'current';
-
-  return (
-    <div className={cn("flex gap-6 items-start transition-opacity duration-500", !isCompleted && !isCurrent && "opacity-25")}>
-      <div className={cn(
-        "z-10 w-[42px] h-[42px] shrink-0 rounded-full flex items-center justify-center border-4 border-[#020202]",
-        isCompleted ? "bg-teal-500 text-black" : isCurrent ? "bg-neutral-900 border-teal-500/50 text-teal-500" : "bg-neutral-900 text-neutral-700"
-      )}>
-        {isCompleted ? <Check size={20} strokeWidth={4} /> : <div className={cn("w-1.5 h-1.5 rounded-full", isCurrent ? "bg-teal-500 animate-pulse" : "bg-neutral-700")} />}
-      </div>
-      <div className="space-y-1.5 pt-1">
-        <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", isCurrent ? "text-teal-500" : "text-white")}>{step.label}</p>
-      </div>
-    </div>
-  );
-}
-
-function BootSequence() {
-  return (
-    <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center font-mono">
-      <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
-        <div className="absolute inset-0 bg-teal-500 animate-loading" />
-      </div>
-      <div className="flex flex-col items-center gap-2">
-        <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Initializing Nexus.OS</p>
-        <p className="text-[8px] tracking-[0.2em] text-neutral-700 uppercase">Kernel Revision 4.2.0-Alpha</p>
-      </div>
-      <style jsx>{`
-          @keyframes loading {
-            0% { transform: translateX(-100%); }
-            50% { transform: translateX(0%); }
-            100% { transform: translateX(100%); }
-          }
-          .animate-loading {
-            animation: loading 1.5s infinite ease-in-out;
-          }
-       `}</style>
-    </div>
-  )
 }

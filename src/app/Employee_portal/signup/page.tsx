@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { employeeSignup } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock, User, Briefcase } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { validateInviteToken } from "@/src/modules/employee/actions";
 
 const glassmorphismClass =
     "bg-neutral-900/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-teal-500/20";
@@ -14,6 +15,20 @@ export default function EmployeeSignupPage() {
     const searchParams = useSearchParams();
     const error = searchParams.get("error");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [inviteEmail, setInviteEmail] = useState<string | null>(null);
+    const [tokenError, setTokenError] = useState<string | null>(null);
+    const token = searchParams.get("token");
+
+    useEffect(() => {
+        if (token) {
+          validateInviteToken(token).then((res) => {
+            if (res) setInviteEmail(res.email);
+            else setTokenError("Invalid or expired invitation link. Please contact your admin.");
+          });
+        } else {
+          setTokenError("Invalid or expired invitation link. Please contact your admin.");
+        }
+      }, [token]);
 
     useEffect(() => {
         if (error === "missing_fields") {
@@ -24,6 +39,8 @@ export default function EmployeeSignupPage() {
             setErrorMessage("Failed to create account. Please try again.");
         } else if (error === "session_error") {
             setErrorMessage("Account created but session failed. Please log in.");
+        } else if (error === "invalid_invite") {
+            setErrorMessage("Invalid or expired invitation link. Please contact your admin.");
         }
     }, [error]);
 
@@ -56,8 +73,24 @@ export default function EmployeeSignupPage() {
                     </div>
                 )}
 
-                {/* Form */}
+                {/* Form - only show when valid invite token */}
+                {tokenError ? (
+                    <div className="space-y-6">
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
+                            {tokenError}
+                        </div>
+                        <div className="text-center">
+                            <Link
+                                href="/Employee_portal/login"
+                                className="text-sm text-teal-400 hover:text-teal-300 transition underline underline-offset-4"
+                            >
+                                Back to Login
+                            </Link>
+                        </div>
+                    </div>
+                ) : (
                 <form className="space-y-5" action={employeeSignup}>
+                    {token && <input type="hidden" name="invite_token" value={token} />}
                     {/* Name */}
                     <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 w-5 h-5" />
@@ -79,6 +112,8 @@ export default function EmployeeSignupPage() {
                             name="email"
                             type="email"
                             required
+                            readOnly={!!inviteEmail}
+                            value={inviteEmail ?? ""}
                             placeholder="Email"
                             className="w-full pl-10 rounded-xl border border-teal-500/20 bg-white/5 text-white shadow-md focus:border-teal-500 focus:ring-2 focus:ring-teal-400/40 px-4 py-3 text-sm sm:text-base transition backdrop-blur-sm"
                         />
@@ -127,7 +162,10 @@ export default function EmployeeSignupPage() {
                         Create Account
                     </Button>
                 </form>
+                )}
 
+                {!tokenError && (
+                <>
                 {/* Divider */}
                 <div className="flex items-center gap-4">
                     <div className="h-px flex-1 bg-teal-500/30"></div>
@@ -144,6 +182,8 @@ export default function EmployeeSignupPage() {
                         Already have an account? Log in
                     </Link>
                 </div>
+                </>
+                )}
 
                 {/* Footer */}
                 <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">

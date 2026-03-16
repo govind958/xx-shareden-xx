@@ -1,593 +1,695 @@
-'use client'
+'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/src/context/AuthContext';
 import {
-  Lock,
-  Check,
-  Globe,
-  ShieldCheck,
-  Cpu,
+  ChevronLeft,
+  Info,
   Trash2,
+  CreditCard,
+  ShieldCheck,
+  CheckCircle2,
   Tag,
   X,
-  Loader2
+  Building2
 } from 'lucide-react';
 import BuyNowButton from '@/src/components/buynowbutton';
-import { validateCoupon } from '@/src/modules/coupon/action';
+import { getBillingAddress, saveBillingAddress } from '@/src/modules/billing';
 
-// const FEATURES = [
-//   "Create, assign, and track tasks",
-//   "Activity Logging & Full Reporting",
-//   "Priority Email Support",
-//   "4 GB Encrypted Storage",
-//   "Customizable Neural Templates",
-//   "Integration with Slack & Matrix"
-// ];
+/* --- LOADING COMPONENT --- */
+const LoadingPage = () => (
+  <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="flex gap-2">
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-75" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-150" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-300" />
+      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-500" />
+    </div>
+  </div>
+);
 
-/* ---------------- MAIN COMPONENT ---------------- */
+/* ---------------- TYPES ---------------- */
+interface SubStack {
+  id?: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 interface CartStack {
   cart_id: string;
-  stack_id: string | null; // null for unsaved clusters
+  stack_id: string | null;
   name: string;
   type: string;
   price: number;
-  description: string;
-  sub_stacks: Array<{ id?: string; name: string; price: number }>;       
-  // For unsaved clusters (new flow)
-  cluster_name?: string;
+  sub_stacks: SubStack[];
+  isUnsaved?: boolean;
   cluster_data?: Array<{ name: string; price: number; is_free: boolean }>;
-  isUnsaved?: boolean; // true if stack hasn't been created yet
 }
 
-export default function TechNoirCheckout() {
+type PaymentTab = 'Recurring' | 'Non-Recurring';
+type RecurringType = 'Credit Card' | 'UPI';
+
+export default function ZohoStyleCheckout() {
   const { user, loading: authLoading } = useAuth();
+  const [step, setStep] = useState(1); // 1: Add-ons, 2: Payment
   const [loading, setLoading] = useState(true);
-  const [cartStacks, setCartStacks] = useState<CartStack[]>([]);
-  const [activeCartId, setActiveCartId] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
-  const [profileData, setProfileData] = useState<{ email?: string; name?: string; contact?: string } | null>(null);
-  const [organizationData, setOrganizationData] = useState<{ name?: string } | null>(null);
-  
-  // Coupon states
-  const [couponCode, setCouponCode] = useState('');
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<'Monthly' | 'Yearly'>('Yearly');
+
+  // Payment Method States
+  const [activeTab, setActiveTab] = useState<PaymentTab>('Recurring');
+  const [recurringMethod, setRecurringMethod] = useState<RecurringType>('Credit Card');
+
+  // Coupon States
+  const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{
+    id: string;
     code: string;
-    discountAmount: number;
-    couponId: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_amount: number;
   } | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const [cartStacks, setCartStacks] = useState<CartStack[]>([]);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [organizationData, setOrganizationData] = useState<any>(null);
+
+  // Billing Address State
+  const [billingAddress, setBillingAddress] = useState({
+    company_name: '',
+    phone: '',
+    country: 'India',
+    state: '',
+    street_address: '',
+    city: '',
+    zip_code: '',
+  });
+  const [billingAddressLoaded, setBillingAddressLoaded] = useState(false);
+
+  // When checked, this address is saved as 'office' (invoice-only) instead of 'headquarters'
+  const [useOfficeAddress, setUseOfficeAddress] = useState(false);
+
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    const fetchCartStacks = async () => {
-      if (authLoading) {
-        setLoading(true);
-        return;
-      }
+    const fetchCheckoutData = async () => {
+      // Create a minimum delay timer to show the animation nicely
+      const timer = new Promise((resolve) => setTimeout(resolve, 1500));
 
-      if (!user) {
-        setLoading(false);
+      if (authLoading || !user) {
+        if (!authLoading && !user) setLoading(false);
         return;
       }
 
       try {
-        const supabase = createClient();
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', user.id)
-          .single();
-        const { data: organizationData, error: organizationError } = await supabase
-          .from('organizations')
-          .select('org_name')
-          .eq('user_id', user.id)
-          .single();
-        if (organizationError) {
-          console.error('Error fetching organization:', organizationError);
+        const [prof, org, cart] = await Promise.all([
+          supabase.from('profiles').select('name').eq('user_id', user.id).single(),
+          supabase.from('organizations').select('org_name').eq('user_id', user.id).single(),
+          supabase.from('cart_stacks').select(`id, total_price, cluster_name, cluster_data, stacks (id, name, type, sub_stacks (id, name, price))`).eq('user_id', user.id).eq('status', 'active'),
+          timer // Wait for the minimum 1.5s delay
+        ]);
+
+        setProfileData({ email: user.email || '', name: prof.data?.name || '' });
+        setOrganizationData({ name: org.data?.org_name || '' });
+
+        // Load existing billing address — try office first, fall back to headquarters
+        const savedOffice = await getBillingAddress(user.id, 'office');
+        const savedHQ = await getBillingAddress(user.id, 'headquarters');
+        const savedAddress = savedOffice || savedHQ;
+
+        if (savedOffice) {
+          setUseOfficeAddress(true);
         }
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
+
+        if (savedAddress) {
+          setBillingAddress({
+            company_name: savedAddress.company_name || '',
+            phone: savedAddress.phone || '',
+            country: savedAddress.country || 'India',
+            state: savedAddress.state || '',
+            street_address: savedAddress.street_address || '',
+            city: savedAddress.city || '',
+            zip_code: savedAddress.zip_code || '',
+          });
+        } else {
+          // Pre-fill company name from org data
+          const orgData = await supabase.from('organizations').select('org_name, phone, country, state, street_address, city, zip_code').eq('user_id', user.id).single();
+          setBillingAddress({
+            company_name: orgData.data?.org_name || org.data?.org_name || '',
+            phone: orgData.data?.phone || '',
+            country: orgData.data?.country || 'India',
+            state: orgData.data?.state || '',
+            street_address: orgData.data?.street_address || '',
+            city: orgData.data?.city || '',
+            zip_code: orgData.data?.zip_code || '',
+          });
         }
+        setBillingAddressLoaded(true);
 
-        // Combine profile data with email from auth
-        setProfileData({
-          email: user.email || undefined,
-          name: profileData?.name || '',
-          contact: '' // Add contact field if you have it in your profiles table
-        });
-        setOrganizationData({ name: organizationData?.org_name || '' });
+        if (cart.data) {
+          const formatted = cart.data.map((item: any) => {
+            // For custom stacks: use cluster_data
+            // For pre-made stacks: use stacks.sub_stacks
+            const subStacks = (item.cluster_data as any[])?.map(s => ({
+              name: s.name,
+              price: s.price || 0,
+              quantity: 1
+            })) || (item.stacks?.sub_stacks as any[])?.map((s: any) => ({
+              id: s.id,
+              name: s.name,
+              price: s.price || 0,
+              quantity: 1
+            })) || [];
 
-        // Fetch cart items - now includes cluster_name and cluster_data for unsaved clusters
-        const { data: cartItems } = await supabase
-          .from('cart_stacks')
-          .select(`
-            id,
-            stack_id,
-            total_price,
-            sub_stack_ids,
-            cluster_name,
-            cluster_data,
-            stacks (
-              id,
-              name,
-              type,
-              base_price,
-              description
-            )
-          `)
-          .eq('user_id', user.id)
-          .eq('status', 'active');
-
-        if (cartItems) {
-          // Process cart items - handle both saved stacks and unsaved clusters
-          const formattedStacks: CartStack[] = await Promise.all(
-            cartItems.map(async (item) => {
-              const stack = Array.isArray(item.stacks) ? item.stacks[0] : item.stacks;
-              const isUnsaved = !item.stack_id; // No stack_id means it's an unsaved cluster
-
-              if (isUnsaved) {
-                // Unsaved cluster - use cluster_name and cluster_data
-                const clusterData = (item.cluster_data as Array<{ name: string; price: number; is_free: boolean }>) || [];
-                return {
-                  cart_id: item.id,
-                  stack_id: null,
-                  name: item.cluster_name || 'Custom Stack',
-                  type: 'CUSTOM',
-                  price: item.total_price || 0,
-                  description: 'Custom infrastructure stack',
-                  sub_stacks: clusterData.map((sub) => ({
-                    name: sub.name,
-                    price: sub.price,
-                  })),
-                  cluster_name: item.cluster_name,
-                  cluster_data: clusterData,
-                  isUnsaved: true,
-                };
-              } else {
-                // Saved stack - fetch sub_stacks from DB
-                let subStacks: Array<{ id?: string; name: string; price: number }> = [];
-                if (item.sub_stack_ids && item.sub_stack_ids.length > 0) {
-                  const { data: subStacksData } = await supabase
-                    .from('sub_stacks')
-                    .select('id, name, price')
-                    .in('id', item.sub_stack_ids);
-
-                  subStacks = subStacksData || [];
-                }
-
-                return {
-                  cart_id: item.id,
-                  stack_id: stack?.id || item.stack_id,
-                  name: stack?.name || 'Unknown Stack',
-                  type: stack?.type?.toUpperCase().replace(/_/g, ' ') || 'CUSTOM',
-                  price: item.total_price || stack?.base_price || 0,
-                  description: stack?.description || '',
-                  sub_stacks: subStacks,
-                  isUnsaved: false,
-                };
-              }
-            })
-          );
-          setCartStacks(formattedStacks);
+            return {
+              cart_id: item.id,
+              stack_id: item.stacks?.id || null,
+              name: item.cluster_name || item.stacks?.name || 'Professional Plan',
+              type: item.stacks?.type || 'standard',
+              price: item.total_price || 0,
+              sub_stacks: subStacks,
+              isUnsaved: !item.stacks?.id,
+              cluster_data: item.cluster_data,
+            };
+          });
+          setCartStacks(formatted);
         }
-      } catch (error) {
-        console.error('Error fetching cart stacks:', error);
+      } catch (e) {
+        console.error("Fetch Error:", e);
       } finally {
-        setTimeout(() => setLoading(false), 1200);
+        setLoading(false);
       }
     };
+    fetchCheckoutData();
+  }, [user, authLoading, supabase]);
 
-    fetchCartStacks();
-  }, [user, authLoading]);
+  // Logic Helpers
+  const removeItem = async (stackIndex: number, subIndex?: number) => {
+    const stack = cartStacks[stackIndex];
 
-  // Set active cart item to first item when cart loads
-  useEffect(() => {
-    if (cartStacks.length > 0 && !activeCartId) {
-      setActiveCartId(cartStacks[0].cart_id);
-    }
-  }, [cartStacks, activeCartId]);
+    if (subIndex !== undefined) {
+      // Immutable update: create new arrays instead of mutating
+      const newSubStacks = stack.sub_stacks.filter((_, i) => i !== subIndex);
+      const newClusterData = stack.cluster_data
+        ? stack.cluster_data.filter((_, i) => i !== subIndex)
+        : undefined;
 
-  const handleRemoveFromCart = async (cartId: string) => {
-    if (removingId) return;
-    setRemovingId(cartId);
+      // If removing last substack from cluster, remove entire cluster from cart
+      if (stack.cluster_data && newSubStacks.length === 0) {
+        try {
+          const { error } = await supabase
+            .from('cart_stacks')
+            .delete()
+            .eq('id', stack.cart_id);
+          if (error) throw error;
+          setCartStacks(prev => prev.filter((_, i) => i !== stackIndex));
+        } catch (e) {
+          console.error('Failed to remove cart item:', e);
+        }
+        return;
+      }
 
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('cart_stacks')
-        .delete()
-        .eq('id', cartId);
+      const updatedStack = {
+        ...stack,
+        sub_stacks: newSubStacks,
+        cluster_data: newClusterData,
+      };
+      const newTotalPrice = newSubStacks.reduce((sum, s) => sum + s.price * s.quantity, 0);
 
-      if (error) throw error;
-
-      setCartStacks((prev) => prev.filter((item) => item.cart_id !== cartId));
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-      alert('Failed to remove item from cart');
-    } finally {
-      setRemovingId(null);
+      try {
+        const { error } = await supabase
+          .from('cart_stacks')
+          .update({
+            cluster_data: newClusterData,
+            total_price: newTotalPrice,
+          })
+          .eq('id', stack.cart_id);
+        if (error) throw error;
+        setCartStacks(prev =>
+          prev.map((s, i) => (i === stackIndex ? updatedStack : s))
+        );
+      } catch (e) {
+        console.error('Failed to update cart item:', e);
+      }
+    } else {
+      // Remove entire stack from database
+      try {
+        const { error } = await supabase
+          .from('cart_stacks')
+          .delete()
+          .eq('id', stack.cart_id);
+        if (error) throw error;
+        setCartStacks(prev => prev.filter((_, i) => i !== stackIndex));
+      } catch (e) {
+        console.error('Failed to delete cart item:', e);
+      }
     }
   };
 
-  // Handle coupon application
+  const updateQuantity = (stackIndex: number, subIndex: number, val: string) => {
+    const qty = Math.max(0, parseInt(val) || 0);
+    setCartStacks(prev =>
+      prev.map((s, i) =>
+        i === stackIndex
+          ? {
+              ...s,
+              sub_stacks: s.sub_stacks.map((sub, j) =>
+                j === subIndex ? { ...sub, quantity: qty } : sub
+              ),
+            }
+          : s
+      )
+    );
+  };
+
   const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) {
+    if (!couponInput.trim()) {
       setCouponError('Please enter a coupon code');
       return;
     }
 
+    setCouponError('');
     setCouponLoading(true);
-    setCouponError(null);
 
     try {
-      const result = await validateCoupon(couponCode.trim(), subtotal);
+      const { data: coupon, error } = await supabase
+        .from('coupons')
+        .select('id, code, discount_type, discount_amount, is_active, min_cart_value')
+        .eq('code', couponInput.toUpperCase())
+        .single();
 
-      if (result.success) {
-        setAppliedCoupon({
-          code: result.code!,
-          discountAmount: result.discountAmount!,
-          couponId: result.couponId!,
-        });
-        setCouponCode('');
-        setCouponError(null);
-      } else {
-        setCouponError(result.error || 'Invalid coupon');
-        setAppliedCoupon(null);
+      if (error || !coupon) {
+        setCouponError('Invalid coupon code');
+        return;
       }
-    } catch {
-      setCouponError('Failed to validate coupon');
-      setAppliedCoupon(null);
+
+      if (!coupon.is_active) {
+        setCouponError('This coupon is no longer active');
+        return;
+      }
+
+      if (coupon.min_cart_value && subtotal < coupon.min_cart_value) {
+        setCouponError(`Minimum cart value of ₹${coupon.min_cart_value} required`);
+        return;
+      }
+
+      setAppliedCoupon({
+        id: coupon.id,
+        code: coupon.code,
+        discount_type: coupon.discount_type as 'percentage' | 'fixed',
+        discount_amount: coupon.discount_amount,
+      });
+      setCouponInput('');
+    } catch (e) {
+      console.error('Coupon error:', e);
+      setCouponError('Failed to apply coupon');
     } finally {
       setCouponLoading(false);
     }
   };
 
-  // Remove applied coupon
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponError(null);
+  const removeCoupon = () => setAppliedCoupon(null);
+
+  // Billing address handlers
+  const handleBillingChange = (field: string, value: string) => {
+    setBillingAddress(prev => ({ ...prev, [field]: value }));
   };
 
-  const subtotal = cartStacks.reduce((sum, item) => sum + item.price, 0);
-  const discount = appliedCoupon?.discountAmount || 0;
-  const finalTotal = Math.max(subtotal - discount, 0);
-  const activeStack = cartStacks.find((stack) => stack.cart_id === activeCartId);
+  // Save as 'office' if checkbox is checked, otherwise 'headquarters'
+  const handleSaveBillingAddress = useCallback(async () => {
+    if (!user) return;
+    const type = useOfficeAddress ? 'office' : 'headquarters';
+    await saveBillingAddress(user.id, billingAddress, type);
+  }, [user, billingAddress, useOfficeAddress]);
 
-  if (loading) return <BootSequence />;
+  // Calculations
+  const subtotal = useMemo(() => {
+    let total = 0;
+    cartStacks.forEach(stack => {
+      // For cluster/custom stacks: total_price is sum of sub_stacks, so only count sub_stacks to avoid double counting
+      if (stack.cluster_data) {
+        stack.sub_stacks.forEach(sub => {
+          total += sub.price * sub.quantity;
+        });
+      } else {
+        total += stack.price;
+        stack.sub_stacks.forEach(sub => {
+          total += sub.price * sub.quantity;
+        });
+      }
+    });
+    return billingCycle === 'Yearly' ? total : total * 1.2;
+  }, [cartStacks, billingCycle]);
+
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discount_type === 'percentage') {
+      return subtotal * (appliedCoupon.discount_amount / 100);
+    }
+    return appliedCoupon.discount_amount;
+  }, [appliedCoupon, subtotal]);
+
+  const discountedSubtotal = Math.max(0, subtotal - couponDiscount);
+  const gstAmount = discountedSubtotal * 0.18;
+  const totalPayable = discountedSubtotal + gstAmount;
+
+  // Billing address validation – require key fields before payment
+  const isBillingComplete = useMemo(() => {
+    const { phone, state, street_address, city, zip_code } = billingAddress;
+    return [phone, state, street_address, city, zip_code].every(v => v.trim() !== '');
+  }, [billingAddress]);
+
+  /* --- CONDITIONAL RENDER FOR LOADING --- */
+  if (loading) {
+    return <LoadingPage />;
+  }
 
   return (
-    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-[#F7FAFC] font-sans text-slate-700">
 
-      {/* ATMOSPHERIC GRADIENTS */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-5%] right-[-5%] w-[40%] h-[40%] bg-teal-500/5 blur-[160px] rounded-full" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-teal-900/10 blur-[120px] rounded-full" />
+      {/* STEPPER HEADER - DEEP NAVY BACKGROUND */}
+      <div className="w-full bg-[#1A365D] text-white pt-8 pb-12">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center justify-center gap-4 text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-[#38A169] flex items-center justify-center text-xs text-white">✓</span>
+              <span className="opacity-80 text-xs">Plan</span>
+            </div>
+            <div className="w-12 h-[1px] bg-white/20" />
+            <div className="flex items-center gap-2">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${step === 1 ? 'bg-white text-[#1A365D]' : 'bg-[#38A169] border-none'}`}>
+                {step > 1 ? '✓' : '2'}
+              </span>
+              <span className={step === 1 ? 'font-bold' : 'opacity-80'}>Add-ons</span>
+            </div>
+            <div className="w-12 h-[1px] bg-white/20" />
+            <div className="flex items-center gap-2">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${step === 2 ? 'bg-white text-[#1A365D]' : 'border-white/40'}`}>3</span>
+              <span className={step === 2 ? 'font-bold' : 'opacity-60'}>Payment</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* --- REFINED NAV SECTION (ACTIVE MODULES) --- */}
-      <div className="sticky top-0 z-20 rounded-2xl border border-neutral-900 bg-[#020202]/80 backdrop-blur-md shadow-lg">
-        <nav>
-          <div className="max-w-[1700px] mx-auto px-6 py-4 flex items-center justify-between gap-8">
-            {/* Cart Icon */}
-            <div
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900/60"
-              aria-label="Cart"
-            >
-              <ShieldCheck size={18} className="text-teal-500" />
-              {cartStacks.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-teal-500 text-[10px] font-bold text-black flex items-center justify-center">
-                  {cartStacks.length}
-                </span>
-              )}
+      <div className="max-w-6xl mx-auto px-4 -mt-8 pb-20">
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          <div className="flex-1 space-y-4">
+
+            {/* PLAN SELECTOR CARD */}
+            <div className="bg-white border border-slate-200 rounded shadow-sm p-6 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-slate-50 text-[#1A365D] rounded flex items-center justify-center font-bold text-xl border border-[#1A365D]">B</div>
+                <div>
+                  <h2 className="font-bold text-lg text-[#1A365D]">{cartStacks[0]?.name || 'Professional Plan'}</h2>
+                  <button className="text-[#319795] text-sm font-medium hover:underline">Change Plan</button>
+                </div>
+              </div>
+              <div className="text-right flex flex-col items-end">
+                <div className="flex bg-slate-100 p-1 rounded-md mb-2 w-fit">
+                  <button onClick={() => setBillingCycle('Monthly')} className={`px-4 py-1 text-xs font-bold rounded transition-all ${billingCycle === 'Monthly' ? 'bg-white shadow-sm text-[#2B6CB0]' : 'text-slate-500'}`}>Monthly</button>
+                  <button onClick={() => setBillingCycle('Yearly')} className={`px-4 py-1 text-xs font-bold rounded transition-all ${billingCycle === 'Yearly' ? 'bg-[#2B6CB0] text-white' : 'text-slate-500'}`}>Yearly</button>
+                </div>
+                <p className="text-xl font-bold text-[#1A365D]">₹{subtotal.toLocaleString()}</p>
+              </div>
             </div>
 
-            {/* Horizontal Scroll Area for StackCards */}
-            <div className="flex-1 flex gap-4 overflow-x-auto no-scrollbar py-2">
-              {cartStacks.length > 0 ? (
-                cartStacks.map((stack) => (
-                  <div
-                    key={stack.cart_id}
-                    onClick={() => setActiveCartId(stack.cart_id)}
-                    className={`relative flex-shrink-0 w-48 p-4 rounded-xl transition-all cursor-pointer ${activeCartId === stack.cart_id
-                      ? 'bg-teal-500/10 border-2 border-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.2)]'
-                      : 'bg-neutral-900/40 border border-neutral-800 hover:border-teal-500/40'
-                      }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="text-[10px] font-bold text-teal-500 uppercase tracking-wider">{stack.type}</div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveFromCart(stack.cart_id);
-                        }}
-                        disabled={removingId === stack.cart_id}
-                        className="text-neutral-600 hover:text-red-500 transition-colors disabled:opacity-50"
-                        title="Remove from cart"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+            {step === 1 ? (
+              /* ADD-ONS TABLE */
+              <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider font-bold text-slate-500">
+                      <th className="px-6 py-4">Items</th>
+                      <th className="px-6 py-4 text-center w-32">No. of Units</th>
+                      <th className="px-6 py-4 text-right w-40">Amount</th>
+                      <th className="px-6 py-4 w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {cartStacks.map((stack, sIdx) => (
+                      <React.Fragment key={stack.cart_id}>
+                        <tr className="group">
+                          <td className="px-6 py-6">
+                            <p className="font-bold text-[#1A365D]">{stack.name}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {stack.cluster_data ? 'Custom Stack' : 'Base Plan License'}
+                            </p>
+                          </td>
+                          <td className="px-6 py-6 text-center text-sm font-medium text-slate-600">
+                            {stack.cluster_data ? '—' : '1'}
+                          </td>
+                          <td className="px-6 py-6 text-right font-bold text-[#1A365D]">
+                            {stack.cluster_data ? '—' : `₹${stack.price.toLocaleString()}`}
+                          </td>
+                          <td className="px-4 py-6 text-center">
+                            <button onClick={() => removeItem(sIdx)} className="text-slate-300 hover:text-[#E53E3E] transition-colors"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
+                        {stack.sub_stacks.map((sub, subIdx) => (
+                          <tr key={subIdx} className="bg-slate-50/50">
+                            <td className="pl-12 pr-6 py-4">
+                              <p className="font-semibold text-sm text-slate-700">{sub.name}</p>
+                              <p className="text-[11px] text-slate-400">Performance Add-on</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <input type="number" value={sub.quantity} onChange={(e) => updateQuantity(sIdx, subIdx, e.target.value)} className="w-20 mx-auto block border border-slate-300 rounded px-2 py-1 text-sm text-center focus:border-[#2B6CB0] focus:ring-[#2B6CB0] outline-none" />
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-slate-600">₹{(sub.price * sub.quantity).toLocaleString()}</td>
+                            <td className="px-4 py-4 text-center">
+                              <button onClick={() => removeItem(sIdx, subIdx)} className="text-slate-300 hover:text-[#E53E3E]"><Trash2 size={14} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* BILLING & PAYMENT FORM */
+              <div className="space-y-4">
+                <div className="bg-white border border-slate-200 rounded shadow-sm p-8">
+                  <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-[#1A365D]">
+                    <CreditCard size={20} className="text-[#2B6CB0]" />
+                    Billing Address
+                  </h3>
+                  <div className="grid grid-cols-2 gap-6">
+                    <FormGroup label="Billing Name/Company Name" value={billingAddress.company_name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('company_name', e.target.value)} onBlur={handleSaveBillingAddress} />
+                    <FormGroup label="Phone" placeholder="+91 ..." value={billingAddress.phone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('phone', e.target.value)} onBlur={handleSaveBillingAddress} />
+                    <FormGroup label="Country/Region" value={billingAddress.country} readOnly />
+                    <FormGroup label="State" type="select" value={billingAddress.state} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => { handleBillingChange('state', e.target.value); }} onBlur={handleSaveBillingAddress} />
+                    <FormGroup label="Street Address" isFull placeholder="Building, Street, Area" value={billingAddress.street_address} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('street_address', e.target.value)} onBlur={handleSaveBillingAddress} />
+                    <FormGroup label="City" value={billingAddress.city} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('city', e.target.value)} onBlur={handleSaveBillingAddress} />
+                    <FormGroup label="ZIP/Postal Code" value={billingAddress.zip_code} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBillingChange('zip_code', e.target.value)} onBlur={handleSaveBillingAddress} />
+                  </div>
+
+                  {/* Office Address Checkbox */}
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={useOfficeAddress}
+                          onChange={(e) => {
+                            setUseOfficeAddress(e.target.checked);
+                            // Re-save with the new type on toggle
+                            if (user) {
+                              const type = e.target.checked ? 'office' : 'headquarters';
+                              saveBillingAddress(user.id, billingAddress, type);
+                            }
+                          }}
+                          className="w-[18px] h-[18px] accent-[#2B6CB0] cursor-pointer rounded"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Building2 size={16} className="text-[#2B6CB0]" />
+                        <span className="text-sm font-semibold text-[#1A365D] group-hover:text-[#2B6CB0] transition-colors">
+                          This is an office address (won&apos;t appear in settings)
+                        </span>
+                      </div>
+                    </label>
+                    <p className="text-[11px] text-slate-400 mt-1.5 ml-[30px]">
+                      When checked, this address will only be used for invoicing and won&apos;t update your organization profile.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+                  <div className="p-8 pb-6">
+                    <h3 className="font-bold text-lg mb-6 text-[#1A365D]">Payment Method</h3>
+                    <div className="flex border-b border-slate-100 mb-8">
+                      <button onClick={() => setActiveTab('Recurring')} className={`px-8 py-3 text-sm font-bold transition-all border-b-2 -mb-[2px] ${activeTab === 'Recurring' ? 'border-[#2B6CB0] text-[#2B6CB0]' : 'border-transparent text-slate-400'}`}>Recurring</button>
+                      <button onClick={() => setActiveTab('Non-Recurring')} className={`px-8 py-3 text-sm font-bold transition-all border-b-2 -mb-[2px] ${activeTab === 'Non-Recurring' ? 'border-[#2B6CB0] text-[#2B6CB0]' : 'border-transparent text-slate-400'}`}>One-time</button>
                     </div>
-                    <h3 className="text-sm font-bold text-white mb-2">{stack.name}</h3>
-                    <p className="text-xs text-neutral-500">{stack.sub_stacks.length} modules</p>
-                    <div className="mt-3 pt-3 border-t border-neutral-800">
-                      <p className="text-lg font-mono font-bold text-teal-500">₹{stack.price.toLocaleString()}</p>
+
+                    <div className="min-h-[140px]">
+                      {activeTab === 'Recurring' ? (
+                        <div className="space-y-6">
+                          <div className="flex gap-8">
+                            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                              <input type="radio" checked={recurringMethod === 'Credit Card'} onChange={() => setRecurringMethod('Credit Card')} className="w-4 h-4 accent-[#2B6CB0]" />
+                              Credit Card
+                            </label>
+                            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                              <input type="radio" checked={recurringMethod === 'UPI'} onChange={() => setRecurringMethod('UPI')} className="w-4 h-4 accent-[#2B6CB0]" />
+                              UPI
+                            </label>
+                          </div>
+                          <div className="bg-slate-50 p-4 rounded border border-slate-100 text-[13px] text-slate-600">
+                            <p><span className="font-bold text-[#1A365D]">Note:</span> Recurring payments are automated. UPI recurring may take 24-72 hours to verify.</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[13px] text-slate-600">Manual payment required for every renewal. No automated charges.</p>
+                      )}
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="flex-1 text-center py-4">
-                  <p className="text-neutral-600 text-sm">Your cart is empty</p>
+                  <div className="bg-[#fcfdfe] px-8 py-4 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2 grayscale opacity-50">
+                      <ShieldCheck size={16} />
+                      <span className="text-[10px] font-bold uppercase">PCI DSS Compliant</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SIDEBAR - ACTION ACCENTS */}
+          <div className="lg:w-[350px]">
+            <div className="bg-white border border-slate-200 rounded shadow-sm sticky top-6 overflow-hidden">
+              {billingCycle === 'Yearly' && (
+                <div className="bg-[#38A169] p-2.5 text-center">
+                  <p className="text-white text-[11px] font-bold uppercase tracking-wider">Annual Discount Applied</p>
                 </div>
               )}
-            </div>
 
-          </div>
-        </nav>
+              <div className="p-6">
+                {step === 1 && cartStacks.length > 0 && (
+                  <button onClick={() => setStep(2)} className="w-full bg-[#2B6CB0] hover:bg-[#1A365D] text-white font-bold py-3.5 rounded shadow-lg mb-6 transition-all">
+                    Proceed to Billing
+                  </button>
+                )}
 
-
-
-      </div>
-
-
-      <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
-
-
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-
-          {/* LEFT COLUMN: PLAN SUMMARY */}
-          <section className="lg:col-span-5 space-y-10">
-            <div className="space-y-4">
-              <p className="text-teal-500 text-[10px] font-black uppercase tracking-[0.4em]">Stack Details</p>
-              {activeStack ? (
-                <>
-                  <div className="flex items-baseline gap-4">
-                    <h1 className="text-4xl font-black text-white tracking-tighter">{activeStack.name}</h1>
-                    <span className="bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[10px] px-3 py-1 rounded-full font-bold">{activeStack.type}</span>
+                <h3 className="font-bold text-slate-800 mb-4 text-xs uppercase tracking-tight">Order Summary</h3>
+                <div className="space-y-3 pb-4 border-b border-slate-100">
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-slate-800">₹{subtotal.toLocaleString()}</span>
                   </div>
-                  <p className="text-sm text-neutral-500 leading-relaxed">
-                    {activeStack.description || 'No description available for this stack.'}
-                  </p>
-                  <div className="pt-4">
-                    <p className="text-2xl font-mono font-bold text-teal-500">₹{activeStack.price.toLocaleString()}</p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-neutral-500 leading-relaxed">
-                  Add stacks to your cart to get started with your infrastructure.
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-4 border-t border-neutral-900 pt-10">
-              {activeStack && activeStack.sub_stacks.length > 0 ? (
-                <>
-                  <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-4">Included Modules</p>
-                  {activeStack.sub_stacks.map((subStack) => (
-                    <div key={subStack.id} className="flex items-center justify-between gap-4 group">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="w-5 h-5 rounded-full border border-neutral-800 flex items-center justify-center group-hover:border-teal-500/40 transition-colors">
-                          <Check size={12} className="text-teal-500" />
-                        </div>
-                        <span className="text-sm font-medium text-neutral-300 group-hover:text-white transition-colors">{subStack.name}</span>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-sm text-[#38A169] bg-green-50 px-2 py-1.5 rounded border border-[#38A169] border-dashed">
+                      <span className="flex items-center gap-1 font-medium italic">
+                        <Tag size={12} /> {appliedCoupon.code}
+                        {appliedCoupon.discount_type === 'percentage' && (
+                          <span className="text-[10px]">({appliedCoupon.discount_amount}%)</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span>- ₹{couponDiscount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <button onClick={removeCoupon} className="text-slate-400 hover:text-red-500"><X size={14} /></button>
                       </div>
-                      <span className="text-xs font-mono text-neutral-600">₹{subStack.price.toLocaleString()}</span>
                     </div>
-                  ))}
-                </>
-              ) : (
-                <p className="text-sm text-neutral-600">No modules available</p>
-              )}
-            </div>
+                  )}
 
-            {/* COUPON SECTION */}
-            <div className="pt-6 border-t border-neutral-900 space-y-4">
-              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em]">Have a Coupon?</p>
-              
-              {!appliedCoupon ? (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Tag size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" />
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span>Tax (GST 18%)</span>
+                    <span className="font-medium text-slate-800">₹{gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+
+                {!appliedCoupon && (
+                  <div className="mt-4 pb-4 border-b border-slate-100">
+                    <div className="flex gap-2">
                       <input
                         type="text"
-                        value={couponCode}
-                        onChange={(e) => {
-                          setCouponCode(e.target.value.toUpperCase());
-                          setCouponError(null);
-                        }}
-                        placeholder="ENTER CODE"
-                        className="w-full bg-neutral-900/50 border border-neutral-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-neutral-700 focus:outline-none focus:border-teal-500/50 transition-all font-mono uppercase tracking-wider"
+                        placeholder="Coupon Code"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value)}
+                        className="flex-1 border border-slate-200 rounded px-3 py-2 text-xs outline-none focus:border-[#2B6CB0] focus:ring-[#2B6CB0] uppercase font-semibold"
                       />
+                      <button
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading}
+                        className="bg-[#020202] text-white px-3 py-2 rounded text-[11px] font-bold hover:bg-black transition-colors disabled:opacity-50"
+                      >
+                        {couponLoading ? '...' : 'APPLY'}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      disabled={couponLoading || !couponCode.trim()}
-                      className="px-6 py-3 bg-teal-500/20 border border-teal-500/30 rounded-xl text-teal-400 text-[10px] font-black uppercase tracking-wider hover:bg-teal-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {couponLoading ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        'Apply'
-                      )}
+                    {couponError && <p className="text-[10px] text-[#E53E3E] mt-1 font-medium">{couponError}</p>}
+                  </div>
+                )}
+
+                <div className="py-4 flex justify-between items-center bg-slate-50 -mx-6 px-6 mb-6 mt-4">
+                  <span className="font-bold text-slate-900">Total Payable</span>
+                  <span className="font-extrabold text-xl text-[#2B6CB0]">₹{totalPayable.toLocaleString()}</span>
+                </div>
+
+                {step === 2 && (
+                  <div className="space-y-3">
+                    <BuyNowButton
+                      amount={Math.round(totalPayable)}
+                      discountAmount={couponDiscount}
+                      couponId={appliedCoupon?.id}
+                      userDetails={{
+                        name: organizationData?.name || profileData?.name || '',
+                        email: profileData?.email || '',
+                      }}
+                      cartItems={cartStacks}
+                      billingCycle={billingCycle === 'Monthly' ? 'monthly' : 'yearly'}
+                      mode={activeTab === 'Recurring' ? 'recurring' : 'one-time'}
+                      recurringMethod={recurringMethod === 'Credit Card' ? 'card' : 'upi'}
+                      onSuccess={() => alert('Payment Successful!')}
+                      disabled={!isBillingComplete}
+                    />
+                    {!isBillingComplete && (
+                      <p className="text-xs text-center text-amber-600 font-medium">
+                        Please complete your billing address to proceed
+                      </p>
+                    )}
+                    <button onClick={() => setStep(1)} className="w-full border border-slate-300 py-3 rounded font-bold text-slate-500 hover:bg-slate-50 transition-colors text-sm">
+                      Back to Items
                     </button>
                   </div>
-                  {couponError && (
-                    <p className="text-red-400 text-[10px] font-medium ml-1">{couponError}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <Tag size={16} className="text-green-400" />
-                    <div>
-                      <p className="text-green-400 text-sm font-bold">{appliedCoupon.code}</p>
-                      <p className="text-green-400/70 text-[10px]">-₹{appliedCoupon.discountAmount.toLocaleString()} off</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveCoupon}
-                    className="p-2 hover:bg-green-500/20 rounded-lg transition-colors"
-                  >
-                    <X size={16} className="text-green-400" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* PRICE BREAKDOWN */}
-            <div className="pt-6 border-t border-neutral-900 space-y-3">
-              <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-neutral-600">
-                <span>Subtotal</span>
-                <span className="text-white font-mono">₹{subtotal.toLocaleString()}</span>
-              </div>
-              
-              {appliedCoupon && (
-                <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-green-400">
-                  <span>Discount ({appliedCoupon.code})</span>
-                  <span className="font-mono">-₹{appliedCoupon.discountAmount.toLocaleString()}</span>
-                </div>
-              )}
-              
-              <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-neutral-600">
-                <span>Items in Cart</span>
-                <span className="text-white font-mono">{cartStacks.length}</span>
-              </div>
-              
-              <div className="flex justify-between pt-6 text-2xl font-black border-t border-neutral-900">
-                <span className="text-white uppercase tracking-tighter">Total_Cost</span>
-                <div className="text-right">
-                  {appliedCoupon && (
-                    <span className="text-neutral-600 line-through text-lg mr-3 font-mono">₹{subtotal.toLocaleString()}</span>
-                  )}
-                  <span className="text-teal-500 font-mono">₹{finalTotal.toLocaleString()}</span>
-                </div>
+                )}
               </div>
             </div>
-          </section>
+          </div>
 
-          {/* RIGHT COLUMN: SECURE PAYMENT */}
-          <section className="lg:col-span-7 bg-[#0a0a0a] border border-neutral-900 rounded-[40px] p-8 lg:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <form className="space-y-8">
-              <div className="space-y-6">
-                <label className="block">
-                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em] ml-1">Email</span>
-                  <input type="email" defaultValue={profileData?.email} className="mt-2 w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-6 py-4 text-white placeholder:text-neutral-700 focus:outline-none focus:border-teal-500/50 transition-all font-mono" />
-                </label>
-
-                {/* <div className="space-y-4">
-                   <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em] ml-1">Payment_Transceiver</span>
-                   <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl overflow-hidden focus-within:border-teal-500/50 transition-all">
-                      <div className="p-6 border-b border-neutral-800 flex items-center gap-4">
-                        <CreditCard className="text-neutral-600" size={20} />
-                        <input type="text" placeholder="1234 5678 9876 5432" className="bg-transparent w-full text-white focus:outline-none font-mono tracking-widest" />
-                        <div className="flex gap-2">
-                           <div className="w-8 h-5 bg-neutral-800 rounded-md" />
-                           <div className="w-8 h-5 bg-neutral-800 rounded-md" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2">
-                        <input type="text" placeholder="MM / YY" className="p-6 bg-transparent border-r border-neutral-800 focus:outline-none text-white font-mono" />
-                        <input type="text" placeholder="CVC" className="p-6 bg-transparent focus:outline-none text-white font-mono" />
-                      </div>
-                   </div>
-                </div> */}
-
-                <label className="block">
-                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em] ml-1">Name</span>
-                  <input type="text" defaultValue={organizationData?.name} className="mt-2 w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-6 py-4 text-white placeholder:text-neutral-700 focus:outline-none focus:border-teal-500/50 transition-all uppercase tracking-tight" />
-                </label>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em] ml-1">Geographic_Node</span>
-                    <div className="relative">
-                      <input type="text" placeholder="Country" className="mt-2 w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-6 py-4 text-white focus:outline-none" />
-
-                    </div>
-                  </label>
-                  <label className="block">
-                    <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.3em] ml-1">Postal_Code</span>
-                    <input type="text" placeholder="Address line 1" className="mt-2 w-full bg-neutral-900/50 border border-neutral-800 rounded-2xl px-6 py-4 text-white focus:outline-none" />
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-4 p-5 rounded-3xl bg-teal-500/5 border border-teal-500/10">
-                <div className="pt-1">
-                  <input type="checkbox" className="w-4 h-4 accent-teal-500 bg-black border-neutral-800 rounded" />
-                </div>
-                <p className="text-[11px] leading-relaxed text-neutral-500">
-                  By clicking Subscribe, you agree to the <span className="text-teal-500">Terms of Decryption</span> and authorize monthly protocol charges. Cancel anytime via the dashboard.
-                </p>
-              </div>
-
-              <BuyNowButton 
-                amount={finalTotal}
-                discountAmount={discount}
-                couponId={appliedCoupon?.couponId}
-                userDetails={{
-                  name: organizationData?.name || profileData?.name || '',
-                  email: profileData?.email || '',
-                  contact: profileData?.contact || ''
-                }}
-                cartItems={cartStacks}
-                onSuccess={(verification: {orderId?: string; paymentId?: string}) => {
-                  console.log('Payment successful!', verification)
-                  // Clear local cart state
-                  setCartStacks([])
-                  setAppliedCoupon(null)
-                  // Redirect handled by BuyNowButton
-                }}
-              />
-              {cartStacks.length === 0 && (
-                <p className="text-[10px] text-neutral-600 italic text-center mt-4">Add stacks to your cart to checkout</p>
-              )}
-
-              <div className="flex items-center justify-center gap-8 opacity-30 grayscale hover:opacity-60 transition-opacity">
-                <ShieldCheck size={18} />
-                <Globe size={18} />
-                <Lock size={18} />
-                <Cpu size={18} />
-              </div>
-            </form>
-          </section>
         </div>
       </div>
     </div>
   );
 }
 
-function BootSequence() {
+/* --- UI HELPERS --- */
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Chandigarh', 'Puducherry',
+  'Andaman and Nicobar Islands', 'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep'
+];
+
+function FormGroup({ label, type = 'text', isFull = false, ...props }: any) {
   return (
-    <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center font-mono">
-      <div className="relative w-64 h-[1px] bg-neutral-900 mb-8 overflow-hidden">
-        <div className="absolute inset-0 bg-teal-500 animate-loading" />
-      </div>
-      <div className="flex flex-col items-center gap-2">
-        <p className="text-[10px] tracking-[0.8em] text-teal-500 uppercase animate-pulse">Syncing Active Modules</p>
-      </div>
-      <style jsx>{`
-          @keyframes loading {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-          }
-          .animate-loading {
-            animation: loading 1.5s infinite ease-in-out;
-          }
-          .no-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-       `}</style>
+    <div className={isFull ? 'col-span-2' : 'col-span-1'}>
+      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-tight mb-1.5">{label}</label>
+      {type === 'select' ? (
+        <select {...props} className="w-full border border-slate-200 rounded px-3 py-2.5 text-sm bg-white outline-none focus:border-[#2B6CB0] focus:ring-[#2B6CB0]">
+          <option value="">Select State</option>
+          {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      ) : (
+        <input type="text" {...props} className="w-full border border-slate-200 rounded px-3 py-2.5 text-sm outline-none focus:border-[#2B6CB0] focus:ring-[#2B6CB0] transition-all placeholder:text-slate-300" />
+      )}
     </div>
-  )
+  );
 }
