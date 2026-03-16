@@ -11,18 +11,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  MapPin,
-  Pencil
 } from "lucide-react";
 import { OrderWithStacks, PurchasedStack, BillingAddress } from "@/src/types/billing";
 import {
-  formatSubscriptionCycle,
   calculateNextPayment,
   cancelSubscription,
   getOrdersWithStacks,
   getBillingAddress
 } from "@/src/modules/billing";
 import { useAuth } from "@/src/context/AuthContext";
+import { generateInvoice } from "@/src/modules/billing/generateInvoice";
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -81,8 +79,16 @@ const BillingPage: FC = () => {
     return calculateNextPayment(stack.created_at, duration);
   };
 
-  // Computed stats from real data
-  const totalBalance = purchasedStacks.reduce((sum, s) => sum + s.base_price, 0);
+  // Sum each active stack's proportional share of its order total (already includes GST)
+  const totalBalance = purchasedStacks.reduce((sum, stack) => {
+    const parentOrder = orders.find(o => o.id === stack.order_id);
+    if (!parentOrder) return sum;
+    const orderBaseSum = parentOrder.stacks.reduce((s, st) => s + st.base_price, 0);
+    const stackShare = orderBaseSum > 0
+      ? (stack.base_price / orderBaseSum) * parentOrder.total_amount
+      : 0;
+    return sum + stackShare;
+  }, 0);
   const activeCount = purchasedStacks.length;
   const nearestRenewalDays = purchasedStacks.length > 0
     ? Math.min(...purchasedStacks.map(s => getBillingInfo(s).days))
@@ -102,9 +108,9 @@ const BillingPage: FC = () => {
             <h1 className="text-2xl font-bold tracking-tight text-[#1A365D]">Billing & Subscriptions</h1>
             <p className="text-slate-500 text-sm mt-1">Manage your workspace plans and payment history.</p>
           </div>
-          <button className="px-5 py-2.5 text-sm font-bold text-white bg-[#2B6CB0] rounded shadow-md hover:bg-[#1A365D] transition-all active:scale-95">
+          {/* <button className="px-5 py-2.5 text-sm font-bold text-white bg-[#2B6CB0] rounded shadow-md hover:bg-[#1A365D] transition-all active:scale-95">
             Upgrade Plan
-          </button>
+          </button> */}
         </div>
 
         {/* Stats Grid */}
@@ -197,8 +203,17 @@ const BillingPage: FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {purchasedStacks.map((stack) => {
                   const { date, days } = getBillingInfo(stack);
+                  const parentOrder = orders.find((o) => o.id === stack.order_id);
+                  const isRecurring = parentOrder?.is_recurring || !!parentOrder?.subscription_status;
                   const statusLabel = stack.status === "active" ? "Active" : stack.status.charAt(0).toUpperCase() + stack.status.slice(1);
                   const isActive = stack.status === "active";
+
+                  // Proportional share of order total (which already includes GST)
+                  const orderTotal = parentOrder?.total_amount ?? 0;
+                  const orderBaseSum = parentOrder?.stacks.reduce((s, st) => s + st.base_price, 0) ?? 1;
+                  const stackPayable = orderBaseSum > 0
+                    ? (stack.base_price / orderBaseSum) * orderTotal
+                    : stack.base_price;
                   return (
                     <tr
                       key={stack.id}
@@ -221,15 +236,29 @@ const BillingPage: FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-sm text-slate-600 font-medium">{date}</span>
+                          <span className="text-sm text-slate-600 font-medium">
+                            {date}
+                            {isRecurring && (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-100">
+                                Auto-renews
+                              </span>
+                            )}
+                          </span>
                           <span className="text-[11px] text-blue-500 font-semibold">{days} days remaining</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-slate-800">
-                        ₹{stack.base_price.toFixed(2)}
+                        ₹{stackPayable.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-300 hover:text-blue-600 transition-all">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (parentOrder) generateInvoice(parentOrder, billingAddress);
+                          }}
+                          className="p-2 text-slate-300 hover:text-blue-600 transition-all"
+                          title="Download Invoice"
+                        >
                           <Download size={18} />
                         </button>
                       </td>

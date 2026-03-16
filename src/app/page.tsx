@@ -1,343 +1,362 @@
-"use client";
+import React, { FC } from "react";
+import Link from "next/link";
+import {
+  MessageSquare,
+  Layers,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Users,
+  ChevronDown,
+  GripVertical,
+  Play
+} from "lucide-react";
 
-import React, { FC, useState, useRef, ReactNode, useEffect } from "react";
-import { getStacks } from "@/src/modules/product_stacks/actions";
-import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
-import { Button } from "@/src/components/ui/button";
-import Footer from "@/src/components/Footer";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/src/components/ui/sheet";
-import { Menu, ArrowRight, Zap, Shield, BarChart3, Users, LogIn, Clock, Rocket, Plus } from "lucide-react";
-
-// --- MAGNETIC WRAPPER COMPONENT ---
-const MagneticWrapper = ({ children, strength = 0.5 }: { children: ReactNode, strength?: number }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const springX = useSpring(x, { stiffness: 150, damping: 15 });
-  const springY = useSpring(y, { stiffness: 150, damping: 15 });
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const { clientX, clientY } = e;
-    const { width, height, left, top } = ref.current.getBoundingClientRect();
-    const centerX = left + width / 2;
-    const centerY = top + height / 2;
-    x.set((clientX - centerX) * strength);
-    y.set((clientY - centerY) * strength);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
+const StackboardClassic: FC = () => {
   return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ x: springX, y: springY }}
-    >
-      {children}
-    </motion.div>
-  );
-};
-
-// --- SCROLL REVEAL VARIANTS ---
-const revealVariants = {
-  hidden: { opacity: 0, y: 30, scale: 0.98 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } 
-  }
-};
-
-const App: FC = () => {
-  const { scrollYProgress } = useScroll();
-  
-  const [stacks, setStacks] = useState<Array<{
-    id: string;
-    name: string;
-    base_price: number;
-    sub_stacks?: Array<{ name: string }>;
-  }>>([]);
-
-  useEffect(() => {
-    async function loadStacks() {
-      const data = await getStacks();
-      const predictableStacks = data.filter(stack => 
-        ["HR Stack", "Web Development Stack", "Custom Stack"].includes(stack.name)
-      );
-      setStacks(predictableStacks);
-    }
-    loadStacks();
-  }, []);
-  
-  // High-fidelity background transitions
-  const gridY = useTransform(scrollYProgress, [0, 1], ["0%", "-10%"]);
-  const blobRotation = useTransform(scrollYProgress, [0, 1], [0, 45]);
-
-  return (
-    <main className="min-h-screen bg-[#030303] text-white selection:bg-teal-500/30 overflow-x-hidden relative">
-      
-      {/* --- PREMIUM AMBIENT BACKGROUND --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        {/* SMALLER 15px Micro-Grid */}
-        <motion.div 
-          className="absolute inset-0 opacity-[0.12]" 
-          style={{ 
-            y: gridY,
-            backgroundImage: `radial-gradient(circle, #ffffff 0.5px, transparent 0.5px)`,
-            backgroundSize: '15px 15px' 
-          }} 
-        />
-        <motion.div 
-          style={{ rotate: blobRotation }}
-          className="absolute top-[-20%] right-[-10%] w-[1000px] h-[1000px] bg-teal-500/[0.08] blur-[160px] rounded-full" 
-        />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[800px] h-[800px] bg-purple-500/[0.05] blur-[160px] rounded-full" />
-      </div>
-
+    <div className="min-h-screen bg-[#F7FAFC] text-[#1A365D] font-sans antialiased">
       {/* NAVBAR */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/[0.03] bg-[#030303]/70 backdrop-blur-xl">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <MagneticWrapper strength={0.2}>
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-5 h-5 bg-teal-500 rounded-sm shadow-[0_0_15px_rgba(20,184,166,0.4)]" />
-              <span className="text-sm font-black tracking-[0.2em] uppercase">ShareDen</span>
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition">
+            <div className="w-8 h-8 rounded-lg bg-[#1A365D] flex items-center justify-center">
+              <Layers className="w-4 h-4 text-white" />
             </div>
-          </MagneticWrapper>
+            <span className="font-bold text-lg tracking-tight text-[#1A365D]">
+              Stackboard
+            </span>
+          </Link>
 
-          <div className="hidden md:flex items-center gap-8 text-[10px] font-bold tracking-widest uppercase text-neutral-500">
-            <a href="#stacks" className="hover:text-white transition-colors">The Stacks</a>
-            <a href="#metrics" className="hover:text-white transition-colors">Metrics</a>
-            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-            <div className="flex items-center gap-4">
-               <a href="/login" className="flex items-center gap-1 hover:text-white transition-colors">
-                 <LogIn className="h-3 w-3" /> LOGIN
-               </a>
-               <MagneticWrapper strength={0.3}>
-                 <Button className="bg-white text-black hover:bg-neutral-200 rounded-none px-6 h-8 text-[9px] font-black">
-                   REQUEST ACCESS
-                 </Button>
-               </MagneticWrapper>
-            </div>
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+            {["Product", "Solutions", "Pricing", "Resources"].map((item) => (
+              <Link key={item} href={`/${item.toLowerCase()}`} className="hover:text-[#2B6CB0] transition-colors">
+                {item}
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/login" 
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-[#1A365D] transition"
+            >
+              Sign In
+            </Link>
+            <Link 
+              href="/signup" 
+              className="px-5 py-2 text-sm font-semibold bg-[#2B6CB0] text-white rounded-lg hover:bg-[#1e4e80] transition-all shadow-md hover:shadow-lg active:scale-95"
+            >
+              Get Started
+            </Link>
           </div>
         </div>
-      </header>
-
-      {/* HERO */}
-      <section className="relative z-10 pt-32 pb-16 container mx-auto px-6">
-        <div className="max-w-5xl">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={revealVariants}
-          >
-            <h1 className="text-6xl md:text-[9rem] font-black leading-[0.8] tracking-tighter mb-10">
-              ELIMINATE <br />
-              <span className="text-neutral-800 outline-text">FRICTION.</span>
+        </nav>
+      <main>
+        {/* HERO */}
+        <section className="py-20 md:py-32 px-6 bg-white border-b border-slate-100">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#1A365D] leading-[1.1]">
+              Centralized platform for
+              <br />
+              <span className="text-[#2B6CB0]">agile project teams.</span>
             </h1>
-          </motion.div>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-xl md:text-2xl text-neutral-500 font-light max-w-xl leading-tight"
-          >
-            Shareden is the operating system for founders who prioritize <span className="text-white">velocity over headcount.</span>
-          </motion.p>
-        </div>
-      </section>
 
-      {/* LOGO CLOUD */}
-      <section className="relative z-10 py-16 border-y border-white/[0.03] bg-white/[0.01]">
-        <div className="container mx-auto px-6 text-center">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-10">Trusted by developers and designers at</p>
-          <motion.div 
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            transition={{ staggerChildren: 0.1 }}
-            className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-40 grayscale hover:grayscale-0 transition-all duration-700"
-          >
-            {['OpenAI', 'Apple', 'Vercel', 'Figma', 'Stripe', 'Notion', 'Cursor'].map((logo) => (
-              <motion.span variants={revealVariants} key={logo} className="text-xl md:text-3xl font-bold tracking-tighter text-white">
-                {logo}
-              </motion.span>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+            <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+              Stackboard combines project management, collaboration, and
+              resource planning into one unified workspace to keep your teams
+              aligned and productive.
+            </p>
 
-      {/* METRICS DASHBOARD */}
-      <section id="metrics" className="relative z-10 py-24 bg-white/[0.01]">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { label: "Avg. Completion", value: "2.4h", icon: Clock },
-              { label: "Compliance Score", value: "100%", icon: Shield },
-              { label: "Founder Hours Saved", value: "40+/mo", icon: Rocket }
-            ].map((stat, i) => (
-              <motion.div 
-                key={i}
-                variants={revealVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 text-center"
+            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-6">
+              <Link 
+                href="/signup" 
+                className="px-8 py-3.5 bg-[#2B6CB0] text-white rounded-xl text-base font-semibold hover:bg-[#1e4e80] transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center hover:-translate-y-0.5"
               >
-                <stat.icon className="mx-auto mb-4 h-5 w-5 text-teal-500" />
-                <div className="text-5xl font-black mb-2 tracking-tighter">{stat.value}</div>
-                <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-[0.2em]">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* BENTO GRID */}
-      <section id="stacks" className="relative z-10 container mx-auto px-6 py-20">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          <motion.div 
-            variants={revealVariants}
-            initial="hidden"
-            whileInView="visible"
-            className="md:col-span-8 bg-white/[0.02] border border-white/[0.05] p-12 flex flex-col justify-between min-h-[400px]"
-          >
-            <h3 className="text-4xl font-bold tracking-tight">Everything you need <br/> to run, none of the <br/> management overhead.</h3>
-            <div className="flex gap-4 border-t border-white/5 pt-8">
-               <div className="flex flex-col">
-                  <span className="text-teal-500 font-bold text-2xl tracking-tighter">48h</span>
-                  <span className="text-[9px] text-neutral-500 uppercase tracking-widest">Setup Time</span>
-               </div>
-               <div className="flex flex-col">
-                  <span className="text-white font-bold text-2xl tracking-tighter">Instant</span>
-                  <span className="text-[9px] text-neutral-500 uppercase tracking-widest">Operator Match</span>
-               </div>
+                Start Free Trial
+              </Link>
+              <Link 
+                href="/demo" 
+                className="px-8 py-3.5 border-2 border-[#1A365D] text-[#1A365D] rounded-xl text-base font-semibold hover:bg-slate-50 transition-all flex items-center justify-center hover:-translate-y-0.5"
+              >
+                Book Demo
+              </Link>
             </div>
-          </motion.div>
+          </div>
+        </section>
 
-          <motion.div 
-            variants={revealVariants}
-            initial="hidden"
-            whileInView="visible"
-            className="md:col-span-4 bg-teal-500 p-12 text-black"
-          >
-            <MagneticWrapper strength={0.4}>
-                <Zap className="h-12 w-12 mb-20" />
-                <h4 className="text-4xl font-black tracking-tighter uppercase leading-none">Execution <br/>over advice.</h4>
-            </MagneticWrapper>
-          </motion.div>
-
-          {[
-            { icon: BarChart3, title: "Finance", color: "text-purple-400" },
-            { icon: Shield, title: "Compliance", color: "text-teal-400" },
-            { icon: Users, title: "People", color: "text-blue-400" },
-          ].map((stack, i) => (
-            <motion.div
-              key={i}
-              variants={revealVariants}
-              initial="hidden"
-              whileInView="visible"
-              transition={{ delay: i * 0.1 }}
-              className="md:col-span-4 bg-white/[0.01] border border-white/[0.05] p-8 group cursor-crosshair"
-            >
-              <MagneticWrapper strength={0.25}>
-                <stack.icon className={`${stack.color} mb-6 h-6 w-6`} />
-                <h4 className="text-lg font-bold uppercase tracking-widest">{stack.title}</h4>
-                <p className="text-neutral-500 text-xs mt-2 group-hover:text-white transition-colors">Automated workflows & expert oversight.</p>
-              </MagneticWrapper>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section id="pricing" className="relative z-10 py-24 container mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-black mb-4 uppercase tracking-tighter">Predictable Stacks</h2>
-          <p className="text-neutral-500 text-sm">No hourly billing. No overhead.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {stacks.length > 0 ? stacks.map((stack) => (
-            <motion.div 
-              key={stack.id} 
-              variants={revealVariants}
-              initial="hidden"
-              whileInView="visible"
-              whileHover={{ y: -5 }} 
-              className="p-10 rounded-[2rem] bg-white/[0.02] border border-white/10 flex flex-col"
-            >
-              <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-500 mb-2">{stack.name}</h4>
-              <div className="text-4xl font-black mb-8 tracking-tighter">
-                {stack.base_price > 0 ? `₹${stack.base_price.toLocaleString()}` : "Custom"}
-                <span className="text-xs text-neutral-700 ml-1">/MO</span>
+        {/* CUSTOMIZATION SECTION */}
+        <section className="py-24 px-6 bg-[#2B6CB0] text-white overflow-hidden">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-center mb-16">
+              <div className="flex gap-1 p-1 bg-white/10 rounded-full border border-white/10">
+                <button className="rounded-full bg-white text-[#2B6CB0] px-5 py-2 text-xs font-bold transition">
+                  Customize projects
+                </button>
+                <button className="rounded-full text-white hover:bg-white/10 px-5 py-2 text-xs font-medium transition">
+                  Automate workflows
+                </button>
               </div>
-              <ul className="space-y-4 mb-10 flex-grow">
-                {stack.sub_stacks?.map((sub, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-xs text-neutral-400">
-                    <div className="w-1 h-1 rounded-full bg-teal-500" /> {sub.name}
-                  </li>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <div className="space-y-8">
+                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+                  Customize your experience
+                </h2>
+                <p className="text-lg text-blue-100/90 leading-relaxed">
+                  Build your projects from end-to-end to capture unique
+                  requirements. Create personalized fields, modules, statuses,
+                  and workflows to manage and track industry-specific work
+                  metrics.
+                </p>
+                <Link
+                  href="/features/customization"
+                  className="inline-flex items-center gap-2 text-white font-semibold group hover:underline underline-offset-8 decoration-2"
+                >
+                  Learn more about project customization
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+
+                <div className="bg-[#1e4e80]/50 p-8 rounded-2xl border border-white/10 backdrop-blur-sm mt-12 max-w-md">
+                  <p className="text-lg text-blue-50 mb-6 italic leading-relaxed">
+                    "Stackboard helped us achieve about 300% growth rate for our business by unifying our data."
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src="https://avatar.iran.liara.run/public/30" 
+                      alt="User" 
+                      className="w-10 h-10 rounded-full border-2 border-white/20 bg-slate-200" 
+                    />
+                    <div>
+                      <p className="font-bold text-sm text-white">Hassan Al-aidy</p>
+                      <p className="text-blue-300 text-xs">CEO, InnovateX</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* UI MOCKUP */}
+              <div className="relative">
+                <div className="bg-[#1e4e80] p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-[10px] font-bold text-blue-300 uppercase tracking-[0.2em]">
+                      Task Information
+                    </h4>
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-red-400/80" />
+                      <div className="w-2 h-2 rounded-full bg-yellow-400/80" />
+                      <div className="w-2 h-2 rounded-full bg-green-400/80" />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
+                    <InputField label="Owner" icon={Users} />
+                    <div />
+                    <StatusField />
+                    <DatePickerField label="Due Date" />
+                    <div className="border border-dashed border-white/20 rounded-xl h-12 flex items-center justify-center">
+                      <ArrowRight className="w-4 h-4 text-white/20" />
+                    </div>
+                    <DatePickerField label="Start Date" />
+                    <InputField label="Rate / Hour" />
+                    <SelectField label="Billing Type" />
+                  </div>
+                </div>
+
+                {/* OVERLAY DIALOG */}
+                <div className="absolute -bottom-10 -left-6 md:-left-12 bg-white rounded-2xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.2)] w-64 border border-slate-100 text-slate-800 hidden sm:block">
+                  <div className="flex gap-4 border-b border-slate-100 mb-4 pb-3 text-xs">
+                    <span className="font-bold text-[#2B6CB0] border-b-2 border-[#2B6CB0] pb-3 -mb-[13px]">
+                      New Fields
+                    </span>
+                    <span className="text-slate-400">Available</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <FieldItem label="Single Line" />
+                    <FieldItem label="Multi-Select" />
+                    <FieldItem label="Pick List" active />
+                    <FieldItem label="Date" />
+                    <FieldItem label="User List" />
+                    <FieldItem label="Currency" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SUCCESS STORIES */}
+        <section className="py-24 px-6 bg-white">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+            <div className="relative group cursor-pointer">
+              <div className="absolute -inset-4 bg-blue-50 rounded-[2rem] -z-10 group-hover:scale-105 transition duration-500 opacity-0 group-hover:opacity-100" />
+              <div className="relative rounded-2xl overflow-hidden aspect-video shadow-2xl">
+                <img
+                  src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
+                  alt="Team collaboration"
+                  className="w-full h-full object-cover transition duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-[#1A365D]/40 flex items-center justify-center transition-opacity group-hover:bg-[#1A365D]/20">
+                  <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-[#2B6CB0] shadow-2xl group-hover:scale-110 transition duration-300">
+                    <Play className="w-5 h-5 fill-current ml-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#1A365D] leading-tight">
+                Hear firsthand how we transform businesses
+              </h2>
+              <p className="text-lg text-slate-600 leading-relaxed">
+                Witness how Stackboard streamlines operations, enhances
+                customer service, and drives profitability. Learn about success stories from leaders who leverage our agile platform.
+              </p>
+              <Link 
+                href="/success-stories" 
+                className="inline-block px-8 py-3.5 bg-[#1A365D] text-white rounded-full text-sm font-bold hover:bg-black transition-all hover:shadow-xl active:scale-95"
+              >
+                Explore success stories
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* FEATURE CAROUSEL */}
+        <section className="py-24 px-6 bg-[#F7FAFC]">
+          <div className="max-w-4xl mx-auto space-y-12">
+            <div className="bg-white p-10 md:p-14 rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-[#2B6CB0]" />
+              <h3 className="text-3xl font-bold text-[#1A365D] mb-6">Plan faster</h3>
+              <div className="space-y-6 text-lg text-slate-600 leading-relaxed">
+                <p>
+                  <strong className="text-[#2B6CB0]">Offer a seamless planning experience</strong> for your teams using agile tools. Drag and adjust timelines in moments with over 10 methodologies.
+                </p>
+                <p>Plan offline and sync once you're back. Use your mobile device to scan requirements directly into the backlog.</p>
+              </div>
+
+              <div className="flex items-center gap-4 mt-10">
+                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-[#2B6CB0] hover:border-[#2B6CB0]">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-[#2B6CB0] hover:border-[#2B6CB0]">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === 0 ? "w-6 bg-[#2B6CB0]" : "w-1.5 bg-slate-300"}`} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="py-24 px-6 text-center bg-[#1A365D] text-white">
+          <div className="max-w-2xl mx-auto space-y-10">
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">Ready to unify your teams?</h2>
+            <Link 
+              href="/signup" 
+              className="inline-block px-10 py-4 bg-[#2B6CB0] text-white rounded-xl text-lg font-bold hover:bg-[#3182ce] transition-all shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-1 active:scale-95"
+            >
+              Get Started Today — It's Free
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-white border-t border-slate-200 pt-20 pb-10 px-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-12">
+          <div className="col-span-2 md:col-span-1">
+            <div className="flex items-center gap-2 mb-6">
+              <Layers className="w-5 h-5 text-[#1A365D]" />
+              <span className="font-bold text-lg">Stackboard</span>
+            </div>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Making project management simple, visual, and highly productive for modern teams.
+            </p>
+          </div>
+          {FOOTER_LINKS.map((col) => (
+            <div key={col.title}>
+              <h5 className="font-bold text-slate-900 mb-6 uppercase text-[10px] tracking-widest">{col.title}</h5>
+              <ul className="space-y-4 text-sm text-slate-600">
+                {col.links.map((link) => (
+                  <li key={link}><Link href="#" className="hover:text-[#2B6CB0] transition">{link}</Link></li>
                 ))}
               </ul>
-              <Button className="w-full bg-white text-black font-black text-[10px] tracking-widest h-12 rounded-none">SELECT STACK</Button>
-            </motion.div>
-          )) : (
-            <div className="col-span-3 text-center py-12 text-neutral-500">
-              Loading stacks...
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="relative z-10 py-24 container mx-auto px-6 max-w-3xl">
-        <h2 className="text-2xl font-black mb-12 text-center uppercase tracking-widest">Protocol FAQ</h2>
-        <div className="space-y-3">
-          {[
-            { q: "How is this different from a VA?", a: "VAs take tasks; our Operators take ownership. We don't ask you how to set up payroll; we execute the setup based on multi-state nexus logic." },
-            { q: "Do you sign NDAs?", a: "Always. We handle sensitive financial and employee data for 50+ high-growth companies." },
-            { q: "Can I cancel anytime?", a: "Yes. We operate on month-to-month memberships with zero lock-in contracts." }
-          ].map((faq, i) => (
-            <div key={i} className="p-6 bg-white/[0.01] border border-white/[0.05] hover:border-white/10 transition-colors">
-              <h4 className="font-bold text-sm mb-2 flex justify-between items-center tracking-tight">
-                {faq.q} <Plus className="h-3 w-3 text-teal-500" />
-              </h4>
-              <p className="text-neutral-500 text-xs leading-relaxed">{faq.a}</p>
             </div>
           ))}
         </div>
-      </section>
+        <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-slate-100 text-center text-slate-400 text-[11px] uppercase tracking-widest">
+          © 2026 Stackboard Inc. All rights reserved.
+        </div>
+      </footer>
 
-      {/* FINAL MAGNETIC CTA */}
-      <section className="relative z-10 py-40 flex justify-center">
-        <MagneticWrapper strength={0.6}>
-          <button 
-            className="group relative flex flex-col items-center justify-center w-72 h-72 rounded-full border border-white/10 hover:border-teal-500/50 transition-colors"
-            onClick={() => window.location.href = "/register"}
-          >
-            <div className="absolute inset-0 rounded-full bg-teal-500/5 scale-0 group-hover:scale-100 transition-transform duration-500" />
-            <span className="text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-2">Ready to deploy?</span>
-            <span className="text-3xl font-black tracking-tighter">Start Stack</span>
-            <ArrowRight className="mt-4 h-6 w-6 transform group-hover:translate-x-2 transition-transform" />
-          </button>
-        </MagneticWrapper>
-      </section>
-
-      <Footer />
-
-      <style jsx>{`
-        .outline-text {
-          -webkit-text-stroke: 1px #222;
-          color: transparent;
-        }
-      `}</style>
-    </main>
+      {/* FLOATING ACTION */}
+      <button className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-[#319795] text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all z-50 group">
+        <MessageSquare className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+      </button>
+    </div>
   );
 };
 
-export default App;
+// --- HELPER UI COMPONENTS ---
+
+const InputField = ({ label, icon: Icon }: { label: string; icon?: any }) => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 transition hover:bg-white/10 cursor-default">
+    <span>{label}</span>
+    {Icon && <Icon className="w-3.5 h-3.5 text-white/30" />}
+  </div>
+);
+
+const StatusField = () => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60">
+    <span>Status</span>
+    <div className="flex items-center gap-2 bg-[#1A365D] px-2 py-0.5 rounded border border-white/10 text-[9px] text-white font-bold cursor-pointer hover:bg-blue-900 transition">
+      OPEN <ChevronDown className="w-2.5 h-2.5 text-blue-300" />
+    </div>
+  </div>
+);
+
+const DatePickerField = ({ label }: { label: string }) => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 cursor-pointer hover:bg-white/10 transition">
+    <span>{label}</span>
+    <Calendar className="w-3.5 h-3.5 text-white/30" />
+  </div>
+);
+
+const SelectField = ({ label }: { label: string }) => (
+  <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 cursor-pointer hover:bg-white/10 transition">
+    <span>{label}</span>
+    <ChevronDown className="w-3.5 h-3.5 text-white/30" />
+  </div>
+);
+
+const FieldItem = ({ label, active }: { label: string; active?: boolean }) => (
+  <div
+    className={`p-2 rounded-lg border transition-all cursor-grab flex items-center justify-between group ${
+      active 
+        ? "bg-teal-50 border-teal-200 text-teal-700 shadow-sm" 
+        : "bg-slate-50 border-slate-100 text-slate-500 hover:border-slate-300"
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <div className={`w-1 h-1 rounded-full ${active ? "bg-teal-500" : "bg-slate-300"}`} />
+      <span className="font-semibold">{label}</span>
+    </div>
+    <GripVertical className={`w-3 h-3 ${active ? "text-teal-300" : "text-slate-300"}`} />
+  </div>
+);
+
+const FOOTER_LINKS = [
+  { title: "Product", links: ["Features", "Integrations", "Pricing", "Changelog"] },
+  { title: "Solutions", links: ["Engineering", "Marketing", "HR", "Operations"] },
+  { title: "Resources", links: ["Documentation", "Help Center", "Community", "Blog"] },
+  { title: "Company", links: ["About", "Careers", "Legal", "Privacy"] },
+];
+
+export default StackboardClassic;

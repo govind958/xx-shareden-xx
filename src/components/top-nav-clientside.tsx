@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Search, Plus, ShieldCheck, Cpu, Bell, HelpCircle, Command } from "lucide-react"
+import { Search, Plus, ShieldCheck, Cpu, HelpCircle, Command } from "lucide-react"
 import { useAuth } from "@/src/context/AuthContext"
 import { createClient } from "@/utils/supabase/client"
+import { NotificationBell } from "@/src/components/notifications/notification-bell"
 
 export function TopNav() {
   const { user, loading } = useAuth()
@@ -37,15 +38,15 @@ export function TopNav() {
       {/* --- LEFT SECTION: SYSTEM BRANDING --- */}
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-2.5 group cursor-pointer">
-          <div className="h-7 w-7 bg-[#1A365D] border border-[#2B6CB0]/50 rounded-lg flex items-center justify-center transition-all group-hover:border-[#2B6CB0] group-hover:shadow-[0_0_12px_rgba(43,108,176,0.4)]">
-            <div className="h-3 w-3 bg-white rotate-45 transition-transform group-hover:scale-110" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-black text-white uppercase tracking-[0.15em] leading-none">
-              Stack<span className="text-[#2B6CB0]">AI</span>
-            </span>
-            <span className="text-[8px] text-neutral-500 font-bold tracking-widest mt-0.5">V3.0_PRO</span>
-          </div>
+           <div className="h-7 w-7 bg-[#1A365D] border border-[#2B6CB0]/50 rounded-lg flex items-center justify-center transition-all group-hover:border-[#2B6CB0] group-hover:shadow-[0_0_12px_rgba(43,108,176,0.4)]">
+              <div className="h-3 w-3 bg-white rotate-45 transition-transform group-hover:scale-110" />
+           </div>
+           <div className="flex flex-col">
+             <span className="text-sm font-black text-white uppercase tracking-[0.15em] leading-none">
+               StackBoard<span className="text-[#2B6CB0]">AI</span>
+             </span>
+             <span className="text-[8px] text-neutral-500 font-bold tracking-widest mt-0.5">V1.0_PRO</span>
+           </div>
         </div>
 
         {/* Global Search Interface */}
@@ -72,13 +73,10 @@ export function TopNav() {
           <button title="Help" className="p-2 text-neutral-500 hover:text-white transition-colors">
             <HelpCircle size={18} strokeWidth={1.5} />
           </button>
-          <button title="Notifications" className="p-2 text-neutral-500 hover:text-white transition-colors relative">
-            <Bell size={18} strokeWidth={1.5} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#2B6CB0] rounded-full" />
-          </button>
+          <NotificationBell />
           <button className="ml-2 flex items-center gap-2 px-3 py-1.5 bg-[#2B6CB0] hover:bg-[#2B6CB0]/90 text-white rounded text-[11px] font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20">
             <Plus size={14} />
-            <span className="hidden xl:inline">NEW PROJECT</span>
+            <span className="hidden xl:inline">NEW STACKS</span>
           </button>
         </div>
 

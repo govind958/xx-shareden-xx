@@ -1,172 +1,226 @@
 "use client";
 
-import React, { useEffect, useRef, ReactNode } from "react";
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
-import { Mail, Lock, Github, ArrowRight, EyeOff } from "lucide-react";
-import { motion, useSpring, useMotionValue } from "framer-motion";
+import { GithubIcon, RectangleGogglesIcon, GalleryVerticalEnd, Quote, AlertCircle } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
+import Image from "next/image";
 
-// --- MAGNETIC EFFECT (Keeping your original logic) ---
-const MagneticWrapper = ({ children, strength = 0.2 }: { children: ReactNode, strength?: number }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 150, damping: 20 });
-  const springY = useSpring(y, { stiffness: 150, damping: 20 });
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return;
-    const { clientX, clientY } = e;
-    const { width, height, left, top } = ref.current.getBoundingClientRect();
-    const centerX = left + width / 2;
-    const centerY = top + height / 2;
-    x.set((clientX - centerX) * strength);
-    y.set((clientY - centerY) * strength);
-  };
-
-  return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => { x.set(0); y.set(0); }}
-      style={{ x: springX, y: springY }}
-      className="w-full max-w-md"
-    >
-      {children}
-    </motion.div>
-  );
-};
+import JaneDoePortrait from "@/src/app/Image/alert.png";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+
   useEffect(() => {
     mixpanel.track("Login Page Viewed");
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="grid min-h-svh lg:grid-cols-2 bg-[#FDFDFD] text-slate-900 font-sans">
       
-      {/* --- AMBIENT BACKGROUND (Micro-grid 15px) --- */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div 
-          className="absolute inset-0 opacity-[0.12]" 
-          style={{ 
-            backgroundImage: `radial-gradient(circle, #ffffff 0.5px, transparent 0.5px)`,
-            backgroundSize: '15px 15px' 
-          }} 
-        />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/[0.05] blur-[120px] rounded-full" />
-      </div>
+      {/* LEFT SIDE: FORM SECTION */}
+      <div className="flex flex-col gap-4 p-6 md:p-10">
+        {/* Brand Logo */}
+        <div className="flex justify-center gap-2 md:justify-start">
+          <a href="#" className="flex items-center gap-2 font-medium">
+            <div className="flex size-6 items-center justify-center rounded-md bg-[#1A365D] text-white">
+              <GalleryVerticalEnd className="size-4" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-[#1A365D]">Stackboard.</span>
+          </a>
+        </div>
 
-      {/* --- LOGO --- */}
-      <div className="absolute top-12 left-12 flex items-center gap-2 z-20">
-        <div className="w-5 h-5 bg-teal-500 rounded-sm shadow-[0_0_15px_rgba(20,184,166,0.4)]" />
-        <span className="text-sm font-black tracking-[0.2em] uppercase">ShareDen</span>
-      </div>
+        {/* Centered Content Container */}
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-xs space-y-6">
+            
+            {/* Header Text */}
+            <div className="flex flex-col space-y-2 text-center">
+              <h1 className="text-2xl font-bold tracking-tight text-[#1A365D]">
+                Welcome to Stackboard
+              </h1>
+              <p className="text-sm text-slate-500">
+                Login to your account or create a new one
+              </p>
+            </div>
 
-      <MagneticWrapper strength={0.15}>
-        <div className="relative z-10 w-full bg-white/[0.02] border border-white/[0.05] backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem] shadow-2xl">
-          
-          <div className="mb-10 text-center">
-            <h1 className="text-3xl font-black tracking-tighter uppercase mb-2">
-              Protocol <span className="text-teal-500">Access</span>
-            </h1>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 font-bold">
-              Identify to continue to dashboard
-            </p>
-          </div>
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-          {/* Social Auth Stacks */}
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            <Button
-              type="button"
-              onClick={() => signInWithGoogle()}
-              className="bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-teal-500/30 text-white rounded-xl h-12 transition-all group"
-            >
-              <svg className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-              </svg>
-              <span className="text-[10px] font-black tracking-widest uppercase">Google</span>
-            </Button>
-
-            <Button
-              type="button"
-              className="bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-teal-500/30 text-white rounded-xl h-12 transition-all group"
-            >
-              <Github className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-black tracking-widest uppercase">GitHub</span>
-            </Button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="h-px flex-1 bg-white/5"></div>
-            <span className="text-[9px] font-black tracking-[0.3em] text-neutral-800 uppercase">OR</span>
-            <div className="h-px flex-1 bg-white/5"></div>
-          </div>
-
-          {/* Form */}
-          <form className="space-y-4">
-            <div className="space-y-4">
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-teal-500 transition-colors w-4 h-4" />
+            {/* Main Form */}
+            <form className="space-y-4">
+              <div className="grid gap-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="email">
+                  Email
+                </label>
                 <input
                   id="email"
                   name="email"
                   type="email"
+                  placeholder="m@example.com"
                   required
-                  placeholder="EMAIL ADDRESS"
-                  className="w-full pl-12 pr-4 bg-white/[0.03] border border-white/5 rounded-xl h-14 text-xs focus:border-teal-500/50 focus:ring-0 transition-all placeholder:text-neutral-700 placeholder:font-black placeholder:tracking-widest placeholder:text-[9px] outline-none"
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
                 />
               </div>
 
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-teal-500 transition-colors w-4 h-4" />
+              <div className="grid gap-2">
+                <div className="flex items-center">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="password">
+                    Password
+                  </label>
+                </div>
                 <input
                   id="password"
                   name="password"
                   type="password"
                   required
-                  placeholder="PASSWORD"
-                  className="w-full pl-12 pr-12 bg-white/[0.03] border border-white/5 rounded-xl h-14 text-xs focus:border-teal-500/50 focus:ring-0 transition-all placeholder:text-neutral-700 placeholder:font-black placeholder:tracking-widest placeholder:text-[9px] outline-none"
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
                 />
-                <EyeOff className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-700 w-4 h-4 cursor-pointer hover:text-white transition-colors" />
+                  <a href="#" className="ml-auto inline-block text-xs font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]">
+                    Forgot your password?
+                  </a>
+              </div>
+
+              {/* Login & Sign Up buttons side by side */}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  formAction={login}
+                  className="flex-1 bg-[#2B6CB0] text-white hover:bg-[#1A365D] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
+                >
+                  Log in
+                </Button>
+                <Button
+                  formAction={signup}
+                  className="flex-1 bg-[#1A365D] text-white hover:bg-[#2B6CB0] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
+                >
+                  Sign up
+                </Button>
+              </div>
+            </form>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest">
+                <span className="bg-[#FDFDFD] px-2 text-slate-400">Or continue with</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-4">
+            {/* Social Logins */}
+            <div className="grid gap-2">
               <Button
-                formAction={login}
-                className="bg-white text-black hover:bg-neutral-200 font-black text-[10px] tracking-widest rounded-xl h-14 uppercase"
+                variant="outline"
+                type="button"
+                onClick={signInWithGoogle}
+                className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
               >
-                Log in
+                <RectangleGogglesIcon size={16} className="text-blue-600" />
+                Continue with Google
               </Button>
+              
               <Button
-                formAction={signup}
-                className="bg-teal-500 text-black hover:bg-teal-400 font-black text-[10px] tracking-widest rounded-xl h-14 uppercase transition-colors"
+                variant="outline"
+                type="button"
+                onClick={() => {}}
+                className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
               >
-                Sign up
+                <GithubIcon size={16} className="text-slate-800" />
+                Continue with GitHub
               </Button>
             </div>
-          </form>
 
-          <div className="mt-10 pt-8 border-t border-white/5 text-center">
-            <p className="text-[9px] font-bold text-neutral-600 uppercase tracking-[0.2em] leading-relaxed">
-              By authenticating, you agree to our <br />
-              <a href="#" className="text-neutral-400 hover:text-white transition-colors underline underline-offset-4">Terms</a> and <a href="#" className="text-neutral-400 hover:text-white transition-colors underline underline-offset-4">Privacy Standards</a>.
-            </p>
+            {/* Terms */}
+            <div className="text-center text-xs text-slate-400">
+              By continuing, you agree to our{" "}
+              <a href="#" className="underline underline-offset-4 hover:text-[#2B6CB0]">Terms of Service</a>{" "}
+              and{" "}
+              <a href="#" className="underline underline-offset-4 hover:text-[#2B6CB0]">Privacy Policy</a>.
+            </div>
           </div>
         </div>
-      </MagneticWrapper>
+      </div>
 
-      {/* FOOTER LINK */}
-      <a href="/" className="mt-12 group flex items-center gap-2 text-neutral-600 hover:text-white transition-colors z-20">
-        <span className="text-[10px] font-black tracking-widest uppercase">Back to Terminal</span>
-        <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-      </a>
-    </main>
+      {/* RIGHT SIDE: PLACEHOLDER IMAGE SECTION */}
+      {/* Changed bg-neutral-900 to bg-slate-50 (used in Billing table footers) */}
+      <div className="relative hidden bg-slate-50 lg:block border-l border-slate-100">
+        <div className="absolute inset-0 flex items-center justify-center opacity-40">
+            <div className="relative">
+                {/* Changed neutral-700 to slate-300 */}
+                <div className="size-48 border border-slate-300 rounded-full flex items-center justify-center">
+                   <div className="size-32 border border-slate-300 rounded-full flex items-center justify-center" />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="h-px w-64 bg-slate-300 rotate-45" />
+                   <div className="h-px w-64 bg-slate-300 -rotate-45" />
+                </div>
+            </div>
+        </div>
+        
+        {/* NEW TESTIMONIAL CARD BASED ON THE IMAGE */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-lg space-y-8 p-10 font-sans z-10">
+          
+          {/* Header */}
+          <h2 className="text-5xl font-extrabold tracking-tighter text-[#1A365D]">
+            Trusted by businesses and CAs
+          </h2>
+          
+          {/* Testimonial Box */}
+          <div className="bg-[#1A365D] rounded-3xl p-10 text-white relative shadow-2xl">
+            {/* Quote Icon */}
+            <Quote className="size-14 text-[#2B6CB0] absolute -top-7 left-10" />
+            
+            {/* Quote Content */}
+            <div className="space-y-6 pt-6">
+              <p className="text-xl font-medium leading-relaxed">
+                Stackboard has transformed our document sharing. Securing, sharing, and organizing our files is now a breeze. It&apos;s truly a game-changer for our collaborative projects.
+              </p>
+              
+              {/* Stat Line */}
+              <p className="text-xl font-bold">
+                We have reduced processing time by 45% using Stackboard.
+              </p>
+            </div>
+            
+            {/* Divider */}
+            <div className="my-8 h-px bg-[#2B6CB0] opacity-30" />
+            
+            {/* Profile Section */}
+            <div className="flex items-center gap-6">
+              {/* Portrait (Placeholder) */}
+              <Image 
+                src={JaneDoePortrait}
+                alt="Jane Doe"
+                className="size-20 rounded-full border-4 border-[#2B6CB0] object-cover shadow-lg"
+              />
+              
+              {/* Name and Title */}
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold">Jane Doe</span>
+                <span className="text-sm font-semibold uppercase tracking-wider text-[#90CDF4]">
+                  CHIEF OPERATIONS OFFICER, INNOVATE TECH SOLUTIONS
+                </span>
+              </div>
+              
+              {/* Pagination Dots (Optional styling) */}
+              <div className="ml-auto flex items-center gap-2">
+                <div className="h-2 w-10 rounded-full bg-[#2B6CB0]" />
+                <div className="size-2 rounded-full bg-slate-600" />
+                <div className="size-2 rounded-full bg-slate-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

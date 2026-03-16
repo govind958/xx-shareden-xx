@@ -32,7 +32,19 @@ export interface OrderWithStacks {
   total_amount: number;
   created_at: string;
   subscription_duration?: SubscriptionLimit;
+  is_recurring?: boolean;
+  subscription_status?: string | null;
+  discount_amount?: number;
+  coupon_id?: string | null;
+  payment_method?: string | null;
+  payment_id?: string | null;
   stacks: PurchasedStack[];
+}
+
+export interface PurchasedSubStack {
+  id: string;
+  name: string;
+  price: number;
 }
 
 export interface PurchasedStack {
@@ -45,6 +57,7 @@ export interface PurchasedStack {
   created_at: string;
   order_id: string;
   base_price: number;
+  sub_stacks?: PurchasedSubStack[];
 }
 
 export interface BillingAddress {
