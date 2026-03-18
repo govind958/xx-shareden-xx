@@ -335,7 +335,6 @@ export default function ZohoStyleCheckout() {
           total += sub.price * sub.quantity;
         });
       } else {
-        total += stack.price;
         stack.sub_stacks.forEach(sub => {
           total += sub.price * sub.quantity;
         });

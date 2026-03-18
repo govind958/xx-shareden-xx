@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -39,6 +39,10 @@ export default function Stackboard() {
 
   // Unread message counts: { [stackId]: count }
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Search
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Use a ref for the active stack ID so our real-time listener always has the latest value
   const activeStackIdRef = useRef<string | null>(null);
@@ -158,6 +162,15 @@ export default function Stackboard() {
     activeStackIdRef.current = selectedStackId;
   }, [selectedStackId]);
 
+  // Filter stacks by search query
+  const filteredStacks = useMemo(() => {
+    if (!searchQuery.trim()) return purchasedStacks;
+    const q = searchQuery.toLowerCase();
+    return purchasedStacks.filter(stack =>
+      stack.name.toLowerCase().includes(q)
+    );
+  }, [purchasedStacks, searchQuery]);
+
   // Real-time subscription for unread messages across ALL stacks
   useEffect(() => {
     if (!user?.id || purchasedStacks.length === 0) return;
@@ -257,25 +270,52 @@ export default function Stackboard() {
 
         {/* Header */}
         <div className="p-6 flex items-center justify-between border-b border-slate-100">
-          <div>
-            <h1 className="text-xl font-bold text-[#1A365D]">
-              Messages
-            </h1>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">
-              Stack Communications
-            </p>
-          </div>
-          <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
-            <Search size={18} />
-          </button>
+          {searchOpen ? (
+            <div className="flex items-center gap-2 w-full">
+              <Search size={18} className="text-slate-400 shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search stacks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-slate-400 text-slate-700"
+              />
+              <button
+                onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h1 className="text-xl font-bold text-[#1A365D]">
+                  Messages
+                </h1>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">
+                  Stack Communications
+                </p>
+              </div>
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+              >
+                <Search size={18} />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Stack List */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {purchasedStacks.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No purchased stacks yet.</p>
+          {filteredStacks.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">
+              {searchQuery ? 'No stacks match your search.' : 'No purchased stacks yet.'}
+            </p>
           ) : (
-            purchasedStacks.map((stack) => (
+            filteredStacks.map((stack) => (
               <div
                 key={stack.id}
                 onClick={() => handleStackSelect(stack)}
@@ -363,9 +403,6 @@ export default function Stackboard() {
               )}
             >
               <Info size={18} />
-            </button>
-            <button className="p-2 hover:bg-slate-100 hover:text-[#2B6CB0] rounded-lg transition">
-              <MoreHorizontal size={18} />
             </button>
           </div>
         </header>
