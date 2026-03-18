@@ -20,7 +20,8 @@ export async function GET(request: Request) {
         : url.origin // fallback
 
       // ✅ Always send to /private after successful login
-      return NextResponse.redirect(`${host}/private`)
+      const next = url.searchParams.get('next') || '/private';
+      return NextResponse.redirect(`${host}${next}`);
     }
   }
 

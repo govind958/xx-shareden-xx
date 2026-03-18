@@ -170,6 +170,40 @@ export async function employeeLogin(formData: FormData) {
     redirect('/Employee_portal')
 }
 
+// Employee forgot password - validates email exists before sending reset link
+export async function employeeForgotPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    const adminClient = createAdminClient();
+    const supabase = await createClient();
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const { data: employee } = await adminClient
+        .from('employees')
+        .select('id, is_active')
+        .eq('email', normalizedEmail)
+        .single();
+
+    if (!employee) {
+        return { success: false, error: 'No employee account found with this email address.' };
+    }
+
+    if (!employee.is_active) {
+        return { success: false, error: 'This account is not active. Please contact your administrator.' };
+    }
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${siteUrl}/Employee_portal/reset-password`,
+    });
+
+    if (error) {
+        return { success: false, error: error.message };
+    }
+
+    return { success: true };
+}
+
 // Employee logout
 export async function employeeLogout() {
         const supabase = await createClient()
