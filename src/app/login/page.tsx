@@ -84,7 +84,7 @@ export default function LoginPage() {
                   required
                   className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
                 />
-                  <a href="#" className="ml-auto inline-block text-xs font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]">
+                  <a href="/forgot-password" className="ml-auto inline-block text-xs font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]">
                     Forgot your password?
                   </a>
               </div>
