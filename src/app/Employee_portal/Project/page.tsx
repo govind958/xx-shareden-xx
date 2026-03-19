@@ -5,17 +5,8 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import {
   FolderTree, Search, Filter, 
-  ArrowUpRight, CheckCircle2, Clock, AlertCircle
+  ArrowUpRight, CheckCircle2, Clock
 } from 'lucide-react';
-
-// --- Sample Data (Fallback if DB is empty) ---
-const SAMPLE_DATA = [
-  { id: '1', stacks: { name: 'Cover page' }, section_type: 'Cover page', status: 'In Process', target: 18, limit: 5 },
-  { id: '2', stacks: { name: 'Table of contents' }, section_type: 'Table of contents', status: 'Done', target: 29, limit: 24 },
-  { id: '3', stacks: { name: 'Executive summary' }, section_type: 'Narrative', status: 'Done', target: 10, limit: 13 },
-  { id: '4', stacks: { name: 'Technical approach' }, section_type: 'Narrative', status: 'Done', target: 27, limit: 23 },
-  { id: '5', stacks: { name: 'Design' }, section_type: 'Narrative', status: 'In Process', target: 2, limit: 16 },
-];
 
 export default function ProjectPage() {
   const supabase = createClient();
@@ -39,17 +30,10 @@ export default function ProjectPage() {
             .select(`id, status, progress_percent, stacks (name)`)
             .eq('assigned_to', employee.id);
 
-          // If we have DB data, use it; otherwise, stay with sample
-          if (!error && data && data.length > 0) {
+          if (!error && data) {
             setTasks(data);
-          } else {
-            setTasks(SAMPLE_DATA);
           }
-        } else {
-          setTasks(SAMPLE_DATA); // Fallback for testing
         }
-      } else {
-        setTasks(SAMPLE_DATA); // Fallback for local dev
       }
       setLoading(false);
     }
@@ -108,6 +92,15 @@ export default function ProjectPage() {
 
       {/* The Table Layout */}
       <div className="overflow-x-auto border border-neutral-200 dark:border-neutral-800 rounded-sm">
+        {loading ? (
+          <div className="p-12 text-center text-neutral-500 text-sm">Loading...</div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="p-12 text-center">
+            <FolderTree size={32} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-600" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500">No projects assigned</p>
+            <p className="mt-2 text-xs text-neutral-400">Contact your admin to get assigned to projects.</p>
+          </div>
+        ) : (
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30">
@@ -156,6 +149,7 @@ export default function ProjectPage() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       <div className="flex justify-center pt-8">
