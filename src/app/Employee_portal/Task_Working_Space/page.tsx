@@ -1,74 +1,77 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState, useRef, Suspense, useTransition } from 'react';
+import React, { useEffect, useState, useRef, useTransition, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Terminal, Send, Zap,
-  Box, ArrowRight, LayoutGrid,
-  Play, CheckCircle, Loader2
+  Zap, Send, Paperclip, MoreHorizontal, Search, 
+  Smile, Mic, CheckCheck, Terminal, Bell
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
 import { toast } from 'sonner';
 
-const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
-// Create supabase client outside component to prevent recreation on each render
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 const supabase = createClient();
 
-function ClientDashboardContent() {
+// --- SAMPLE DATA ---
+// const MOCK_TASKS = [
+//   { id: '1', stacks: { name: 'NEXT.JS_ENTERPRISE_CORE' }, status: 'in_progress', progress_percent: 75, unread: 3 },
+//   { id: '2', stacks: { name: 'STRIPE_PAYMENT_GATEWAY' }, status: 'completed', progress_percent: 100, unread: 0 },
+//   { id: '3', stacks: { name: 'SUPABASE_AUTH_PROTOCOL' }, status: 'initiated', progress_percent: 15, unread: 12 },
+// ];
+
+function StackboardMessagingUI() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderItemId = searchParams.get('id'); // The "Room ID"
+  const orderItemId = searchParams.get('id');
 
   const [orders, setOrders] = useState<any[]>([]);
   const [activeStack, setActiveStack] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
-  const [input, setInput] = useState("");
   const [user, setUser] = useState<any>(null);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isUpdatingStatus, startStatusTransition] = useTransition();
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Initial Data Fetch: Get Supabase Auth user and verify employee
   useEffect(() => {
-    async function initDashboard() {
-      // Get Supabase Auth session (required for realtime to work)
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    async function init() {
+        // Get Supabase Auth session (required for realtime to work)
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-      if (authError || !authUser) {
-        console.error('No valid auth session found');
-        setLoading(false);
-        return;
-      }
-
-      // Verify user is an employee
+        if (authError || !authUser) {
+          console.error('No valid auth session found');
+          setLoading(false);
+          router.push('/Employee_portal/login');
+            return;
+        }
+              // Verify user is an employee
       const { data: employee, error: empError } = await supabase
-        .from('employees')
-        .select('id, email, name, role, is_active')
-        .eq('id', authUser.id)
-        .eq('is_active', true)
-        .single();
+      .from('employees')
+      .select('id, email, name, role, is_active')
+      .eq('id', authUser.id)
+      .eq('is_active', true)
+      .single();
 
-      if (empError || !employee) {
-        console.error('User is not an employee');
-        setLoading(false);
-        return;
-      }
+    if (empError || !employee) {
+      console.error('User is not an employee');
+      setLoading(false);
+      return;
+    }
 
-      setUser({ id: employee.id, email: employee.email });
-      setEmployeeId(employee.id);
-
-      // Fetch order_items assigned to this employee
-      const { data: cartItems } = await supabase
-        .from('order_items')
-        .select('*, stacks(name)')
-        .eq('assigned_to', employee.id)
-        .order('created_at', { ascending: false });
-
-      setOrders(cartItems || []);
-
+    setUser({ id: employee.id, email: employee.email });
+    setEmployeeId(employee.id);
+          // Fetch order_items assigned to this employee
+          const { data: cartItems } = await supabase
+          .from('order_items')
+          .select('*, stacks(name)')
+          .eq('assigned_to', employee.id)
+          .order('created_at', { ascending: false });
+  
+        setOrders(cartItems || []);
+      
       // If an ID is in URL, fetch that specific stack's details
       if (orderItemId) {
         const { data: currentTask } = await supabase
@@ -87,14 +90,14 @@ function ClientDashboardContent() {
       }
       setLoading(false);
     }
-    initDashboard();
+    init();
   }, [orderItemId]);
 
   // 2. Real-time Listeners (Messages & Progress)
-  useEffect(() => {
-    if (!orderItemId) return;
+  useEffect(()=>{
+    if(!orderItemId) return;
 
-    // Function to fetch messages (used for polling fallback)
+    //Function to fetch messages (used for polling fallback)
     const fetchMessages = async () => {
       const { data } = await supabase
         .from('project_messages')
@@ -107,62 +110,59 @@ function ClientDashboardContent() {
         setMessages(data);
       }
     };
-
     console.log('Setting up realtime for order:', orderItemId);
-    
-    // Debug: Check auth state
-    supabase.auth.getSession().then(({ data, error }) => {
-      console.log('Current auth session:', data?.session ? 'EXISTS' : 'NONE', error);
-      if (data?.session) {
-        console.log('Session user:', data.session.user.email);
-      }
-    });
-
-    const channel = supabase.channel(`nexus_${orderItemId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'project_messages',
-        filter: `order_item_id=eq.${orderItemId}`
-      }, (payload) => {
-        console.log('Realtime INSERT received:', payload);
-        const newMsg = payload.new as any;
-        // Deduplicate: only add if not already in state
-        setMessages(prev => {
-          const exists = prev.find(m => m.id === newMsg.id);
-          return exists ? prev : [...prev, newMsg];
+        // Debug: Check auth state
+        supabase.auth.getSession().then(({ data, error }) => {
+          console.log('Current auth session:', data?.session ? 'EXISTS' : 'NONE', error);
+          if (data?.session) {
+            console.log('Session user:', data.session.user.email);
+          }
         });
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'order_items',
-        filter: `id=eq.${orderItemId}`
-      }, (payload) => {
-        setActiveStack(payload.new);
-      })
-      .subscribe((status, err) => {
-        console.log('Realtime subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime: Connected to channel (Employee Portal)');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime: Channel error', err);
-        } else if (status === 'TIMED_OUT') {
-          console.error('Realtime: Connection timed out');
-        }
-      });
-
-    // Polling fallback - fetch every 3 seconds in case realtime doesn't work
-    const pollInterval = setInterval(fetchMessages, 3000);
-
-    return () => { 
-      clearInterval(pollInterval);
-      supabase.removeChannel(channel); 
-    };
+    
+        const channel = supabase.channel(`nexus_${orderItemId}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'project_messages',
+            filter: `order_item_id=eq.${orderItemId}`
+          }, (payload) => {
+            console.log('Realtime INSERT received:', payload);
+            const newMsg = payload.new as any;
+            // Deduplicate: only add if not already in state
+            setMessages(prev => {
+              const exists = prev.find(m => m.id === newMsg.id);
+              return exists ? prev : [...prev, newMsg];
+            });
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'order_items',
+            filter: `id=eq.${orderItemId}`
+          }, (payload) => {
+            setActiveStack(payload.new);
+          })
+          .subscribe((status, err) => {
+            console.log('Realtime subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+              console.log('Realtime: Connected to channel (Employee Portal)');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Realtime: Channel error', err);
+            } else if (status === 'TIMED_OUT') {
+              console.error('Realtime: Connection timed out');
+            }
+          });
+    
+        // Polling fallback - fetch every 3 seconds in case realtime doesn't work
+        const pollInterval = setInterval(fetchMessages, 3000);
+    
+        return () => { 
+          clearInterval(pollInterval);
+          supabase.removeChannel(channel); 
+        };
   }, [orderItemId]);
-
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -260,251 +260,163 @@ function ClientDashboardContent() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-teal-500 font-mono animate-pulse">BOOTING_NEXUS_OS...</div>;
+  // --- DYNAMIC THEME CLASSES ---
+  // These classes now toggle based on the 'dark' class on the parent container/html
+  const theme = {
+    bg: 'bg-white dark:bg-[#020202]',
+    sidebar: 'bg-zinc-50 dark:bg-[#0a0a0a] border-neutral-200 dark:border-white/5',
+    header: 'bg-white dark:bg-[#111] border-neutral-200 dark:border-white/5',
+    text: 'text-black dark:text-white',
+    inputBg: 'bg-neutral-100 dark:bg-[#181818]',
+    chatBg: 'bg-neutral-50 dark:bg-[#050505]',
+    bubbleMe: 'bg-teal-600 dark:bg-[#054c44] text-white',
+    bubbleThem: 'bg-neutral-200 dark:bg-[#1f2c33] text-black dark:text-neutral-200',
+    accentText: 'text-teal-600 dark:text-teal-500',
+    accentBg: 'bg-teal-600 dark:bg-teal-500',
+  };
+
+  if (loading) return (
+    <div className={cn("h-screen flex flex-col items-center justify-center font-mono italic tracking-[0.5em]", theme.bg, theme.accentText)}>
+       <Zap className="animate-pulse mb-4" size={32} />
+       BOOTING_OS...
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans p-6 md:p-10 selection:bg-teal-500/30">
-      <div className="max-w-[1600px] mx-auto space-y-8">
-
-        {/* HEADER */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0a0a0a] border border-neutral-900 p-8 rounded-[32px] gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-teal-500 rounded-2xl flex items-center justify-center text-black shadow-[0_0_20px_rgba(20,184,166,0.2)]">
-              <Zap size={24} fill="currentColor" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">NEXUS_DASHBOARD</h1>
-              <p className="text-[10px] font-bold text-neutral-600 uppercase tracking-[0.4em]">Authorized_Client_Access</p>
-            </div>
-          </div>
-          <div className="flex gap-6 text-right">
-            <div className="hidden sm:block">
-              <p className="text-[9px] font-black text-neutral-700 uppercase tracking-widest">Active_Nodes</p>
-              <p className="text-xl font-mono text-white font-bold">{orders.length}</p>
-            </div>
+    <div className={cn("flex h-screen w-full overflow-hidden antialiased transition-colors duration-500", theme.bg, theme.text)}>
+      
+      {/* --- SIDEBAR --- */}
+      <aside className={cn("w-[30%] min-w-[340px] max-w-[450px] border-r flex flex-col", theme.sidebar)}>
+        <header className={cn("h-[60px] px-4 flex items-center justify-between border-b", theme.header)}>
+          <div className="flex items-center gap-2">
+            <Terminal size={16} className={theme.accentText} />
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Node_Explorer</span>
           </div>
         </header>
 
-        <div className="grid grid-cols-12 gap-8">
+        <div className="p-3">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-teal-500 transition-colors" size={14} />
+            <input 
+              placeholder="SEARCH_NODES..." 
+              className={cn("w-full rounded-lg py-2.5 pl-10 pr-4 text-[11px] font-bold focus:outline-none border border-transparent placeholder:text-neutral-500 transition-all", theme.inputBg)}
+            />
+          </div>
+        </div>
 
-          {/* LEFT COLUMN: THE CART (Node Registry) */}
-          <aside className="col-span-12 lg:col-span-4 space-y-6">
-            <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] p-6 flex flex-col max-h-[800px]">
-              <div className="flex items-center justify-between mb-8 px-2">
-                <div className="flex items-center gap-2">
-                  <LayoutGrid size={16} className="text-teal-500" />
-                  <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Ordered_Items_Registry</h2>
-                </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {orders.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => router.push(`?id=${item.id}`)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-4 cursor-pointer border-b border-black/[0.03] dark:border-white/[0.03] transition-all relative",
+                item.id === orderItemId ? "bg-teal-500/10 dark:bg-white/[0.05]" : "hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+              )}
+            >
+              <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-black/20 flex items-center justify-center border border-black/5 dark:border-white/5 relative">
+                <Zap size={20} className={cn(item.id === orderItemId && "fill-current", theme.accentText)} />
+                {item.unread > 0 && (
+                  <span className={cn("absolute -top-1 -right-1 text-white dark:text-black text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-[#0a0a0a] animate-pulse", theme.accentBg)}>
+                    {item.unread}
+                  </span>
+                )}
               </div>
-
-              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                {orders.map((item) => {
-                  const isActive = item.id === orderItemId;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => router.push(`?id=${item.id}`)}
-                      className={cn(
-                        "w-full text-left p-5 rounded-2xl border transition-all duration-300 group",
-                        isActive
-                          ? "bg-teal-500/10 border-teal-500/50 shadow-[0_0_20px_rgba(20,184,166,0.05)]"
-                          : "bg-black border-neutral-900 hover:border-neutral-700"
-                      )}
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest", isActive ? "text-teal-500" : "text-neutral-500")}>
-                          {item.stack_id || "Standard_Build"}
-                        </span>
-                        <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-teal-500 animate-pulse" : "bg-neutral-800")} />
-                      </div>
-                      <h3 className="text-white font-bold text-sm mb-4 truncate uppercase">NODE_{item.stacks?.name}</h3>
-                      <div className="flex items-end justify-between">
-                        <div className="space-y-1">
-                          <p className="text-[8px] text-neutral-600 uppercase font-black">Progress</p>
-                          <p className="text-lg font-mono text-white leading-none">{item.progress_percent}%</p>
-                        </div>
-                        <ArrowRight size={16} className={cn("transition-transform group-hover:translate-x-1", isActive ? "text-teal-500" : "text-neutral-800")} />
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center mb-0.5">
+                  <h3 className="text-xs font-black truncate uppercase tracking-tight">{item.stacks?.name}</h3>
+                  <span className="text-[9px] opacity-40 font-mono">11:04</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] opacity-60 truncate italic font-mono uppercase">{item.status}</p>
+                  <div className="w-12 h-[3px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden shrink-0">
+                    <div className={cn("h-full transition-all duration-1000", theme.accentBg)} style={{ width: `${item.progress_percent}%` }} />
+                  </div>
+                </div>
               </div>
             </div>
-          </aside>
-
-          {/* RIGHT COLUMN: COMMUNICATION CONSOLE */}
-          <main className="col-span-12 lg:col-span-8">
-            {orderItemId ? (
-              <div className="bg-[#0a0a0a] border border-neutral-900 rounded-[32px] overflow-hidden flex flex-col h-[800px]">
-                {/* Chat Header with Status Controls */}
-                <div className="p-6 border-b border-neutral-900 bg-zinc-900/10">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-teal-500 border border-white/5">
-                        <Terminal size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Node_Uplink_Channel</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[9px] font-mono text-neutral-600 uppercase">Status:</span>
-                          <span className={cn(
-                            "text-[9px] font-black uppercase px-2 py-0.5 rounded",
-                            getStatusInfo(activeStack?.status || 'initiated').bg,
-                            getStatusInfo(activeStack?.status || 'initiated').color
-                          )}>
-                            {getStatusInfo(activeStack?.status || 'initiated').label}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Status Action Buttons */}
-                    <div className="flex items-center gap-2">
-                      {activeStack?.status !== 'completed' && (
-                        <>
-                          {/* Start Working Button */}
-                          {(activeStack?.status === 'initiated' || activeStack?.status === 'processing') && (
-                            <button
-                              onClick={() => handleStatusUpdate('in_progress')}
-                              disabled={isUpdatingStatus}
-                              className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
-                                "bg-amber-500/20 text-amber-400 border border-amber-500/30",
-                                "hover:bg-amber-500/30 hover:border-amber-500/50",
-                                "disabled:opacity-50 disabled:cursor-not-allowed"
-                              )}
-                            >
-                              {isUpdatingStatus ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : (
-                                <Play size={14} fill="currentColor" />
-                              )}
-                              Start Working
-                            </button>
-                          )}
-                          
-                          {/* Mark Complete Button */}
-                          {activeStack?.status === 'in_progress' && (
-                            <button
-                              onClick={() => handleStatusUpdate('completed')}
-                              disabled={isUpdatingStatus}
-                              className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
-                                "bg-green-500/20 text-green-400 border border-green-500/30",
-                                "hover:bg-green-500/30 hover:border-green-500/50",
-                                "disabled:opacity-50 disabled:cursor-not-allowed"
-                              )}
-                            >
-                              {isUpdatingStatus ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : (
-                                <CheckCircle size={14} />
-                              )}
-                              Mark Complete
-                            </button>
-                          )}
-                        </>
-                      )}
-                      
-                      {/* Completed Badge */}
-                      {activeStack?.status === 'completed' && (
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/20 text-green-400 border border-green-500/30">
-                          <CheckCircle size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-wider">Completed</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  {activeStack && (
-                    <div className="mt-4 pt-4 border-t border-neutral-800">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Progress</span>
-                        <span className="text-[10px] font-mono text-teal-400">{activeStack.progress_percent || 0}%</span>
-                      </div>
-                      <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-teal-500 to-teal-400 transition-all duration-500 ease-out"
-                          style={{ width: `${activeStack.progress_percent || 0}%` }}
-                        />
-                      </div>
-                      
-                      {/* Quick Progress Buttons (only when in_progress) */}
-                      {activeStack.status === 'in_progress' && (
-                        <div className="flex items-center gap-2 mt-3">
-                          <span className="text-[8px] font-black text-neutral-700 uppercase">Quick Set:</span>
-                          {[25, 50, 75, 100].map((percent) => (
-                            <button
-                              key={percent}
-                              onClick={() => handleProgressUpdate(percent)}
-                              className={cn(
-                                "px-2 py-1 rounded text-[9px] font-mono transition-all",
-                                activeStack.progress_percent === percent
-                                  ? "bg-teal-500/30 text-teal-400 border border-teal-500/50"
-                                  : "bg-neutral-800 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-300"
-                              )}
-                            >
-                              {percent}%
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Messages Area */}
-                <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-hide">
-                  {messages.length > 0 ? messages.map((m, i) => (
-                    <div key={m.id || i} className={cn("flex flex-col gap-1.5", m.sender_role === 'employee' ? "items-end" : "items-start")}>
-                      <span className="text-[8px] font-black text-neutral-700  tracking-widest">
-                        {m.sender_role === 'employee' ? 'You (Operative)' : 'Client_Auth'}
-                      </span>
-                      <div className={cn(
-                        "p-4 rounded-2xl max-w-[80%] text-[13px] font-bold tracking-tight  leading-relaxed shadow-lg",
-                        m.sender_role === 'employee'
-                          ? "bg-teal-500 text-black rounded-tr-none"
-                          : "bg-neutral-900 text-white border border-neutral-800 rounded-tl-none"
-                      )}>
-                        {m.content}
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-20 italic text-[10px] tracking-[0.5em] uppercase">
-                      Awaiting_Initial_Handshake...
-                    </div>
-                  )}
-                </div>
-
-                {/* Input Area */}
-                <form onSubmit={sendMessage} className="p-8 bg-black/40 border-t border-neutral-900">
-                  <div className="relative">
-                    <input
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="ENTER_SIGNAL_ENCODING..."
-                      className="w-full bg-black border border-neutral-800 rounded-2xl py-5 px-8 text-xs text-white focus:border-teal-500 focus:outline-none transition-all"
-                    />
-                    <button type="submit" className="absolute right-6 top-1/2 -translate-y-1/2 text-teal-500 hover:text-white transition-colors">
-                      <Send size={18} />
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="h-[800px] border border-neutral-900 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 text-neutral-800">
-                <Box size={48} className="opacity-10" />
-                <p className="text-[10px] font-black  tracking-[0.8em]">Select_Node_To_Communicate</p>
-              </div>
-            )}
-          </main>
+          ))}
         </div>
-      </div>
+      </aside>
+
+      {/* --- CHAT AREA --- */}
+      <main className={cn("flex-1 flex flex-col relative", theme.chatBg)}>
+        {orderItemId ? (
+          <>
+            <header className={cn("h-[60px] border-b px-6 flex items-center justify-between", theme.header)}>
+              <div className="flex items-center gap-4">
+                <div className="w-9 h-9 rounded-lg bg-black/5 dark:bg-black/40 border border-black/10 dark:border-white/10 flex items-center justify-center">
+                  <Terminal size={18} className={theme.accentText} />
+                </div>
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-wider">Active_Session</h2>
+                  <p className={cn("text-[9px] font-mono uppercase font-bold", theme.accentText)}>Uplink_Secure</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-5 text-neutral-400">
+                <Search size={18} className="cursor-pointer hover:text-teal-500" />
+                <MoreHorizontal size={18} className="cursor-pointer hover:text-teal-500" />
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+              {messages.map((m, i) => {
+                const isMe = m.sender_role === 'employee';
+                return (
+                  <div key={m.id || i} className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
+                    <div className={cn(
+                      "max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm relative border border-black/5 dark:border-white/5",
+                      isMe ? cn("rounded-tr-none", theme.bubbleMe) : cn("rounded-tl-none", theme.bubbleThem)
+                    )}>
+                      <p className="text-[13px] leading-relaxed font-medium">{m.content}</p>
+                      <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                        <span className="text-[8px] opacity-60 font-mono">11:24 PM</span>
+                        {isMe && <CheckCheck size={12} className={isMe ? 'text-teal-200' : 'text-teal-500'} />}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={scrollRef} />
+            </div>
+
+            <footer className={cn("p-4 flex items-center gap-3 border-t", theme.header)}>
+              <Smile size={22} className="text-neutral-400 cursor-pointer hover:text-teal-500" />
+              <Paperclip size={22} className="text-neutral-400 cursor-pointer hover:text-teal-500" />
+              <form onSubmit={sendMessage} className="flex-1">
+                <input 
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a message..."
+                  className={cn("w-full rounded-xl py-3 px-5 text-sm focus:outline-none border border-black/10 dark:border-transparent focus:border-teal-500/50 dark:bg-[#2a3942] bg-white")}
+                />
+              </form>
+              <button 
+                onClick={sendMessage}
+                className={cn("w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 active:scale-95 transition-all", theme.accentBg)}
+              >
+                <Send size={20} />
+              </button>
+            </footer>
+          </>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-40">
+            <Zap size={64} className={cn("mb-6", theme.accentText)} />
+            <h2 className="text-sm font-black uppercase tracking-[0.5em]">Select_Active_Node</h2>
+            <p className="text-[10px] mt-3 font-mono tracking-widest uppercase">Encryption_Enabled</p>
+          </div>
+        )}
+      </main>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #88888855; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      `}</style>
     </div>
   );
 }
 
-export default function TechNoirDashboard() {
-  return <Suspense fallback={null}><ClientDashboardContent /></Suspense>;
+export default function App() {
+  return <Suspense fallback={null}><StackboardMessagingUI /></Suspense>;
 }

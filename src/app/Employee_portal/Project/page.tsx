@@ -4,60 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import {
-  FolderTree, Search, Filter, Box,
-  ArrowUpRight, CheckCircle2, Clock, AlertCircle
+  FolderTree, Search, Filter, 
+  ArrowUpRight, CheckCircle2, Clock
 } from 'lucide-react';
 
-// --- Sub-component: ProjectCard ---
-const ProjectCard = ({ name, status, progress, id, isActive }: any) => (
-  <div className={`bg-white dark:bg-neutral-900/40 border p-6 transition-all group ${!isActive ? 'border-orange-500/50' : 'border-neutral-200 dark:border-neutral-800 hover:border-teal-500/50'}`}>
-    <div className="flex justify-between items-start mb-6">
-      <div className={`p-2 rounded-lg transition-colors ${!isActive ? 'bg-orange-500/10' : 'bg-zinc-100 dark:bg-black group-hover:bg-teal-500'}`}>
-        <Box size={18} className={`${!isActive ? 'text-orange-500' : 'text-neutral-500 dark:text-neutral-400 group-hover:text-black'}`} />
-      </div>
-      <div className="flex flex-col items-end gap-1">
-        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 ${status === 'processing' ? 'bg-teal-500/10 text-teal-500' : 'bg-orange-500/10 text-orange-500'
-          }`}>
-          {status}
-        </span>
-        {!isActive && (
-          <span className="text-[7px] font-bold text-orange-500 uppercase flex items-center gap-1">
-            <AlertCircle size={8} /> Inactive_Node
-          </span>
-        )}
-      </div>
-    </div>
-
-    <h3 className="text-lg font-black text-black dark:text-white tracking-tighter uppercase mb-1">
-      {name || "Standard_Stack"}
-    </h3>
-    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-6">
-      ID: {id.slice(0, 8)}
-    </p>
-
-    <div className="space-y-2">
-      <div className="flex justify-between text-[9px] font-black uppercase tracking-tighter">
-        <span className="text-neutral-400">Optimization_Level</span>
-        <span className="text-teal-500">{progress}%</span>
-      </div>
-      <div className="w-full bg-zinc-100 dark:bg-black h-1">
-        <div
-          className="bg-teal-500 h-full transition-all duration-1000"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-    </div>
-
-    <Link
-      href={`/Employee_portal/Task_Working_Space?id=${id}`}
-      className="w-full mt-6 py-3 flex items-center justify-center gap-2 border border-neutral-100 dark:border-neutral-800 text-[9px] font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all cursor-pointer"
-    >
-      Open_Matrix <ArrowUpRight size={12} />
-    </Link>
-  </div>
-);
-
-// --- Main Page Component ---
 export default function ProjectPage() {
   const supabase = createClient();
   const [tasks, setTasks] = useState<any[]>([]);
@@ -67,59 +17,38 @@ export default function ProjectPage() {
   useEffect(() => {
     async function fetchAssignedTasks() {
       setLoading(true);
-
-      // 1. Get the current authenticated user's session
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        // 2. Look up the employee record by email to get the employee.id
         const { data: employee } = await supabase
           .from('employees')
-          .select('id')
-          .eq('email', user.email)
-          .single();
+          .select('id').eq('email', user.email).single();
 
-        if (!employee) {
-          console.error("No employee record found for this user");
-          setLoading(false);
-          return;
-        }
+        if (employee) {
+          const { data, error } = await supabase
+            .from('order_items')
+            .select(`id, status, progress_percent, stacks (name)`)
+            .eq('assigned_to', employee.id);
 
-        // 3. Fetch order_items assigned to this employee
-        const { data, error } = await supabase
-          .from('order_items')
-          .select(`
-            id,
-            stack_id,
-            status,
-            progress_percent,
-            user_note,
-            is_active,
-            stacks (name)
-          `)
-          .eq('assigned_to', employee.id);
-
-        if (error) {
-          console.error("Fetch error:", error);
-        } else {
-          setTasks(data || []);
+          if (!error && data) {
+            setTasks(data);
+          }
         }
       }
       setLoading(false);
     }
-
     fetchAssignedTasks();
   }, []);
 
   const filteredTasks = tasks.filter(t =>
-    t.stack_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.id.includes(searchQuery)
+    (t.stacks?.name || t.id).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="p-6 md:p-12 space-y-10 animate-in fade-in duration-700 min-h-screen bg-white dark:bg-black text-black dark:text-white">
-
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+    <div className="p-6 md:p-12 min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors duration-500">
+      
+      {/* Header with Original Theme Support */}
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <FolderTree size={14} className="text-teal-500" />
@@ -136,7 +65,7 @@ export default function ProjectPage() {
               placeholder="SEARCH_REGISTRY..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-zinc-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 py-3 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-teal-500 w-64 transition-all"
+              className="bg-zinc-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 py-3 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-teal-500 w-64 transition-all"
             />
           </div>
           <button className="p-3 border border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:text-teal-500 transition-colors">
@@ -145,43 +74,81 @@ export default function ProjectPage() {
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-8 border-y border-neutral-100 dark:border-neutral-900 py-6">
+      {/* Stats Bar */}
+      <div className="flex flex-wrap gap-8 border-y border-neutral-100 dark:border-neutral-900 py-6 mb-8">
         <div className="flex items-center gap-3">
           <CheckCircle2 size={16} className="text-teal-500" />
           <span className="text-[10px] font-black uppercase tracking-widest text-neutral-600 dark:text-neutral-400">
-            {tasks.filter(t => t.status === 'completed').length}_Completed
+            {tasks.filter(t => t.status?.toLowerCase() === 'done').length}_Completed
           </span>
         </div>
         <div className="flex items-center gap-3">
           <Clock size={16} className="text-orange-500" />
           <span className="text-[10px] font-black uppercase tracking-widest text-neutral-600 dark:text-neutral-400">
-            {tasks.filter(t => t.status !== 'completed').length}_Active_Tasks
+            {tasks.filter(t => t.status?.toLowerCase() !== 'done').length}_Active_Tasks
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {/* The Table Layout */}
+      <div className="overflow-x-auto border border-neutral-200 dark:border-neutral-800 rounded-sm">
         {loading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="h-64 bg-neutral-100 dark:bg-neutral-900 animate-pulse border border-neutral-800" />
-          ))
-        ) : filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => (
-            <ProjectCard
-              key={task.id}
-              id={task.id}
-              name={task.stacks?.name || task.stack_id}
-              status={task.status}
-              progress={task.progress_percent}
-              isActive={task.is_active} // Passing the is_active status to the card
-            />
-          ))
-        ) : (
-          <div className="col-span-full py-20 text-center border border-dashed border-neutral-800">
-            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-500">
-              No_Assigned_Nodes_Detected_In_Registry
-            </p>
+          <div className="p-12 text-center text-neutral-500 text-sm">Loading...</div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="p-12 text-center">
+            <FolderTree size={32} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-600" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500">No projects assigned</p>
+            <p className="mt-2 text-xs text-neutral-400">Contact your admin to get assigned to projects.</p>
           </div>
+        ) : (
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/30">
+              <th className="p-4 w-12"><input type="checkbox" className="accent-teal-500" /></th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">Header</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">Section Type</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">Status</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Target</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Limit</th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100 dark:divide-neutral-900">
+            {filteredTasks.map((task) => (
+              <tr key={task.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/40 transition-colors group">
+                <td className="p-4"><input type="checkbox" className="accent-teal-500" /></td>
+                <td className="p-4 text-sm font-bold tracking-tight uppercase">
+                  {task.stacks?.name || "Standard_Node"}
+                </td>
+                <td className="p-4">
+                  <span className="px-3 py-1 text-[9px] font-black uppercase border border-neutral-200 dark:border-neutral-700 rounded-full bg-white dark:bg-black">
+                    {task.section_type || "Narrative"}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase ${
+                    task.status?.toLowerCase() === 'done' 
+                    ? 'bg-teal-500/10 text-teal-500 border-teal-500/20' 
+                    : 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+                  }`}>
+                    {task.status?.toLowerCase() === 'done' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                    {task.status || 'In Process'}
+                  </span>
+                </td>
+                <td className="p-4 text-center text-xs font-mono">{task.target || 0}</td>
+                <td className="p-4 text-center text-xs font-mono">{task.limit || 30}</td>
+                <td className="p-4 text-right">
+                  <Link 
+                    href={`/Employee_portal/Task_Working_Space?id=${task.id}`}
+                    className="inline-flex items-center gap-1 text-[9px] font-black text-neutral-400 hover:text-teal-500 uppercase tracking-widest group"
+                  >
+                    Open_Matrix <ArrowUpRight size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         )}
       </div>
 

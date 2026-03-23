@@ -19,6 +19,7 @@ export const getPurchasedStacks = async (userId: string) => {
             status,
             sub_stack_ids,
             progress_percent,
+            created_at,
             stacks (
                 id,
                 name,

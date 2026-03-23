@@ -3,118 +3,218 @@
 import { useEffect, useState } from "react";
 import { employeeLogin } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, ShieldCheck, Clock, Users } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-const glassmorphismClass =
-    "bg-neutral-900/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-teal-500/20";
-
 export default function EmployeeLoginPage() {
-    const searchParams = useSearchParams();
-    const error = searchParams.get("error");
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
 
-    useEffect(() => {
-        if (error === "missing_fields") {
-            setErrorMessage("Please fill in all fields");
-        } else if (error === "invalid_credentials") {
-            setErrorMessage("Invalid email or password");
-        } else if (error === "session_error") {
-            setErrorMessage("Failed to create session. Please try again.");
-        }
-    }, [error]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    return (
-        <main className="flex flex-col min-h-screen bg-neutral-950 text-neutral-50 font-sans overflow-hidden relative">
-            {/* Background gradient blobs */}
-            <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
-                <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-teal-300 rounded-full mix-blend-screen opacity-10 blur-3xl animate-blob"></div>
-                <div className="absolute -bottom-1/4 right-0 w-1/2 h-1/2 bg-teal-500 rounded-full mix-blend-screen opacity-10 blur-3xl animate-blob animation-delay-2000"></div>
+  useEffect(() => {
+    if (error === "missing_fields") {
+      setErrorMessage("Please fill in all required fields.");
+    } else if (error === "invalid_credentials") {
+      setErrorMessage("Invalid email or password.");
+    } else if (error === "session_error") {
+      setErrorMessage("Failed to create session. Please try again.");
+    } else if(error === "pending_approval") {
+      setErrorMessage("Your account is pending admin approval. Please wait for approval.");
+    } else if (error === "account_rejected") {
+      setErrorMessage("Your account request was rejected. Please contact your administrator.");
+    } else if (error === "not_employee") {
+      setErrorMessage("You are not registered as an employee. Please use the correct login portal.");
+    }
+  }, [error]);
+
+  return (
+    <main className="min-h-screen flex bg-neutral-950 text-white">
+
+      {/* LEFT SIDE INFO PANEL */}
+
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 p-16 border-r border-white/10">
+
+        {/* Logo / Title */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Employee Workspace
+          </h1>
+
+          <p className="text-neutral-400 mt-3 max-w-md">
+            Secure internal portal for employees to manage tasks,
+            schedules, and collaboration across teams.
+          </p>
+        </div>
+
+        {/* Features */}
+
+        <div className="space-y-8">
+
+          <div className="flex items-start gap-4">
+            <ShieldCheck className="text-teal-400 w-6 h-6 mt-1" />
+            <div>
+              <h3 className="font-semibold">Secure Access</h3>
+              <p className="text-sm text-neutral-400">
+                Enterprise-grade authentication protects employee data
+                and internal resources.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <Clock className="text-teal-400 w-6 h-6 mt-1" />
+            <div>
+              <h3 className="font-semibold">Track Work Efficiently</h3>
+              <p className="text-sm text-neutral-400">
+                Log hours, manage schedules, and keep productivity
+                transparent across teams.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <Users className="text-teal-400 w-6 h-6 mt-1" />
+            <div>
+              <h3 className="font-semibold">Team Collaboration</h3>
+              <p className="text-sm text-neutral-400">
+                Stay connected with colleagues and departments through
+                a unified workspace.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+
+        <p className="text-sm text-neutral-500">
+          © {new Date().getFullYear()} Stackboard Internal Systems
+        </p>
+      </div>
+
+
+      {/* RIGHT SIDE LOGIN */}
+
+      <div className="flex flex-1 items-center justify-center px-6 py-12">
+
+        <div className="w-full max-w-md">
+
+          {/* Heading */}
+
+          <div className="mb-8">
+            <h2 className="text-3xl font-semibold tracking-tight">
+              Sign in
+            </h2>
+
+            <p className="text-sm text-neutral-400 mt-2">
+              Enter your employee credentials to access the portal.
+            </p>
+          </div>
+
+          {/* Error */}
+
+          {errorMessage && (
+            <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* FORM */}
+
+          <form action={employeeLogin} className="space-y-6">
+
+            {/* Email */}
+
+            <div>
+              <label className="block text-sm text-neutral-300 mb-2">
+                Work Email
+              </label>
+
+              <div className="relative">
+                <Mail className="absolute left-3 top-3.5 h-4 w-4 text-neutral-400" />
+
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="employee@company.com"
+                  className="w-full rounded-lg border border-white/10 bg-neutral-900 px-10 py-3 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-400/30 transition"
+                />
+              </div>
             </div>
 
-            {/* Centered login card */}
-            <div
-                className={`relative z-10 w-full max-w-md mx-auto my-auto px-6 py-10 sm:p-12 space-y-8 ${glassmorphismClass} animate-fade-in-up`}
+
+            {/* Password */}
+
+            <div>
+              <label className="block text-sm text-neutral-300 mb-2">
+                Password
+              </label>
+
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 h-4 w-4 text-neutral-400" />
+
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  placeholder="Enter your password"
+                  className="w-full rounded-lg border border-white/10 bg-neutral-900 px-10 py-3 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-400/30 transition"
+                />
+              </div>
+            </div>
+
+
+            {/* Forgot password */}
+
+            <div className="flex justify-end">
+              <Link
+                href="/Employee_portal/forgot-password"
+                className="text-sm text-teal-400 hover:text-teal-300 transition"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
+
+            {/* Button */}
+
+            <Button
+              type="submit"
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-lg font-semibold"
             >
-                {/* Title */}
-                <div className="space-y-3 text-center">
-                    <h1 className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent drop-shadow-md">
-                        Employee Portal 👋
-                    </h1>
-                    <p className="text-sm sm:text-base text-neutral-300">
-                        Sign in to your employee account
-                    </p>
-                </div>
+              Sign In
+            </Button>
 
-                {/* Error message */}
-                {errorMessage && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">
-                        {errorMessage}
-                    </div>
-                )}
+          </form>
 
-                {/* Form */}
-                <form className="space-y-6" action={employeeLogin}>
-                    {/* Email */}
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 w-5 h-5" />
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            required
-                            placeholder="Email"
-                            className="w-full pl-10 rounded-xl border border-teal-500/20 bg-white/5 text-white shadow-md focus:border-teal-500 focus:ring-2 focus:ring-teal-400/40 px-4 py-3 text-sm sm:text-base transition backdrop-blur-sm"
-                        />
-                    </div>
 
-                    {/* Password */}
-                    <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 w-5 h-5" />
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            required
-                            placeholder="Password"
-                            className="w-full pl-10 rounded-xl border border-teal-500/20 bg-white/5 text-white shadow-md focus:border-teal-500 focus:ring-2 focus:ring-teal-400/40 px-4 py-3 text-sm sm:text-base transition backdrop-blur-sm"
-                        />
-                    </div>
+          {/* Divider */}
 
-                    {/* Login Button */}
-                    <Button
-                        type="submit"
-                        className="w-full bg-gradient-to-r from-teal-400 to-teal-600 text-white font-bold rounded-xl shadow-lg hover:scale-[1.03] hover:shadow-teal-500/40 transition transform"
-                    >
-                        Log in
-                    </Button>
-                </form>
+          <div className="flex items-center gap-3 my-8 text-neutral-500 text-xs">
+            <div className="flex-1 h-px bg-white/10"></div>
+            OR
+            <div className="flex-1 h-px bg-white/10"></div>
+          </div>
 
-                {/* Divider */}
-                <div className="flex items-center gap-4">
-                    <div className="h-px flex-1 bg-teal-500/30"></div>
-                    <span className="text-sm text-neutral-400">or</span>
-                    <div className="h-px flex-1 bg-teal-500/30"></div>
-                </div>
 
-                {/* Signup Link */}
-                <div className="text-center">
-                    <Link
-                        href="/Employee_portal/signup"
-                        className="text-sm text-teal-400 hover:text-teal-300 transition underline underline-offset-4"
-                    >
-                        Don&apos;t have an account? Sign up
-                    </Link>
-                </div>
+          {/* Signup */}
 
-                {/* Footer */}
-                <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">
-                    By signing in, you agree to our{" "}
-                    <a href="#">Terms of Service</a> and{" "}
-                    <a href="#">Privacy Policy</a>.
-                </div>
-            </div>
-        </main>
-    );
+          <p className="text-center text-sm text-neutral-400">
+            Don’t have an employee account?{" "}
+            <Link
+              href="/Employee_portal/signup"
+              className="text-teal-400 hover:text-teal-300 font-medium"
+            >
+              Request Access
+            </Link>
+          </p>
+
+        </div>
+
+      </div>
+    </main>
+  );
 }

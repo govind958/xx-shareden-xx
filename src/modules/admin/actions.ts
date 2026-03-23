@@ -3,9 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { cookies } from 'next/headers'
 import { createHash, randomBytes } from 'crypto'
 import { Order, Profile } from '@/src/types/admin'
+import { sendStatusNotificationEmail, type OrderStatus } from '@/src/modules/email/send-status-notification'
 
 // Helper to hash values (secret key, password, etc.)
 function hashValue(value: string): string {
@@ -79,6 +81,7 @@ export async function adminLogin(formData: FormData) {
 
   // Set admin session cookie
   const cookieStore = await cookies()
+  console.log('Setting admin_session_token cookie, token length:', sessionToken.length)
   cookieStore.set('admin_session_token', sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -86,6 +89,10 @@ export async function adminLogin(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   })
+
+  // Verify the cookie was set
+  const verifyToken = cookieStore.get('admin_session_token')
+  console.log('Cookie verification after set:', !!verifyToken?.value)
 
   revalidatePath('/admin', 'layout')
   redirect('/admin/dashboard')
@@ -120,7 +127,10 @@ export async function verifyAdminSession(): Promise<{
   const cookieStore = await cookies()
   const sessionToken = cookieStore.get('admin_session_token')?.value
 
+  console.log('verifyAdminSession - sessionToken exists:', !!sessionToken)
+
   if (!sessionToken) {
+    console.log('verifyAdminSession - No session token found')
     return { isValid: false }
   }
 
@@ -293,6 +303,7 @@ export async function assignEmployeeToOrderItem(
   }
 
   const supabase = await createClient()
+  const adminClient = createAdminClient()
 
   // Check if assignment already exists
   const { data: existing } = await supabase
@@ -305,6 +316,25 @@ export async function assignEmployeeToOrderItem(
   if (existing) {
     return { error: 'Employee is already assigned to this order item' }
   }
+
+  // Fetch order item details for notification
+  const { data: orderItem } = await supabase
+    .from('order_items')
+    .select(`
+      id,
+      user_id,
+      status,
+      stacks:stack_id (name)
+    `)
+    .eq('id', orderItemId)
+    .single()
+
+  // Get employee details
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('name')
+    .eq('id', employeeId)
+    .single()
 
   // Create assignment
   const { data: assignment, error } = await supabase
@@ -320,8 +350,11 @@ export async function assignEmployeeToOrderItem(
     .single()
 
   if (error) {
+    console.log('Assignment creation error:', error.message)
     return { error: error.message }
   }
+
+  console.log('Assignment created successfully:', assignment?.id)
 
   // Update order_item assigned_to field
   await supabase
@@ -329,7 +362,175 @@ export async function assignEmployeeToOrderItem(
     .update({ assigned_to: employeeId })
     .eq('id', orderItemId)
 
+  // Send email notification to customer about assignment
+  console.log('=== EMAIL NOTIFICATION START ===')
+  console.log('orderItem:', orderItem)
+  console.log('orderItem.user_id:', orderItem?.user_id)
+
+  if (orderItem?.user_id) {
+    try {
+      console.log('Fetching user data for user_id:', orderItem.user_id)
+      const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(orderItem.user_id)
+
+      if (userError) {
+        console.error('Failed to get user data:', userError)
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', orderItem.user_id)
+        .single()
+
+      if (userData?.user?.email) {
+        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
+
+        const emailResult = await sendStatusNotificationEmail({
+          customerEmail: userData.user.email,
+          customerName: profile?.name || 'Valued Customer',
+          orderItemId: orderItemId,
+          stackName: stackName,
+          newStatus: 'processing' as OrderStatus,
+          previousStatus: orderItem.status as OrderStatus,
+          employeeName: employee?.name,
+          adminNote: notes,
+        })
+
+        if (!emailResult.success) {
+          console.error('Email send failed:', emailResult.error)
+        } else {
+          console.log('Assignment notification email sent successfully to:', userData.user.email)
+        }
+      } else {
+        console.error('No email found for user:', orderItem.user_id)
+      }
+    } catch (emailError) {
+      console.error('Failed to send assignment notification email:', emailError)
+    }
+  } else {
+    console.error('No user_id found on order item:', orderItemId)
+  }
+
   return { assignment }
+}
+
+// Assign employee to order item and send notification (for client-side use without admin session)
+export async function assignEmployeeAndNotify(
+  employeeId: string,
+  orderItemId: string,
+  notes?: string
+) {
+  const supabase = await createClient()
+  const adminClient = createAdminClient()
+
+  // Check if assignment already exists
+  const { data: existing } = await supabase
+    .from('employee_assignments')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .eq('order_item_id', orderItemId)
+    .single()
+
+  if (existing) {
+    return { error: 'Employee is already assigned to this order item' }
+  }
+
+  // Fetch order item details for notification
+  const { data: orderItem } = await supabase
+    .from('order_items')
+    .select(`
+      id,
+      user_id,
+      status,
+      stacks:stack_id (name)
+    `)
+    .eq('id', orderItemId)
+    .single()
+
+  // Get employee details
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('name')
+    .eq('id', employeeId)
+    .single()
+
+  // Update order_item assigned_to field and status
+  const { error: updateError } = await supabase
+    .from('order_items')
+    .update({ assigned_to: employeeId, status: 'processing' })
+    .eq('id', orderItemId)
+
+  if (updateError) {
+    return { error: updateError.message }
+  }
+
+  // Create assignment using upsert
+  const { error: assignError } = await supabase
+    .from('employee_assignments')
+    .upsert({
+      employee_id: employeeId,
+      order_item_id: orderItemId,
+      status: 'assigned',
+      notes: notes || null,
+    }, { onConflict: 'employee_id,order_item_id' })
+
+  if (assignError) {
+    console.log('Assignment creation error:', assignError.message)
+    return { error: assignError.message }
+  }
+
+  console.log('Assignment created successfully for order item:', orderItemId)
+
+  // Send email notification to customer about assignment
+  console.log('=== EMAIL NOTIFICATION START ===')
+  console.log('orderItem:', orderItem)
+  console.log('orderItem.user_id:', orderItem?.user_id)
+
+  if (orderItem?.user_id) {
+    try {
+      console.log('Fetching user data for user_id:', orderItem.user_id)
+      const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(orderItem.user_id)
+
+      if (userError) {
+        console.error('Failed to get user data:', userError)
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', orderItem.user_id)
+        .single()
+
+      if (userData?.user?.email) {
+        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
+
+        const emailResult = await sendStatusNotificationEmail({
+          customerEmail: userData.user.email,
+          customerName: profile?.name || 'Valued Customer',
+          orderItemId: orderItemId,
+          stackName: stackName,
+          newStatus: 'processing' as OrderStatus,
+          previousStatus: orderItem.status as OrderStatus,
+          employeeName: employee?.name,
+          adminNote: notes,
+        })
+
+        if (!emailResult.success) {
+          console.error('Email send failed:', emailResult.error)
+        } else {
+          console.log('Assignment notification email sent successfully to:', userData.user.email)
+        }
+      } else {
+        console.error('No email found for user:', orderItem.user_id)
+      }
+    } catch (emailError) {
+      console.error('Failed to send assignment notification email:', emailError)
+    }
+  } else {
+    console.error('No user_id found on order item:', orderItemId)
+  }
+
+  return { success: true }
 }
 
 // Unassign employee from order item

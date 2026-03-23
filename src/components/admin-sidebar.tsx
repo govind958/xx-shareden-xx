@@ -3,10 +3,9 @@
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
 import { createPortal } from "react-dom"
-import { 
-  Home, Layers3, Users, UserCircle2, Settings, 
+import { Home, Layers3, Users, UserCircle2, Settings, 
   ShoppingCart, LogOut, Loader2, Command, 
-  RefreshCcw, Globe, ShieldCheck, LifeBuoy
+  RefreshCcw, Globe, ShieldCheck, LifeBuoy, ListChecks
 } from "lucide-react"
 
 import { cn } from "@/src/lib/utils"
@@ -17,8 +16,9 @@ const links = [
   { label: "Stacks", href: "/admin/stacks", icon: Layers3 },
   { label: "Employees", href: "/admin/employees", icon: Users },
   { label: "Orders", href: "/admin/users", icon: UserCircle2 },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+  { label: "Approvals", href: "/admin/approvals", icon: ListChecks  },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
 ]
 
 export function AdminSidebar() {
