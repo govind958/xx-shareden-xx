@@ -248,8 +248,8 @@ export async function verifyEmployeeSession(): Promise<{
     }
 }
 
-// Valid order item statuses
-export type OrderItemStatus = 'initiated' | 'processing' | 'in_progress' | 'completed' | 'cancelled'
+// Valid order item statuses - re-export from email module for consistency
+export type OrderItemStatus = OrderStatus
 
 // Update order item status (for employees working on tasks)
 export async function updateOrderItemStatus(
@@ -264,11 +264,18 @@ export async function updateOrderItemStatus(
     }
 
     const supabase = await createClient()
+    const adminClient = createAdminClient()
 
-    // Verify this order item is assigned to this employee
+    // Fetch order item with user and stack details for notification
     const { data: orderItem, error: fetchError } = await supabase
         .from('order_items')
-        .select('id, assigned_to, status')
+        .select(`
+            id, 
+            assigned_to, 
+            status,
+            user_id,
+            stacks:stack_id (name)
+        `)
         .eq('id', orderItemId)
         .single()
 
@@ -279,6 +286,8 @@ export async function updateOrderItemStatus(
     if (orderItem.assigned_to !== employee.id) {
         return { success: false, error: 'You are not assigned to this order item' }
     }
+
+    const previousStatus = orderItem.status as OrderItemStatus
 
     // Build update payload
     const updatePayload: { status: OrderItemStatus; progress_percent?: number } = {
@@ -319,6 +328,40 @@ export async function updateOrderItemStatus(
         .update({ status: assignmentStatus })
         .eq('order_item_id', orderItemId)
         .eq('employee_id', employee.id)
+
+    // Send email notification to customer if status changed
+    if (previousStatus !== newStatus && orderItem.user_id) {
+        try {
+            // Get user email from auth.users using admin client
+            const { data: userData } = await adminClient.auth.admin.getUserById(orderItem.user_id)
+            
+            // Get user profile for name
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('user_id', orderItem.user_id)
+                .single()
+
+            if (userData?.user?.email) {
+                const stacks = orderItem.stacks as { name: string } | { name: string }[] | null
+                const stackName = Array.isArray(stacks) ? stacks[0]?.name : stacks?.name || 'Your Stack'
+                
+                await sendStatusNotificationEmail({
+                    customerEmail: userData.user.email,
+                    customerName: profile?.name || 'Valued Customer',
+                    orderItemId: orderItemId,
+                    stackName: stackName,
+                    newStatus: newStatus,
+                    previousStatus: previousStatus,
+                    progressPercent: updatePayload.progress_percent,
+                    employeeName: employee.name,
+                })
+            }
+        } catch (emailError) {
+            console.error('Failed to send status notification email:', emailError)
+            // Don't fail the status update if email fails
+        }
+    }
 
     revalidatePath('/Employee_portal/Task_Working_Space')
     revalidatePath('/Employee_portal/Task')

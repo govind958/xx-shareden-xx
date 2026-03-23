@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from '@/utils/supabase/client';
+import { assignEmployeeAndNotify } from "@/src/modules/admin/actions";
 import {
   Search, Filter, Clock, CheckCircle2,
   User, MessageSquare, UserPlus, X, Download,
@@ -100,31 +101,21 @@ export default function OrderCommandCenter() {
 
   // --- Logic: Assign Employee ---
   const handleAssign = async (itemId: string, employeeId: string) => {
-    // 1. Update order_items.assigned_to
-    const { error } = await supabase
-      .from('order_items')
-      .update({ assigned_to: employeeId, status: 'processing' })
-      .eq('id', itemId);
+    const result = await assignEmployeeAndNotify(employeeId, itemId);
 
-    if (!error) {
-      // 2. Also insert into employee_assignments to keep both tables in sync
-      await supabase
-        .from('employee_assignments')
-        .upsert({
-          employee_id: employeeId,
-          order_item_id: itemId,
-          status: 'assigned',
-        }, { onConflict: 'employee_id,order_item_id' });
-
-      // Update local state without refreshing the whole page
-      setOrders(prev => prev.map(order => ({
-        ...order,
-        order_items: order.order_items.map((item: any) =>
-          item.id === itemId ? { ...item, assigned_to: employeeId, status: 'processing' } : item
-        )
-      })));
-      setIsAssigning(false);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+      return;
     }
+
+    // Update local state without refreshing the whole page
+    setOrders(prev => prev.map(order => ({
+      ...order,
+      order_items: order.order_items.map((item: any) =>
+        item.id === itemId ? { ...item, assigned_to: employeeId, status: 'processing' } : item
+      )
+    })));
+    setIsAssigning(false);
   };
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
@@ -161,7 +152,7 @@ export default function OrderCommandCenter() {
       <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold text-white tracking-tight">User Management</h1>
+            <h1 className="text-4xl font-bold text-white tracking-tight">Order Management</h1>
             <p className="text-neutral-500 mt-2 flex items-center gap-2">
               <Clock size={14} /> Active monitoring for <span className="text-neutral-200 font-medium">{orders.length} deployments</span>
             </p>

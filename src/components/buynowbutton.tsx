@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/src/components/ui/dialog"
-import { CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
 
 // Extend Window interface for Razorpay
 declare global {
@@ -86,6 +86,7 @@ export default function BuyNowButton({
   recurringMethod,
 }: BuyNowButtonProps) {
   const [loading, setLoading] = useState(false)
+  const [verifyingPayment, setVerifyingPayment] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState<"success" | "error">("success")
   const [dialogMessage, setDialogMessage] = useState("")
@@ -172,40 +173,49 @@ export default function BuyNowButton({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async function (response: any) {
         console.log("Payment successful, verifying...", response)
+        setVerifyingPayment(true)
 
-        const verification = isRecurring
-          ? await verifySubscriptionPaymentAndCreateStackOrder({
-              razorpay_subscription_id: response.razorpay_subscription_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              cartItems: cartItems,
-              discountAmount: discountAmount,
-              couponId: couponId,
-              billingCycle: billingCycle,
-            })
-          : await verifyPaymentAndCreateStackOrder({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              cartItems: cartItems,
-              discountAmount: discountAmount,
-              couponId: couponId,
-              billingCycle: billingCycle,
-            })
+        try {
+          const verification = isRecurring
+            ? await verifySubscriptionPaymentAndCreateStackOrder({
+                razorpay_subscription_id: response.razorpay_subscription_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                cartItems: cartItems,
+                discountAmount: discountAmount,
+                couponId: couponId,
+                billingCycle: billingCycle,
+              })
+            : await verifyPaymentAndCreateStackOrder({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                cartItems: cartItems,
+                discountAmount: discountAmount,
+                couponId: couponId,
+                billingCycle: billingCycle,
+              })
 
-        if (verification.error) {
-          setDialogType("error")
-          setDialogMessage(`Payment failed: ${verification.error}`)
-          setDialogOpen(true)
-        } else {
-          setDialogType("success")
-          setDialogMessage("Payment successful! Your stacks are being prepared.")
-          setPaymentId(verification.paymentId || "")
-          setDialogOpen(true)
+          if (verification.error) {
+            setDialogType("error")
+            setDialogMessage(`Payment failed: ${verification.error}`)
+            setDialogOpen(true)
+          } else {
+            setDialogType("success")
+            setDialogMessage("Payment successful! Your stacks are being prepared.")
+            setPaymentId(verification.paymentId || "")
+            setDialogOpen(true)
 
-          if (onSuccess) {
-            onSuccess(verification)
+            if (onSuccess) {
+              onSuccess(verification)
+            }
           }
+        } catch (err) {
+          setDialogType("error")
+          setDialogMessage(`Verification failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+          setDialogOpen(true)
+        } finally {
+          setVerifyingPayment(false)
         }
       },
       prefill: {
@@ -248,11 +258,20 @@ export default function BuyNowButton({
     <>
       <button
         onClick={openCheckout}
-        disabled={loading || disabled}
+        disabled={loading || verifyingPayment || disabled}
         className="px-6 py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Processing..." : `Pay ₹${amount} Now`}
       </button>
+
+      {/* Verification loading overlay */}
+      {verifyingPayment && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+          <Loader2 className="w-12 h-12 text-teal-400 animate-spin mb-4" />
+          <p className="text-sm font-medium text-white">Verifying your payment...</p>
+          <p className="text-xs text-slate-400 mt-1">Please wait</p>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-[425px]">

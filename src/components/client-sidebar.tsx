@@ -27,7 +27,7 @@ export function ClientSidebar({
   const isDark = sidebarTheme === 'dark'
   const navLinks = [
     { id: "overview", icon: Home, label: "Dashboard" },
-    { id: "stacks", icon: Package, label: "Products" },
+    { id: "stacks", icon: Package, label: "Stacks" },
     { id: "stacks_cart", icon: ShoppingCart, label: "Cart" },
     { id: "stackboard", icon: LayoutDashboard, label: "Stackboard" },
     { id: "billing", icon: LayoutDashboard, label: "Billing" },

@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Search, Plus, ShieldCheck, Cpu, Bell, HelpCircle, Command } from "lucide-react"
+import { Search, Plus, ShieldCheck, Cpu, HelpCircle, Command } from "lucide-react"
 import { useAuth } from "@/src/context/AuthContext"
 import { createClient } from "@/utils/supabase/client"
+import { NotificationBell } from "@/src/components/notifications/notification-bell"
 
 export function TopNav() {
   const { user, loading } = useAuth()
@@ -72,10 +73,7 @@ export function TopNav() {
           <button title="Help" className="p-2 text-neutral-500 hover:text-white transition-colors">
             <HelpCircle size={18} strokeWidth={1.5} />
           </button>
-          <button title="Notifications" className="p-2 text-neutral-500 hover:text-white transition-colors relative">
-            <Bell size={18} strokeWidth={1.5} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#2B6CB0] rounded-full" />
-          </button>
+          <NotificationBell />
           <button className="ml-2 flex items-center gap-2 px-3 py-1.5 bg-[#2B6CB0] hover:bg-[#2B6CB0]/90 text-white rounded text-[11px] font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20">
             <Plus size={14} />
             <span className="hidden xl:inline">NEW STACKS</span>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Bell, MessageSquare, UserCheck, Info, CheckCheck } from 'lucide-react'
 import { useNotificationStore, Notification, NotificationType } from '@/src/store/notification-store'
 import { formatDistanceToNow } from 'date-fns'
@@ -15,13 +15,26 @@ const iconMap: Record<NotificationType, React.ReactNode> = {
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotificationStore()
+  const bellRef = useRef<HTMLButtonElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
+
+  useEffect(() => {
+    if (isOpen && bellRef.current) {
+      const rect = bellRef.current.getBoundingClientRect()
+      setDropdownPos({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      })
+    }
+  }, [isOpen])
 
   return (
     <div className="relative">
       {/* Bell Button */}
       <button
+        ref={bellRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center hover:bg-neutral-800 transition"
+        className="relative z-10 w-10 h-10 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center hover:bg-neutral-800 transition text-neutral-400 hover:text-white"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
@@ -34,8 +47,11 @@ export function NotificationBell() {
       {/* Dropdown Panel */}
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-12 w-80 sm:w-96 bg-[#0a0a0a] border border-neutral-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="fixed inset-0 z-[70]" onClick={() => setIsOpen(false)} />
+          <div
+            className="fixed w-80 sm:w-96 bg-[#0a0a0a] border border-neutral-800 rounded-2xl shadow-2xl z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+            style={{ top: dropdownPos.top, right: dropdownPos.right }}
+          >
             
             {/* Header */}
             <div className="p-4 border-b border-neutral-800 flex items-center justify-between">

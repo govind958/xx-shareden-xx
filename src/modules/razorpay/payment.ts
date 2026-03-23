@@ -236,10 +236,13 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
         const clusterName = item.cluster_name || item.name
         const currentSubstackNames = item.cluster_data.map((s: { name: string }) => s.name).sort()
 
+        // Only consider custom stacks created by this user - never reuse pre-made/system stacks (e.g. Marketing)
         const { data: existingStacks } = await supabase
           .from('stacks')
-          .select('id, name')
+          .select('id, name, base_price')
           .eq('active', true)
+          .eq('type', 'custom')
+          .eq('author_id', user.id)
 
         let foundStackId: string | null = null
         let foundSubStackIds: string[] = []
@@ -253,10 +256,11 @@ export async function verifyPaymentAndCreateStackOrder(paymentData: StackPayment
 
             if (existingSubStacks) {
               const existingNames = existingSubStacks.map((s: { name: string }) => s.name).sort()
-              const isMatch = currentSubstackNames.length === existingNames.length &&
+              const namesMatch = currentSubstackNames.length === existingNames.length &&
                 currentSubstackNames.every((val: string, index: number) => val === existingNames[index])
+              const priceMatch = (stack.base_price ?? 0) === item.price
 
-              if (isMatch) {
+              if (namesMatch && priceMatch) {
                 foundStackId = stack.id
                 foundSubStackIds = existingSubStacks.map((s: { id: string }) => s.id)
                 break
@@ -494,10 +498,13 @@ export async function verifySubscriptionPaymentAndCreateStackOrder(
         const clusterName = item.cluster_name || item.name
         const currentSubstackNames = item.cluster_data.map((s: { name: string }) => s.name).sort()
 
+        // Only consider custom stacks created by this user - never reuse pre-made/system stacks (e.g. Marketing)
         const { data: existingStacks } = await supabase
           .from("stacks")
-          .select("id, name")
+          .select("id, name, base_price")
           .eq("active", true)
+          .eq("type", "custom")
+          .eq("author_id", user.id)
 
         let foundStackId: string | null = null
         let foundSubStackIds: string[] = []
@@ -511,11 +518,12 @@ export async function verifySubscriptionPaymentAndCreateStackOrder(
 
             if (existingSubStacks) {
               const existingNames = existingSubStacks.map((s: { name: string }) => s.name).sort()
-              const isMatch =
+              const namesMatch =
                 currentSubstackNames.length === existingNames.length &&
                 currentSubstackNames.every((val: string, index: number) => val === existingNames[index])
+              const priceMatch = (stack.base_price ?? 0) === item.price
 
-              if (isMatch) {
+              if (namesMatch && priceMatch) {
                 foundStackId = stack.id
                 foundSubStackIds = existingSubStacks.map((s: { id: string }) => s.id)
                 break

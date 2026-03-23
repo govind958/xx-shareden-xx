@@ -188,49 +188,81 @@ export default function ZohoStyleCheckout() {
 
   // Logic Helpers
   const removeItem = async (stackIndex: number, subIndex?: number) => {
-    const newStacks = [...cartStacks];
-    const stack = newStacks[stackIndex];
+    const stack = cartStacks[stackIndex];
 
     if (subIndex !== undefined) {
-      // Remove sub_stack from local state and update cluster_data
-      newStacks[stackIndex].sub_stacks.splice(subIndex, 1);
-      if (newStacks[stackIndex].cluster_data) {
-        newStacks[stackIndex].cluster_data!.splice(subIndex, 1);
+      // Immutable update: create new arrays instead of mutating
+      const newSubStacks = stack.sub_stacks.filter((_, i) => i !== subIndex);
+      const newClusterData = stack.cluster_data
+        ? stack.cluster_data.filter((_, i) => i !== subIndex)
+        : undefined;
+
+      // If removing last substack from cluster, remove entire cluster from cart
+      if (stack.cluster_data && newSubStacks.length === 0) {
+        try {
+          const { error } = await supabase
+            .from('cart_stacks')
+            .delete()
+            .eq('id', stack.cart_id);
+          if (error) throw error;
+          setCartStacks(prev => prev.filter((_, i) => i !== stackIndex));
+        } catch (e) {
+          console.error('Failed to remove cart item:', e);
+        }
+        return;
       }
 
-      // Update the cart item in database with new cluster_data
+      const updatedStack = {
+        ...stack,
+        sub_stacks: newSubStacks,
+        cluster_data: newClusterData,
+      };
+      const newTotalPrice = newSubStacks.reduce((sum, s) => sum + s.price * s.quantity, 0);
+
       try {
-        await supabase
+        const { error } = await supabase
           .from('cart_stacks')
           .update({
-            cluster_data: newStacks[stackIndex].cluster_data,
-            total_price: newStacks[stackIndex].sub_stacks.reduce((sum, s) => sum + s.price, 0)
+            cluster_data: newClusterData,
+            total_price: newTotalPrice,
           })
           .eq('id', stack.cart_id);
+        if (error) throw error;
+        setCartStacks(prev =>
+          prev.map((s, i) => (i === stackIndex ? updatedStack : s))
+        );
       } catch (e) {
         console.error('Failed to update cart item:', e);
       }
     } else {
       // Remove entire stack from database
       try {
-        await supabase
+        const { error } = await supabase
           .from('cart_stacks')
           .delete()
           .eq('id', stack.cart_id);
+        if (error) throw error;
+        setCartStacks(prev => prev.filter((_, i) => i !== stackIndex));
       } catch (e) {
         console.error('Failed to delete cart item:', e);
       }
-      newStacks.splice(stackIndex, 1);
     }
-
-    setCartStacks(newStacks);
   };
 
   const updateQuantity = (stackIndex: number, subIndex: number, val: string) => {
     const qty = Math.max(0, parseInt(val) || 0);
-    const newStacks = [...cartStacks];
-    newStacks[stackIndex].sub_stacks[subIndex].quantity = qty;
-    setCartStacks(newStacks);
+    setCartStacks(prev =>
+      prev.map((s, i) =>
+        i === stackIndex
+          ? {
+              ...s,
+              sub_stacks: s.sub_stacks.map((sub, j) =>
+                j === subIndex ? { ...sub, quantity: qty } : sub
+              ),
+            }
+          : s
+      )
+    );
   };
 
   const handleApplyCoupon = async () => {
@@ -297,10 +329,16 @@ export default function ZohoStyleCheckout() {
   const subtotal = useMemo(() => {
     let total = 0;
     cartStacks.forEach(stack => {
-      total += stack.price;
-      stack.sub_stacks.forEach(sub => {
-        total += (sub.price * sub.quantity);
-      });
+      // For cluster/custom stacks: total_price is sum of sub_stacks, so only count sub_stacks to avoid double counting
+      if (stack.cluster_data) {
+        stack.sub_stacks.forEach(sub => {
+          total += sub.price * sub.quantity;
+        });
+      } else {
+        stack.sub_stacks.forEach(sub => {
+          total += sub.price * sub.quantity;
+        });
+      }
     });
     return billingCycle === 'Yearly' ? total : total * 1.2;
   }, [cartStacks, billingCycle]);
@@ -396,10 +434,16 @@ export default function ZohoStyleCheckout() {
                         <tr className="group">
                           <td className="px-6 py-6">
                             <p className="font-bold text-[#1A365D]">{stack.name}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Base Plan License</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {stack.cluster_data ? 'Custom Stack' : 'Base Plan License'}
+                            </p>
                           </td>
-                          <td className="px-6 py-6 text-center text-sm font-medium text-slate-600">1</td>
-                          <td className="px-6 py-6 text-right font-bold text-[#1A365D]">₹{stack.price.toLocaleString()}</td>
+                          <td className="px-6 py-6 text-center text-sm font-medium text-slate-600">
+                            {stack.cluster_data ? '—' : '1'}
+                          </td>
+                          <td className="px-6 py-6 text-right font-bold text-[#1A365D]">
+                            {stack.cluster_data ? '—' : `₹${stack.price.toLocaleString()}`}
+                          </td>
                           <td className="px-4 py-6 text-center">
                             <button onClick={() => removeItem(sIdx)} className="text-slate-300 hover:text-[#E53E3E] transition-colors"><Trash2 size={16} /></button>
                           </td>

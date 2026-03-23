@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
+  const next = url.searchParams.get('next') ?? '/private'
 
   if (code) {
     const supabase = await createClient()
@@ -20,8 +21,7 @@ export async function GET(request: Request) {
         : url.origin // fallback
 
       // ✅ Always send to /private after successful login
-      const next = url.searchParams.get('next') || '/private';
-      return NextResponse.redirect(`${host}${next}`);
+      return NextResponse.redirect(`${host}${next}`)
     }
   }
 
