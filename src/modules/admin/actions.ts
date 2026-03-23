@@ -696,119 +696,59 @@ export async function getAllOrders() {
   return { orders: ordersWithProfiles }
 }
 
-// Update order item status (admin action with email notification)
-export async function updateOrderItemStatusAdmin(
-  orderItemId: string,
-  newStatus: OrderStatus,
-  adminNote?: string
-): Promise<{ success: boolean; error?: string }> {
+// ======================
+// ADMIN SETTINGS
+// ======================
+
+// Get the current admin user's full profile
+export async function getAdminProfile() {
   const { isValid, adminUser } = await verifyAdminSession()
 
   if (!isValid || !adminUser) {
-    return { success: false, error: 'Unauthorized - Admin session required' }
+    return { error: 'Unauthorized' }
   }
 
   const supabase = await createClient()
-  const adminClient = createAdminClient()
 
-  // Fetch order item with user and stack details
-  const { data: orderItem, error: fetchError } = await supabase
-    .from('order_items')
-    .select(`
-      id,
-      status,
-      user_id,
-      assigned_to,
-      progress_percent,
-      stacks:stack_id (name),
-      employees:assigned_to (name)
-    `)
-    .eq('id', orderItemId)
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id, email, name, is_active, last_login_at, created_at')
+    .eq('id', adminUser.id)
     .single()
 
-  if (fetchError || !orderItem) {
-    return { success: false, error: 'Order item not found' }
+  if (error || !data) {
+    return { error: error?.message || 'Admin user not found' }
   }
 
-  const previousStatus = orderItem.status as OrderStatus
+  return { profile: data }
+}
 
-  // Determine progress based on status
-  let progressPercent = orderItem.progress_percent
-  switch (newStatus) {
-    case 'processing':
-      progressPercent = 10
-      break
-    case 'in_progress':
-      progressPercent = 25
-      break
-    case 'completed':
-      progressPercent = 100
-      break
-    case 'cancelled':
-      progressPercent = 0
-      break
+// Update the admin user's profile (name only — email, password, secret key not editable here)
+export async function updateAdminProfile(name: string) {
+  const { isValid, adminUser } = await verifyAdminSession()
+
+  if (!isValid || !adminUser) {
+    return { error: 'Unauthorized' }
   }
 
-  // Update order_items table
-  const { error: updateError } = await supabase
-    .from('order_items')
+  if (!name || name.trim().length === 0) {
+    return { error: 'Name cannot be empty' }
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('admin_users')
     .update({
-      status: newStatus,
-      progress_percent: progressPercent,
-      admin_note: adminNote || null,
+      name: name.trim(),
+      updated_at: new Date().toISOString(),
     })
-    .eq('id', orderItemId)
+    .eq('id', adminUser.id)
 
-  if (updateError) {
-    return { success: false, error: updateError.message }
+  if (error) {
+    return { error: error.message }
   }
 
-  // Update employee_assignments status if assigned
-  if (orderItem.assigned_to) {
-    const assignmentStatus = newStatus === 'completed' ? 'completed' :
-      newStatus === 'in_progress' ? 'in_progress' :
-        newStatus === 'cancelled' ? 'cancelled' : 'assigned'
-
-    await supabase
-      .from('employee_assignments')
-      .update({ status: assignmentStatus })
-      .eq('order_item_id', orderItemId)
-  }
-
-  // Send email notification to customer if status changed
-  if (previousStatus !== newStatus && orderItem.user_id) {
-    try {
-      const { data: userData } = await adminClient.auth.admin.getUserById(orderItem.user_id)
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('user_id', orderItem.user_id)
-        .single()
-
-      if (userData?.user?.email) {
-        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
-        const employeeName = (orderItem.employees as { name: string } | null)?.name
-
-        await sendStatusNotificationEmail({
-          customerEmail: userData.user.email,
-          customerName: profile?.name || 'Valued Customer',
-          orderItemId: orderItemId,
-          stackName: stackName,
-          newStatus: newStatus,
-          previousStatus: previousStatus,
-          progressPercent: progressPercent ?? undefined,
-          employeeName: employeeName,
-          adminNote: adminNote,
-        })
-      }
-    } catch (emailError) {
-      console.error('Failed to send status notification email:', emailError)
-    }
-  }
-
-  revalidatePath('/admin/orders')
-  revalidatePath('/admin/employees')
-
+  revalidatePath('/admin', 'layout')
   return { success: true }
 }
