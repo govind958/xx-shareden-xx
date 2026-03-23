@@ -47,7 +47,7 @@ export default async function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Active Nodes" value={assignments?.length} change="+12%" icon={Server} trend={ArrowUpRight} />
+        <StatCard title="Active Stacks" value={assignments?.length} change="+12%" icon={Server} trend={ArrowUpRight} />
         <StatCard title="Power Load" value="84.2%" change="+2.4%" icon={Zap} trend={ArrowUpRight} />
         <StatCard title="Security Index" value="99.9%" change="Stable" icon={ShieldCheck} trend={Activity} />
         <StatCard title="Bandwidth" value="4.2gb/s" change="+18%" icon={Activity} trend={ArrowUpRight} />

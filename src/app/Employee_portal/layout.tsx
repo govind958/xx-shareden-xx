@@ -16,7 +16,9 @@ export default function EmployeePortalLayout({
 
   const isAuthPage =
     pathname.startsWith('/Employee_portal/login') ||
-    pathname.startsWith('/Employee_portal/signup');
+    pathname.startsWith('/Employee_portal/signup') ||
+    pathname.startsWith('/Employee_portal/forgot-password') ||
+    pathname.startsWith('/Employee_portal/reset-password');
 
   useEffect(() => {
     if (isAuthPage) return;
