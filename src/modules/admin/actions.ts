@@ -20,7 +20,7 @@ function generateSessionToken(): string {
 // Admin login with email, password and secret key
 export async function adminLogin(formData: FormData) {
   const supabase = await createClient()
-  
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const secretKey = formData.get('secretKey') as string
@@ -163,7 +163,7 @@ export async function verifyAdminSession(): Promise<{
 // Get orders for a user (for tooltip display)
 export async function getUserOrders(userId: string) {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -206,7 +206,7 @@ export async function getUserOrders(userId: string) {
 // Get all employees
 export async function getEmployees() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -229,7 +229,7 @@ export async function getEmployees() {
 // Get employee assignments with details
 export async function getEmployeeAssignments() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -287,7 +287,7 @@ export async function assignEmployeeToOrderItem(
   notes?: string
 ) {
   const { isValid, adminUser } = await verifyAdminSession()
-  
+
   if (!isValid || !adminUser) {
     return { error: 'Unauthorized' }
   }
@@ -335,7 +335,7 @@ export async function assignEmployeeToOrderItem(
 // Unassign employee from order item
 export async function unassignEmployeeFromOrderItem(assignmentId: string) {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -373,7 +373,7 @@ export async function unassignEmployeeFromOrderItem(assignmentId: string) {
 // Get unassigned order items
 export async function getUnassignedOrderItems() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -415,7 +415,7 @@ export async function getUnassignedOrderItems() {
 // Get all orders with details
 export async function getAllOrders() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -470,7 +470,7 @@ export async function getAllOrders() {
         .map((o) => o.user_id)
         .filter((id): id is string => Boolean(id))
     )]
-    
+
     if (userIds.length > 0) {
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -495,3 +495,59 @@ export async function getAllOrders() {
   return { orders: ordersWithProfiles }
 }
 
+// ======================
+// ADMIN SETTINGS
+// ======================
+
+// Get the current admin user's full profile
+export async function getAdminProfile() {
+  const { isValid, adminUser } = await verifyAdminSession()
+
+  if (!isValid || !adminUser) {
+    return { error: 'Unauthorized' }
+  }
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id, email, name, is_active, last_login_at, created_at')
+    .eq('id', adminUser.id)
+    .single()
+
+  if (error || !data) {
+    return { error: error?.message || 'Admin user not found' }
+  }
+
+  return { profile: data }
+}
+
+// Update the admin user's profile (name only — email, password, secret key not editable here)
+export async function updateAdminProfile(name: string) {
+  const { isValid, adminUser } = await verifyAdminSession()
+
+  if (!isValid || !adminUser) {
+    return { error: 'Unauthorized' }
+  }
+
+  if (!name || name.trim().length === 0) {
+    return { error: 'Name cannot be empty' }
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('admin_users')
+    .update({
+      name: name.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', adminUser.id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin', 'layout')
+  return { success: true }
+}
