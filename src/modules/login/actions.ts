@@ -104,5 +104,24 @@ const signInWith = (provider: 'google' | 'github' | 'facebook') => {
   }
 }
 
+export async function resetPasswordForEmail(formData: FormData) {
+  const supabase = await createClient()
+  const email = formData.get('email') as string
+
+  if(!email) {
+    redirect('/forgot-password?error=' + encodeURIComponent('Please enter your email.')
+  )
+  }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${getURL()}auth/callback?next=/reset-password`,
+  })
+
+  if (error) {
+    redirect('/forgot-password?error=' + encodeURIComponent(error.message))
+  }
+
+  redirect('/forgot-password?success=true')
+}
+
 // 👉 Specific provider actions
 export const signInWithGoogle = signInWith('google')

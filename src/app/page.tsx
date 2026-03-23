@@ -44,7 +44,7 @@ const StackboardClassic: FC = () => {
               Sign In
             </Link>
             <Link 
-              href="/signup" 
+              href="/login" 
               className="px-5 py-2 text-sm font-semibold bg-[#2B6CB0] text-white rounded-lg hover:bg-[#1e4e80] transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               Get Started
@@ -71,13 +71,13 @@ const StackboardClassic: FC = () => {
 
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-6">
               <Link 
-                href="/signup" 
+                href="/login" 
                 className="px-8 py-3.5 bg-[#2B6CB0] text-white rounded-xl text-base font-semibold hover:bg-[#1e4e80] transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center hover:-translate-y-0.5"
               >
                 Start Free Trial
               </Link>
               <Link 
-                href="/demo" 
+                href="/login" 
                 className="px-8 py-3.5 border-2 border-[#1A365D] text-[#1A365D] rounded-xl text-base font-semibold hover:bg-slate-50 transition-all flex items-center justify-center hover:-translate-y-0.5"
               >
                 Book Demo
