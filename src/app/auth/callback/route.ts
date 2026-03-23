@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         : url.origin // fallback
 
       // ✅ Always send to /private after successful login
+      console.log('redirecting to', `${host}${next}`)
       return NextResponse.redirect(`${host}${next}`)
     }
   }
