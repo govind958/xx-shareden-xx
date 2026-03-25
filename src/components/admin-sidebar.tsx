@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react"
 import { createPortal } from "react-dom"
 import { Home, Layers3, Users, UserCircle2, Settings, 
   ShoppingCart, LogOut, Loader2, Command, 
-  RefreshCcw, Globe, ShieldCheck, LifeBuoy, ListChecks
+  RefreshCcw, Globe, ShieldCheck, LifeBuoy, ListChecks, CreditCard
 } from "lucide-react"
 
 import { cn } from "@/src/lib/utils"
@@ -18,6 +18,7 @@ const links = [
   { label: "Orders", href: "/admin/users", icon: UserCircle2 },
   { label: "Approvals", href: "/admin/approvals", icon: ListChecks  },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
+  { label: "Payments", href: "/admin/payment", icon: CreditCard },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ]
 
