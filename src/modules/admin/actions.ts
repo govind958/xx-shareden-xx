@@ -752,3 +752,61 @@ export async function updateAdminProfile(name: string) {
   revalidatePath('/admin', 'layout')
   return { success: true }
 }
+
+// ======================
+// DASHBOARD STATS
+// ======================
+
+// Get dashboard statistics: total revenue, today's revenue, pending assignments, total pending tasks
+export async function getDashboardStats() {
+  const { isValid } = await verifyAdminSession()
+
+  if (!isValid) {
+    return { error: 'Unauthorized' }
+  }
+
+  const supabase = await createClient()
+
+  // 1. Total Revenue - sum of all orders' total_amount
+  const { data: allOrders, error: ordersError } = await supabase
+    .from('orders')
+    .select('total_amount')
+
+  const totalRevenue = ordersError
+    ? 0
+    : (allOrders || []).reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0)
+
+  // 2. Today's Revenue - sum of orders created today
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+
+  const { data: todayOrders, error: todayError } = await supabase
+    .from('orders')
+    .select('total_amount')
+    .gte('created_at', todayStart.toISOString())
+
+  const todayRevenue = todayError
+    ? 0
+    : (todayOrders || []).reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0)
+
+  // 3. Pending Assignments - order items not yet assigned to an employee
+  const { count: pendingAssignments, error: pendingError } = await supabase
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .is('assigned_to', null)
+
+  // 4. Total Pending Tasks - order items with incomplete statuses
+  const { count: totalPendingTasks, error: tasksError } = await supabase
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['initiated', 'in_progress', 'processing', 'pending'])
+
+  return {
+    stats: {
+      totalRevenue,
+      todayRevenue,
+      pendingAssignments: pendingError ? 0 : (pendingAssignments || 0),
+      totalPendingTasks: tasksError ? 0 : (totalPendingTasks || 0),
+    },
+  }
+}
