@@ -172,8 +172,8 @@ export default function OrderCommandCenter() {
           {[
             { label: "Total Revenue", value: `₹${orders.reduce((acc, curr) => acc + curr.total_amount, 0).toLocaleString()}`, icon: CreditCard, change: "Live" },
             { label: "Active Orders", value: orders.length.toString(), icon: Clock, change: "Current" },
-            { label: "Deployed", value: "99%", icon: CheckCircle2, change: "Health" },
-            { label: "Stack Health", value: "Perfect", icon: ShieldCheck, change: "Active" },
+            { label: "Processing Orders", value: orders.reduce((acc, o) => acc + (o.order_items?.filter((i: any) => i.status === 'processing').length || 0), 0).toString(), icon: Clock, change: "Active" },
+            { label: "Completed Orders", value: orders.reduce((acc, o) => acc + (o.order_items?.filter((i: any) => i.status === 'completed').length || 0), 0).toString(), icon: CheckCircle2, change: "Done" },
           ].map((item, i) => (
             <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] relative overflow-hidden group hover:border-teal-500/30 transition-all duration-500">
               <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">

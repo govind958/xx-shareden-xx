@@ -2,15 +2,17 @@
 
 import React, { useState, useEffect } from "react"
 import {
-  Users, FileText, ShieldCheck, Layers,
+  IndianRupee, ClipboardList, Clock, Layers,
   Activity, Zap,
   Search, Bell, Trash2, Download
 } from "lucide-react"
 import { SpreadsheetRow } from "@/src/types/admin"
 import { AdminDashboardProps } from "@/src/types/admin"
+import { getDashboardStats } from "@/src/modules/admin/actions"
 
-export default function AdminDashboard({ adminUser, counts }: AdminDashboardProps) {
+export default function AdminDashboard({ adminUser, counts: initialCounts }: AdminDashboardProps) {
   const [mounted, setMounted] = useState(false)
+  const [counts, setCounts] = useState(initialCounts || { totalRevenue: 0, todayRevenue: 0, pendingAssignments: 0, totalPendingTasks: 0 })
 
   // --- SPREADSHEET STATE ---
   const [columns] = useState([
@@ -30,6 +32,12 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
 
   useEffect(() => {
     setMounted(true)
+    // Fetch dashboard stats from server
+    getDashboardStats().then((result) => {
+      if ('stats' in result && result.stats) {
+        setCounts(result.stats)
+      }
+    })
   }, [])
 
   // --- ACTIONS ---
@@ -67,10 +75,10 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
   }
 
   const stats = [
-    { label: "User Directory", val: counts?.users || 0, icon: Users, trend: "+12.5%", status: "Synced" },
-    { label: "Documentation", val: counts?.forms || 0, icon: FileText, trend: "Stable", status: "Active" },
-    { label: "Security Nodes", val: counts?.sessions || 0, icon: ShieldCheck, trend: "Secure", status: "Live" },
-    { label: "Architecture", val: counts?.stacks || 0, icon: Layers, trend: "+2 New", status: "Global" },
+    { label: "Total Revenue", val: `₹${(counts?.totalRevenue || 0).toLocaleString()}`, icon: IndianRupee, trend: "All Time", status: "Live" },
+    { label: "Today Revenue", val: `₹${(counts?.todayRevenue || 0).toLocaleString()}`, icon: IndianRupee, trend: "Today", status: "Active" },
+    { label: "Pending Assignments", val: counts?.pendingAssignments || 0, icon: ClipboardList, trend: "Unassigned", status: "Needs Action" },
+    { label: "Total Tasks Pending", val: counts?.totalPendingTasks || 0, icon: Clock, trend: "In Progress", status: "Active" },
   ]
 
   if (!mounted) return <div className="min-h-screen bg-[#020202]" />
@@ -107,7 +115,7 @@ export default function AdminDashboard({ adminUser, counts }: AdminDashboardProp
             <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px]">
               <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">{item.label}</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-bold text-white tracking-tighter">{item.val.toLocaleString()}</h3>
+                <h3 className="text-3xl font-bold text-white tracking-tighter">{typeof item.val === 'number' ? item.val.toLocaleString() : item.val}</h3>
               </div>
             </div>
           ))}

@@ -54,7 +54,7 @@ export default function AdminEmployeesPage() {
   const loadFactor = employees.length > 0 ? ((activeCount / employees.length) * 100).toFixed(1) : "0";
 
   const stats = [
-    { label: "Deployment Load", val: `${loadFactor}%`, icon: Cpu, status: "Active" },
+    { label: "Total Employees", val: employees.length, icon: Users, status: "Active" },
     { label: "Active Deployments", val: activeCount, icon: UserCheck, status: "Live" },
     { label: "Staff Bandwidth", val: inactiveCount, icon: Users, status: "Standby" },
   ];
