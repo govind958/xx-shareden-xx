@@ -8,6 +8,7 @@ import {
   verifyPaymentAndCreateStackOrder,
   verifySubscriptionPaymentAndCreateStackOrder,
 } from "@/src/modules/razorpay/payment"
+import mixpanel from '@/src/lib/mixpanelClient'
 
 import { Button } from "@/src/components/ui/button"
 import {
@@ -95,6 +96,7 @@ export default function BuyNowButton({
 
   const openCheckout = async () => {
     setLoading(true)
+    mixpanel.track('Payment Initiated', { amount, mode, billing_cycle: billingCycle })
 
     // 1. Load the Razorpay script
     const scriptLoaded = await loadRazorpayScript()
@@ -205,6 +207,7 @@ export default function BuyNowButton({
             setDialogMessage("Payment successful! Your stacks are being prepared.")
             setPaymentId(verification.paymentId || "")
             setDialogOpen(true)
+            mixpanel.track('Payment Successful', { amount, payment_id: verification.paymentId, mode, billing_cycle: billingCycle })
 
             if (onSuccess) {
               onSuccess(verification)
@@ -214,6 +217,7 @@ export default function BuyNowButton({
           setDialogType("error")
           setDialogMessage(`Verification failed: ${err instanceof Error ? err.message : "Unknown error"}`)
           setDialogOpen(true)
+          mixpanel.track('Payment Failed', { amount, error: err instanceof Error ? err.message : 'unknown' })
         } finally {
           setVerifyingPayment(false)
         }

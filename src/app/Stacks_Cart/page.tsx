@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import BuyNowButton from '@/src/components/buynowbutton';
 import { getBillingAddress, saveBillingAddress } from '@/src/modules/billing';
+import mixpanel from '@/src/lib/mixpanelClient';
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -176,6 +177,12 @@ export default function ZohoStyleCheckout() {
             };
           });
           setCartStacks(formatted);
+          if (formatted.length > 0) {
+            mixpanel.track('Checkout Started', {
+              cart_items: formatted.length,
+              cart_value: formatted.reduce((sum: number, s: CartStack) => sum + s.price, 0),
+            });
+          }
         }
       } catch (e) {
         console.error("Fetch Error:", e);
@@ -189,6 +196,10 @@ export default function ZohoStyleCheckout() {
   // Logic Helpers
   const removeItem = async (stackIndex: number, subIndex?: number) => {
     const stack = cartStacks[stackIndex];
+    mixpanel.track('Cart Item Removed', {
+      item_name: subIndex !== undefined ? stack.sub_stacks[subIndex]?.name : stack.name,
+      is_substack: subIndex !== undefined,
+    });
 
     if (subIndex !== undefined) {
       // Immutable update: create new arrays instead of mutating
@@ -303,9 +314,15 @@ export default function ZohoStyleCheckout() {
         discount_amount: coupon.discount_amount,
       });
       setCouponInput('');
+      mixpanel.track('Coupon Applied', {
+        coupon_code: coupon.code,
+        discount_type: coupon.discount_type,
+        discount_amount: coupon.discount_amount,
+      });
     } catch (e) {
       console.error('Coupon error:', e);
       setCouponError('Failed to apply coupon');
+      mixpanel.track('Coupon Failed', { coupon_code: couponInput, reason: 'error' });
     } finally {
       setCouponLoading(false);
     }
@@ -569,7 +586,7 @@ export default function ZohoStyleCheckout() {
 
               <div className="p-6">
                 {step === 1 && cartStacks.length > 0 && (
-                  <button onClick={() => setStep(2)} className="w-full bg-[#2B6CB0] hover:bg-[#1A365D] text-white font-bold py-3.5 rounded shadow-lg mb-6 transition-all">
+                  <button onClick={() => { mixpanel.track('Billing Step Reached', { cart_items: cartStacks.length, subtotal }); setStep(2); }} className="w-full bg-[#2B6CB0] hover:bg-[#1A365D] text-white font-bold py-3.5 rounded shadow-lg mb-6 transition-all">
                     Proceed to Billing
                   </button>
                 )}

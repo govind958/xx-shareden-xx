@@ -18,6 +18,7 @@ import { getSupportTicketCounts } from '@/src/modules/support/action';
 import { getSupportTickets } from '@/src/modules/support/action';
 import { SUPPORT_TICKETS } from "@/src/types/support";
 import { useRouter } from 'next/navigation';
+import mixpanel from '@/src/lib/mixpanelClient';
 
 /* ---------------- STYLE HELPERS ---------------- */
 const STAT_CARD =
@@ -70,6 +71,7 @@ export default function DashboardPage() {
         console.error("Error fetching data", err);
       } finally {
         setInitialLoading(false);
+        mixpanel.track('Dashboard Loaded');
       }
     }
     fetchData();
@@ -219,7 +221,7 @@ export default function DashboardPage() {
       {/* FLOATING SUPPORT */}
       <div className="fixed bottom-8 right-8">
         <button
-          onClick={() => setShowSupportModal(true)}
+          onClick={() => { mixpanel.track('Support Modal Opened'); setShowSupportModal(true); }}
           className="bg-[#1A365D] text-white px-5 py-2.5 rounded-xl shadow-xl flex items-center gap-2 font-medium hover:bg-[#2B6CB0] transition-all text-sm"
         >
           <HelpCircle size={18} />

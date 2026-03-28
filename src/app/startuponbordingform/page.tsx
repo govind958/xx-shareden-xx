@@ -9,6 +9,7 @@ import {
 import { insertForm } from "@/src/modules/stack_upon_boarding_form/actions"
 import { createClient } from "@/utils/supabase/client"
 import { FormEntry } from "@/src/types/stack_on_boarding_form"
+import mixpanel from '@/src/lib/mixpanelClient'
 
 
 export default function StartupOnboardingPage() {
@@ -59,6 +60,7 @@ export default function StartupOnboardingPage() {
     try {
       await insertForm(formData)
       toast.success("Broadcast Successful")
+      mixpanel.track('Onboarding Form Submitted')
       await fetchForms()
       formElement.reset()
       setIsDrawerOpen(false)
@@ -110,7 +112,7 @@ export default function StartupOnboardingPage() {
               />
             </div>
             <button 
-              onClick={() => setIsDrawerOpen(true)}
+              onClick={() => { mixpanel.track('Onboarding Form Opened'); setIsDrawerOpen(true); }}
               className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-black font-bold rounded-xl text-sm hover:bg-teal-500 transition shadow-lg shadow-teal-500/10"
             >
               <Plus size={16} /> New Entry

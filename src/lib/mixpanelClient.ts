@@ -6,6 +6,7 @@ const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN as string | undefi
 if (MIXPANEL_TOKEN) {
   mixpanel.init(MIXPANEL_TOKEN, {
     autocapture: true,
+    record_sessions_percent: 100,
     debug: process.env.NODE_ENV === "development",
   } as Partial<Config>);
 } else {

@@ -21,6 +21,7 @@ import {
 } from "@/src/modules/billing";
 import { useAuth } from "@/src/context/AuthContext";
 import { generateInvoice } from "@/src/modules/billing/generateInvoice";
+import mixpanel from '@/src/lib/mixpanelClient';
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -56,6 +57,7 @@ const BillingPage: FC = () => {
       setPurchasedStacks(ordersResult.stacks);
       setBillingAddress(address);
       setInitialLoading(false);
+      mixpanel.track('Billing Page Viewed', { stacks_count: ordersResult.stacks.length });
     }
     fetchData();
   }, [user]);
@@ -254,6 +256,7 @@ const BillingPage: FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            mixpanel.track('Invoice Downloaded', { stack_name: stack.stack_name });
                             if (parentOrder) generateInvoice(parentOrder, billingAddress);
                           }}
                           className="p-2 text-slate-300 hover:text-blue-600 transition-all"

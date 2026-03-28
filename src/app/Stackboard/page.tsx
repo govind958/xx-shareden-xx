@@ -18,6 +18,7 @@ import { getPurchasedStacks, getPurchasedSubStacks, getAssignedEmployee } from '
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
 import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
+import mixpanel from '@/src/lib/mixpanelClient';
 
 /* ---------------- UTILS ---------------- */
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
@@ -72,6 +73,7 @@ export default function Stackboard() {
         console.error("Error fetching data: ", error);
       } finally {
         setLoading(false);
+        mixpanel.track('Stackboard Viewed');
       }
     };
 

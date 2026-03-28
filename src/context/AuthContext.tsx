@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
+import mixpanel from '@/src/lib/mixpanelClient';
 
 interface AuthContextType {
   user: User | null;
@@ -46,11 +47,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'PASSWORD_RECOVERY') {
-          setUser(session?.user ?? null);
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
           setError(null);
+          if (currentUser && event === 'SIGNED_IN') {
+            mixpanel.identify(currentUser.id);
+            mixpanel.people.set({
+              '$email': currentUser.email,
+              'auth_provider': currentUser.app_metadata?.provider || 'email',
+            });
+          }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setError(null);
+          mixpanel.reset();
         }
         setLoading(false);
       }

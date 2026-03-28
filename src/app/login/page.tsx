@@ -16,6 +16,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     mixpanel.track("Login Page Viewed");
+    if (error) {
+      mixpanel.track("Login Failed", { error });
+    }
   }, []);
 
   return (
@@ -93,12 +96,14 @@ export default function LoginPage() {
               <div className="flex gap-3 pt-2">
                 <Button
                   formAction={login}
+                  onClick={() => mixpanel.track("Login Clicked")}
                   className="flex-1 bg-[#2B6CB0] text-white hover:bg-[#1A365D] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
                 >
                   Log in
                 </Button>
                 <Button
                   formAction={signup}
+                  onClick={() => mixpanel.track("Signup Clicked")}
                   className="flex-1 bg-[#1A365D] text-white hover:bg-[#2B6CB0] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
                 >
                   Sign up
@@ -121,7 +126,7 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 type="button"
-                onClick={signInWithGoogle}
+                onClick={() => { mixpanel.track("Google Auth Clicked"); signInWithGoogle(); }}
                 className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20" className="shrink-0">

@@ -16,6 +16,7 @@ import {
   Phone
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import mixpanel from '@/src/lib/mixpanelClient';
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -119,6 +120,7 @@ export default function ClassicSaaSProfile() {
         console.error('Error loading settings:', e);
       } finally {
         setInitialLoading(false);
+        mixpanel.track('Settings Opened');
       }
     };
     loadData();
@@ -195,6 +197,7 @@ export default function ClassicSaaSProfile() {
 
       setSavedData(formData);
       setIsSaved(true);
+      mixpanel.track('Profile Updated');
       setTimeout(() => setIsSaved(false), 3000);
     } catch (err) {
       console.error('Error saving:', err);
