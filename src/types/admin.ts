@@ -78,10 +78,10 @@ export type OrdersTooltipOrder = {
 export interface AdminDashboardProps {
   adminUser?: { name?: string; email?: string };
   counts: {
-    users: number;
-    forms: number;
-    sessions: number;
-    stacks: number;
+    totalRevenue: number;
+    todayRevenue: number;
+    pendingAssignments: number;
+    totalPendingTasks: number;
   };
 }
 
