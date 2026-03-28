@@ -43,7 +43,9 @@ export async function updateSession(request: NextRequest) {
   const isEmployeeAuthRoute =
     request.nextUrl.pathname.startsWith('/Employee_portal/login') ||
     request.nextUrl.pathname.startsWith('/Employee_portal/signup') ||
-    request.nextUrl.pathname.startsWith('/Employee_portal/pending-approval')
+    request.nextUrl.pathname.startsWith('/Employee_portal/pending-approval') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/forgot-password') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/reset-password');
     
 
   if (

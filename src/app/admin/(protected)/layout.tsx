@@ -1,5 +1,6 @@
 import { verifyAdminSession } from "@/src/modules/admin/actions"
 import { AdminSidebar } from "@/src/components/admin-sidebar"
+import { redirect } from "next/navigation"
 
 export default async function AdminLayout({
   children,
@@ -7,7 +8,10 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   // Protect admin area.
-  await verifyAdminSession()
+  const { isValid } = await verifyAdminSession()
+  if (!isValid) {
+    redirect('/admin/login')
+  }
 
   return (
     <div className="min-h-screen w-full bg-neutral-950 font-sans text-neutral-50">

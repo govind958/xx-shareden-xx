@@ -22,7 +22,7 @@ function generateSessionToken(): string {
 // Admin login with email, password and secret key
 export async function adminLogin(formData: FormData) {
   const supabase = await createClient()
-  
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const secretKey = formData.get('secretKey') as string
@@ -81,6 +81,7 @@ export async function adminLogin(formData: FormData) {
 
   // Set admin session cookie
   const cookieStore = await cookies()
+  console.log('Setting admin_session_token cookie, token length:', sessionToken.length)
   cookieStore.set('admin_session_token', sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -88,6 +89,10 @@ export async function adminLogin(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   })
+
+  // Verify the cookie was set
+  const verifyToken = cookieStore.get('admin_session_token')
+  console.log('Cookie verification after set:', !!verifyToken?.value)
 
   revalidatePath('/admin', 'layout')
   redirect('/admin/dashboard')
@@ -168,7 +173,7 @@ export async function verifyAdminSession(): Promise<{
 // Get orders for a user (for tooltip display)
 export async function getUserOrders(userId: string) {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -211,7 +216,7 @@ export async function getUserOrders(userId: string) {
 // Get all employees
 export async function getEmployees() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -234,7 +239,7 @@ export async function getEmployees() {
 // Get employee assignments with details
 export async function getEmployeeAssignments() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -292,7 +297,7 @@ export async function assignEmployeeToOrderItem(
   notes?: string
 ) {
   const { isValid, adminUser } = await verifyAdminSession()
-  
+
   if (!isValid || !adminUser) {
     return { error: 'Unauthorized' }
   }
@@ -361,16 +366,16 @@ export async function assignEmployeeToOrderItem(
   console.log('=== EMAIL NOTIFICATION START ===')
   console.log('orderItem:', orderItem)
   console.log('orderItem.user_id:', orderItem?.user_id)
-  
+
   if (orderItem?.user_id) {
     try {
       console.log('Fetching user data for user_id:', orderItem.user_id)
       const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(orderItem.user_id)
-      
+
       if (userError) {
         console.error('Failed to get user data:', userError)
       }
-      
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('name')
@@ -379,7 +384,7 @@ export async function assignEmployeeToOrderItem(
 
       if (userData?.user?.email) {
         const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
-        
+
         const emailResult = await sendStatusNotificationEmail({
           customerEmail: userData.user.email,
           customerName: profile?.name || 'Valued Customer',
@@ -390,7 +395,7 @@ export async function assignEmployeeToOrderItem(
           employeeName: employee?.name,
           adminNote: notes,
         })
-        
+
         if (!emailResult.success) {
           console.error('Email send failed:', emailResult.error)
         } else {
@@ -480,16 +485,16 @@ export async function assignEmployeeAndNotify(
   console.log('=== EMAIL NOTIFICATION START ===')
   console.log('orderItem:', orderItem)
   console.log('orderItem.user_id:', orderItem?.user_id)
-  
+
   if (orderItem?.user_id) {
     try {
       console.log('Fetching user data for user_id:', orderItem.user_id)
       const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(orderItem.user_id)
-      
+
       if (userError) {
         console.error('Failed to get user data:', userError)
       }
-      
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('name')
@@ -498,7 +503,7 @@ export async function assignEmployeeAndNotify(
 
       if (userData?.user?.email) {
         const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
-        
+
         const emailResult = await sendStatusNotificationEmail({
           customerEmail: userData.user.email,
           customerName: profile?.name || 'Valued Customer',
@@ -509,7 +514,7 @@ export async function assignEmployeeAndNotify(
           employeeName: employee?.name,
           adminNote: notes,
         })
-        
+
         if (!emailResult.success) {
           console.error('Email send failed:', emailResult.error)
         } else {
@@ -531,7 +536,7 @@ export async function assignEmployeeAndNotify(
 // Unassign employee from order item
 export async function unassignEmployeeFromOrderItem(assignmentId: string) {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -569,7 +574,7 @@ export async function unassignEmployeeFromOrderItem(assignmentId: string) {
 // Get unassigned order items
 export async function getUnassignedOrderItems() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -611,7 +616,7 @@ export async function getUnassignedOrderItems() {
 // Get all orders with details
 export async function getAllOrders() {
   const { isValid } = await verifyAdminSession()
-  
+
   if (!isValid) {
     return { error: 'Unauthorized' }
   }
@@ -666,7 +671,7 @@ export async function getAllOrders() {
         .map((o) => o.user_id)
         .filter((id): id is string => Boolean(id))
     )]
-    
+
     if (userIds.length > 0) {
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -691,119 +696,59 @@ export async function getAllOrders() {
   return { orders: ordersWithProfiles }
 }
 
-// Update order item status (admin action with email notification)
-export async function updateOrderItemStatusAdmin(
-  orderItemId: string,
-  newStatus: OrderStatus,
-  adminNote?: string
-): Promise<{ success: boolean; error?: string }> {
+// ======================
+// ADMIN SETTINGS
+// ======================
+
+// Get the current admin user's full profile
+export async function getAdminProfile() {
   const { isValid, adminUser } = await verifyAdminSession()
 
   if (!isValid || !adminUser) {
-    return { success: false, error: 'Unauthorized - Admin session required' }
+    return { error: 'Unauthorized' }
   }
 
   const supabase = await createClient()
-  const adminClient = createAdminClient()
 
-  // Fetch order item with user and stack details
-  const { data: orderItem, error: fetchError } = await supabase
-    .from('order_items')
-    .select(`
-      id,
-      status,
-      user_id,
-      assigned_to,
-      progress_percent,
-      stacks:stack_id (name),
-      employees:assigned_to (name)
-    `)
-    .eq('id', orderItemId)
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id, email, name, is_active, last_login_at, created_at')
+    .eq('id', adminUser.id)
     .single()
 
-  if (fetchError || !orderItem) {
-    return { success: false, error: 'Order item not found' }
+  if (error || !data) {
+    return { error: error?.message || 'Admin user not found' }
   }
 
-  const previousStatus = orderItem.status as OrderStatus
+  return { profile: data }
+}
 
-  // Determine progress based on status
-  let progressPercent = orderItem.progress_percent
-  switch (newStatus) {
-    case 'processing':
-      progressPercent = 10
-      break
-    case 'in_progress':
-      progressPercent = 25
-      break
-    case 'completed':
-      progressPercent = 100
-      break
-    case 'cancelled':
-      progressPercent = 0
-      break
+// Update the admin user's profile (name only — email, password, secret key not editable here)
+export async function updateAdminProfile(name: string) {
+  const { isValid, adminUser } = await verifyAdminSession()
+
+  if (!isValid || !adminUser) {
+    return { error: 'Unauthorized' }
   }
 
-  // Update order_items table
-  const { error: updateError } = await supabase
-    .from('order_items')
-    .update({ 
-      status: newStatus,
-      progress_percent: progressPercent,
-      admin_note: adminNote || null,
+  if (!name || name.trim().length === 0) {
+    return { error: 'Name cannot be empty' }
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('admin_users')
+    .update({
+      name: name.trim(),
+      updated_at: new Date().toISOString(),
     })
-    .eq('id', orderItemId)
+    .eq('id', adminUser.id)
 
-  if (updateError) {
-    return { success: false, error: updateError.message }
+  if (error) {
+    return { error: error.message }
   }
 
-  // Update employee_assignments status if assigned
-  if (orderItem.assigned_to) {
-    const assignmentStatus = newStatus === 'completed' ? 'completed' : 
-                            newStatus === 'in_progress' ? 'in_progress' : 
-                            newStatus === 'cancelled' ? 'cancelled' : 'assigned'
-    
-    await supabase
-      .from('employee_assignments')
-      .update({ status: assignmentStatus })
-      .eq('order_item_id', orderItemId)
-  }
-
-  // Send email notification to customer if status changed
-  if (previousStatus !== newStatus && orderItem.user_id) {
-    try {
-      const { data: userData } = await adminClient.auth.admin.getUserById(orderItem.user_id)
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('user_id', orderItem.user_id)
-        .single()
-
-      if (userData?.user?.email) {
-        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
-        const employeeName = (orderItem.employees as { name: string } | null)?.name
-        
-        await sendStatusNotificationEmail({
-          customerEmail: userData.user.email,
-          customerName: profile?.name || 'Valued Customer',
-          orderItemId: orderItemId,
-          stackName: stackName,
-          newStatus: newStatus,
-          previousStatus: previousStatus,
-          progressPercent: progressPercent ?? undefined,
-          employeeName: employeeName,
-          adminNote: adminNote,
-        })
-      }
-    } catch (emailError) {
-      console.error('Failed to send status notification email:', emailError)
-    }
-  }
-
-  revalidatePath('/admin/orders')
-  revalidatePath('/admin/employees')
-
+  revalidatePath('/admin', 'layout')
   return { success: true }
 }
