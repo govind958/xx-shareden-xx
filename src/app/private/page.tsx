@@ -32,6 +32,7 @@ function PrivatePanelContent() {
   useNotifications(user?.id)
 
   useEffect(() => {
+    console.log("authLoading", authLoading)
     if (!authLoading && !user) window.location.href = "/login"
   }, [user, authLoading])
 
