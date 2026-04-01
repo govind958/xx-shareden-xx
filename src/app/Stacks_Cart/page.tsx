@@ -197,8 +197,8 @@ export default function ZohoStyleCheckout() {
         ? stack.cluster_data.filter((_, i) => i !== subIndex)
         : undefined;
 
-      // If removing last substack from cluster, remove entire cluster from cart
-      if (stack.cluster_data && newSubStacks.length === 0) {
+      // If removing last substack from cluster or pre-made stack, remove entire stack from cart
+      if (newSubStacks.length === 0) {
         try {
           const { error } = await supabase
             .from('cart_stacks')
