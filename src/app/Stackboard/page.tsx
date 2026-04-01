@@ -6,7 +6,10 @@ import {
   MoreHorizontal,
   Pin,
   Info,
+  Menu,
   X,
+  ChevronLeft,
+  Phone,
   Briefcase,
   Hash,
   Calendar,
@@ -19,32 +22,35 @@ import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
 import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
 
-/* ---------------- UTILS ---------------- */
+// --- Utility ---
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
+
+const ACCENT_PALETTE = ['#2B6CB0', '#1A365D', '#38A169', '#805AD5', '#DD6B20', '#D69E2E', '#E53E3E'] as const;
+
+function stackAccentColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+  return ACCENT_PALETTE[Math.abs(h) % ACCENT_PALETTE.length];
+}
 
 type AssignedEmployee = { name: string; role: string; specialization: string; assigned_at: string | null } | null;
 
-/* ---------------- MAIN COMPONENT ---------------- */
 export default function Stackboard() {
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [purchasedStacks, setPurchasedStacks] = useState<PURCHASED_STACKS[]>([]);
   const [purchasedSubStacks, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // State for the active chat room
   const [selectedStackId, setSelectedStackId] = useState<string | null>(null);
   const [selectedStackName, setSelectedStackName] = useState<string>('Select a Stack');
 
-  // Unread message counts: { [stackId]: count }
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  // Search
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Use a ref for the active stack ID so our real-time listener always has the latest value
   const activeStackIdRef = useRef<string | null>(null);
 
   const { user, loading: authLoading } = useAuth();
@@ -57,16 +63,9 @@ export default function Stackboard() {
         const stacks = await getPurchasedStacks(user.id);
         setPurchasedStacks(stacks);
 
-        // Auto-select first stack only if nothing is selected yet
         if (stacks && stacks.length > 0 && !selectedStackId) {
           setSelectedStackId(stacks[0].id);
           setSelectedStackName(stacks[0].name);
-          const [substacks, employee] = await Promise.all([
-            getPurchasedSubStacks(stacks[0].id),
-            getAssignedEmployee(stacks[0].id),
-          ]);
-          setPurchasedSubStacks(substacks);
-          setAssignedEmployee(employee);
         }
       } catch (error) {
         console.error("Error fetching data: ", error);
@@ -82,13 +81,32 @@ export default function Stackboard() {
     }
   }, [user, authLoading]);
 
-  // 2. Time Update
+  // Load substacks + assigned employee whenever the selected stack changes (incl. realtime selection)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!selectedStackId) {
+      setPurchasedSubStacks([]);
+      setAssignedEmployee(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [substacks, employee] = await Promise.all([
+          getPurchasedSubStacks(selectedStackId),
+          getAssignedEmployee(selectedStackId),
+        ]);
+        if (!cancelled) {
+          setPurchasedSubStacks(substacks);
+          setAssignedEmployee(employee);
+        }
+      } catch (error) {
+        console.error("Error fetching substacks:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStackId]);
 
   // 2.5 Real-time subscription for order_items updates (progress & status)
   useEffect(() => {
@@ -96,7 +114,6 @@ export default function Stackboard() {
 
     const supabase = createClient();
 
-    // Subscribe to changes on order_items for this user
     const channel = supabase.channel(`user_orders_${user.id}`)
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -107,7 +124,6 @@ export default function Stackboard() {
         const updatedItem = payload.new as { id: string; is_active?: boolean; status?: string; progress_percent?: number };
         console.log('[Stackboard] Order item updated:', updatedItem);
 
-        // If order item was cancelled (is_active = false), remove it from the list
         if (updatedItem.is_active === false) {
           setPurchasedStacks(prev => {
             const next = prev.filter(stack => stack.id !== updatedItem.id);
@@ -124,7 +140,6 @@ export default function Stackboard() {
           return;
         }
 
-        // Update the purchasedStacks state
         setPurchasedStacks(prev => prev.map(stack =>
           stack.id === updatedItem.id
             ? {
@@ -135,7 +150,6 @@ export default function Stackboard() {
             : stack
         ));
 
-        // Show toast notification for status changes
         const statusMessages: Record<string, string> = {
           'in_progress': '🔧 Work has started on your order!',
           'completed': '🎉 Your order has been completed!',
@@ -157,12 +171,10 @@ export default function Stackboard() {
     };
   }, [user?.id, purchasedStacks.length]);
 
-  // Keep activeStackIdRef in sync
   useEffect(() => {
     activeStackIdRef.current = selectedStackId;
   }, [selectedStackId]);
 
-  // Filter stacks by search query
   const filteredStacks = useMemo(() => {
     if (!searchQuery.trim()) return purchasedStacks;
     const q = searchQuery.toLowerCase();
@@ -171,7 +183,6 @@ export default function Stackboard() {
     );
   }, [purchasedStacks, searchQuery]);
 
-  // Real-time subscription for unread messages across ALL stacks
   useEffect(() => {
     if (!user?.id || purchasedStacks.length === 0) return;
 
@@ -188,14 +199,14 @@ export default function Stackboard() {
           table: 'project_messages',
         },
         (payload) => {
-          const newMsg = payload.new as any;
+          const newMsg = payload.new as { order_item_id?: string; sender_id?: string };
           const msgStackId = newMsg.order_item_id;
 
-          // Only count messages for stacks we own and that aren't currently open
           if (
+            msgStackId &&
             stackIds.includes(msgStackId) &&
             msgStackId !== activeStackIdRef.current &&
-            newMsg.sender_id !== user.id // Don't count our own messages
+            newMsg.sender_id !== user.id
           ) {
             setUnreadCounts(prev => ({
               ...prev,
@@ -215,8 +226,7 @@ export default function Stackboard() {
     };
   }, [user?.id, purchasedStacks.length]);
 
-  // 3. Handle Stack Selection
-  const handleStackSelect = async (stack: PURCHASED_STACKS) => {
+  const handleStackSelect = (stack: PURCHASED_STACKS) => {
     if (selectedStackId === stack.id) return;
 
     setSelectedStackId(stack.id);
@@ -226,15 +236,8 @@ export default function Stackboard() {
 
     setUnreadCounts(prev => ({ ...prev, [stack.id]: 0 }));
 
-    try {
-      const [substacks, employee] = await Promise.all([
-        getPurchasedSubStacks(stack.id),
-        getAssignedEmployee(stack.id),
-      ]);
-      setPurchasedSubStacks(substacks);
-      setAssignedEmployee(employee);
-    } catch (error) {
-      console.error("Error fetching substacks:", error);
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
     }
   };
 
@@ -246,12 +249,10 @@ export default function Stackboard() {
     );
   }
 
-  // Get the selected stack's data
   const activeStack = purchasedStacks.find(s => s.id === selectedStackId);
   const progressPercent = activeStack?.progress_percent || 0;
   const selectedStatus = activeStack?.status?.toLowerCase() || 'initiated';
 
-  // Get status display for the selected stack
   const getStatusLabel = (status: string) => {
     switch (status.toLowerCase()) {
       case 'initiated': return 'Queued';
@@ -262,15 +263,35 @@ export default function Stackboard() {
     }
   };
 
+  const headerColor = activeStack ? stackAccentColor(activeStack.id) : '#1A365D';
+  const headerInitial = (activeStack?.name || selectedStackName).charAt(0) || '?';
+  const headerName = activeStack?.name || selectedStackName;
+
+  const openSearchInSidebar = () => {
+    setSearchOpen(true);
+    setIsSidebarOpen(true);
+  };
+
   return (
-    <div className="flex h-screen w-full text-slate-800 overflow-hidden bg-[#F7FAFC]">
+    <div className="flex h-screen w-full text-slate-800 overflow-hidden bg-[#F7FAFC] font-sans">
 
-      {/* Sidebar */}
-      <aside className="w-[30%] min-w-[320px] max-w-[400px] bg-white border-r border-slate-200 flex flex-col">
+      {!isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-20 md:hidden"
+          onClick={() => setIsSidebarOpen(true)}
+        />
+      )}
 
-        {/* Header */}
-        <div className="p-6 flex items-center justify-between border-b border-slate-100">
-          {searchOpen ? (
+      <aside className={cn(
+        "fixed md:relative z-30 h-full bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ease-in-out",
+        isSidebarOpen ? "w-80 translate-x-0" : "w-0 -translate-x-full md:w-20 md:translate-x-0"
+      )}>
+
+        <div className={cn(
+          "border-b border-slate-100 h-20 shrink-0 overflow-hidden",
+          isSidebarOpen ? "p-6 flex flex-col justify-center gap-0" : "md:px-0 md:py-4 md:flex md:items-center md:justify-center"
+        )}>
+          {isSidebarOpen && searchOpen ? (
             <div className="flex items-center gap-2 w-full">
               <Search size={18} className="text-slate-400 shrink-0" />
               <input
@@ -282,6 +303,7 @@ export default function Stackboard() {
                 className="flex-1 text-sm bg-transparent outline-none placeholder:text-slate-400 text-slate-700"
               />
               <button
+                type="button"
                 onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
                 className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-colors"
               >
@@ -289,100 +311,155 @@ export default function Stackboard() {
               </button>
             </div>
           ) : (
-            <>
+            <div className={cn(
+              "flex items-center justify-between w-full",
+              !isSidebarOpen && "md:hidden"
+            )}>
               <div>
-                <h1 className="text-xl font-bold text-[#1A365D]">
+                <h1 className="text-xl font-bold text-[#1A365D] whitespace-nowrap">
                   Messages
                 </h1>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">
-                  Stack Communications
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 whitespace-nowrap">
+                  Stack Engine v2
                 </p>
               </div>
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
-              >
-                <Search size={18} />
-              </button>
-            </>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                >
+                  <Search size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="hidden md:flex p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors mx-auto"
+            >
+              <Menu size={18} />
+            </button>
           )}
         </div>
 
-        {/* Stack List */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
           {filteredStacks.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">
               {searchQuery ? 'No stacks match your search.' : 'No purchased stacks yet.'}
             </p>
           ) : (
-            filteredStacks.map((stack) => (
-              <div
-                key={stack.id}
-                onClick={() => handleStackSelect(stack)}
-                className={cn(
-                  "group relative flex items-center gap-3 px-4 py-4 cursor-pointer transition-all rounded-lg",
-                  selectedStackId === stack.id
-                    ? "bg-[#F7FAFC] border-l-4 border-[#2B6CB0]"
-                    : "hover:bg-slate-50"
-                )}
-              >
-                <div className="w-11 h-11 rounded-full bg-slate-100 border flex items-center justify-center text-[#1A365D] font-semibold text-sm shrink-0">
-                  {stack.name.charAt(0)}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h3 className={cn(
-                      "text-sm truncate text-[#1A365D]",
-                      unreadCounts[stack.id] > 0 ? "font-bold" : "font-semibold"
-                    )}>
-                      {stack.name}
-                    </h3>
-
-                    {/* Unread message badge */}
-                    {unreadCounts[stack.id] > 0 && (
-                      <div className="w-5 h-5 ml-2 shrink-0 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm animate-pulse">
-                        {unreadCounts[stack.id] > 99 ? '99+' : unreadCounts[stack.id]}
+            filteredStacks.map((stack) => {
+              const unread = unreadCounts[stack.id] || 0;
+              const accent = stackAccentColor(stack.id);
+              return (
+                <div
+                  key={stack.id}
+                  onClick={() => handleStackSelect(stack)}
+                  className={cn(
+                    "group relative flex items-center gap-3 p-3 cursor-pointer transition-all rounded-xl",
+                    selectedStackId === stack.id
+                      ? "bg-[#F0F7FF] ring-1 ring-[#2B6CB0]/10"
+                      : "hover:bg-slate-50"
+                  )}
+                >
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                      style={{ backgroundColor: accent }}
+                    >
+                      {stack.name.charAt(0)}
+                    </div>
+                    {unread > 0 && (
+                      <div className={cn(
+                        "absolute -top-1 -right-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white",
+                        isSidebarOpen ? "h-5 min-w-5 px-0.5" : "h-4 w-4"
+                      )}>
+                        {isSidebarOpen ? (unread > 99 ? '99+' : unread) : ''}
                       </div>
                     )}
                   </div>
-                  <p className={cn(
-                    "text-xs mt-1 truncate",
-                    unreadCounts[stack.id] > 0 ? "text-slate-800 font-medium" : "text-slate-500"
-                  )}>
-                    {stack.progress_percent}% • {getStatusLabel(stack.status)}
-                  </p>
-                </div>
 
-                <Pin
-                  size={14}
-                  className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                />
-              </div>
-            ))
+                  {isSidebarOpen && (
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-bold truncate text-[#1A365D]">
+                          {stack.name}
+                        </h3>
+                        <span className="text-[10px] font-medium text-slate-400 shrink-0 ml-1">
+                          {'\u00a0'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden max-w-[60px]">
+                          <div
+                            className="h-full bg-[#2B6CB0] rounded-full"
+                            style={{ width: `${stack.progress_percent}%` }}
+                          />
+                        </div>
+                        <p className={cn(
+                          "text-[10px] font-semibold truncate uppercase tracking-tighter",
+                          unread > 0 ? "text-slate-800" : "text-slate-500"
+                        )}>
+                          {getStatusLabel(stack.status)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {isSidebarOpen && (
+                    <Pin
+                      size={12}
+                      className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  )}
+
+                  {selectedStackId === stack.id && (
+                    <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#2B6CB0] rounded-r-full" />
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </aside>
 
-      {/* Main Chat */}
-      <main className="flex-1 flex flex-col bg-white">
+      <main className="flex-1 flex flex-col min-w-0 bg-white min-h-0">
 
-        {/* Chat Header */}
-        <header className="h-20 border-b border-slate-200 px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-md bg-[#1A365D] text-white flex items-center justify-center font-semibold">
-              {selectedStackName.charAt(0)}
+        <header className="h-20 border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              type="button"
+              className="md:hidden p-2 -ml-2 text-slate-500"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <div
+              className="w-10 h-10 rounded-lg shrink-0 text-white flex items-center justify-center font-bold shadow-md"
+              style={{ backgroundColor: headerColor }}
+            >
+              {headerInitial}
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-[#1A365D]">
-                {selectedStackName}
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-[#1A365D] truncate">
+                {headerName}
               </h2>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <div className={cn(
-                  "w-2 h-2 rounded-full",
+                  "w-2 h-2 rounded-full shrink-0",
                   selectedStatus === 'in_progress' || selectedStatus === 'processing' ? "bg-[#38A169]" : "bg-slate-300"
                 )} />
-                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
                   {selectedStatus === 'in_progress' || selectedStatus === 'processing'
                     ? 'Expert Assigned'
                     : selectedStatus === 'completed'
@@ -393,24 +470,35 @@ export default function Stackboard() {
             </div>
           </div>
 
-          <div className="flex gap-2 text-slate-400 shrink-0">
-            {/* Info Toggle Button */}
-            <button 
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={openSearchInSidebar}
+              className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all"
+            >
+              <Search size={18} />
+            </button>
+            <button type="button" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all" title="Start Call">
+              <Phone size={18} />
+            </button>
+            <button
+              type="button"
               onClick={() => setShowInfoPanel(!showInfoPanel)}
               className={cn(
-                "p-2 rounded-lg transition duration-200",
-                showInfoPanel ? "bg-[#EBF8FF] text-[#2B6CB0]" : "hover:bg-slate-100 hover:text-[#2B6CB0]"
+                "hidden sm:block p-2.5 rounded-full transition-all",
+                showInfoPanel ? "bg-[#EBF8FF] text-[#2B6CB0]" : "text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0]"
               )}
             >
               <Info size={18} />
             </button>
+            <button type="button" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all">
+              <MoreHorizontal size={18} />
+            </button>
           </div>
         </header>
-        
-        {/* Content Wrapper (Messages + Info Panel) */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Messages Dashboard */}
-          <div className="flex-1 min-w-0 relative flex flex-col">
+
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
             <MessageDashboard
               activeStackId={selectedStackId}
               activeStackName={selectedStackName}
@@ -418,25 +506,20 @@ export default function Stackboard() {
             />
           </div>
 
-          {/* RIGHT SIDE INFO PANEL */}
           {showInfoPanel && activeStack && (
-            <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)] transition-all animate-in slide-in-from-right-8 duration-300 z-20">
-              
-              {/* Panel Header */}
+            <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)] transition-all animate-in slide-in-from-right-8 duration-300 z-20 shrink-0">
               <div className="h-16 border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
                 <h3 className="font-bold text-[#1A365D] text-sm">Stack Details</h3>
-                <button 
-                  onClick={() => setShowInfoPanel(false)} 
+                <button
+                  type="button"
+                  onClick={() => setShowInfoPanel(false)}
                   className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition"
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Panel Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-6">
-                
-                {/* 1. Expert Profile Section */}
                 <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
                   <div className="relative mb-4">
                     <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#2B6CB0] to-[#4299E1] text-white flex items-center justify-center text-3xl font-bold shadow-md">
@@ -445,7 +528,7 @@ export default function Stackboard() {
                     <div className={cn(
                       "absolute bottom-0 right-1 w-4 h-4 rounded-full border-2 border-white",
                       assignedEmployee ? "bg-green-500" : "bg-slate-400"
-                    )}></div>
+                    )} />
                   </div>
                   <h4 className="font-bold text-[#1A365D] text-lg leading-tight">
                     {assignedEmployee?.name || 'Unassigned'}
@@ -459,10 +542,9 @@ export default function Stackboard() {
                   )}
                 </div>
 
-                {/* 2. Order Information */}
                 <div className="py-6 space-y-5">
                   <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Order Info</h5>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 p-2 bg-slate-50 rounded text-slate-400">
@@ -490,37 +572,48 @@ export default function Stackboard() {
                   </div>
                 </div>
 
-                {/* 3. Progress Status */}
                 <div className="pt-6 border-t border-slate-100">
                   <div className="flex justify-between items-center mb-2">
                     <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progress</h5>
                     <span className="text-xs font-bold text-[#2B6CB0]">{progressPercent}%</span>
                   </div>
-                  
-                  {/* Progress Bar */}
+
                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-[#2B6CB0] rounded-full transition-all duration-500"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
-                  
+
                   <p className="text-xs text-slate-500 mt-3 flex items-center gap-1.5">
-                    <div className={cn(
-                      "w-1.5 h-1.5 rounded-full",
-                      activeStack.status === 'completed' ? "bg-slate-400" : "bg-green-500 animate-pulse"
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      activeStack.status?.toLowerCase() === 'completed' ? "bg-slate-400" : "bg-green-500 animate-pulse"
                     )} />
                     Current Status: <span className="font-semibold text-slate-700 capitalize">{getStatusLabel(activeStack.status)}</span>
                   </p>
                 </div>
-
               </div>
             </aside>
           )}
-
         </div>
-
       </main>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #E2E8F0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #CBD5E0;
+        }
+      `}} />
     </div>
   );
 }
