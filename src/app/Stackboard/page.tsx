@@ -1,300 +1,619 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Clock, Rocket, Sparkles, MessageCircle, User } from "lucide-react";
-import Link from "next/link";
-import { createClient } from "@/utils/supabase/client";
-import { getOrderItemsWithProgress, StackProgress } from "./action";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  Search,
+  MoreHorizontal,
+  Pin,
+  Info,
+  Menu,
+  X,
+  ChevronLeft,
+  Phone,
+  Briefcase,
+  Hash,
+  Calendar,
+} from "lucide-react";
 
-const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
+import { createClient } from '@/utils/supabase/client';
+import { PURCHASED_STACKS, PURCHASED_SUBSTACKS } from '@/src/modules/stack_board/types';
+import { getPurchasedStacks, getPurchasedSubStacks, getAssignedEmployee } from '@/src/modules/stack_board/action';
+import { useAuth } from '@/src/context/AuthContext';
+import { toast } from 'sonner';
+import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
 
-const getIconForStack = (type: string) => {
-  switch (type.toLowerCase()) {
-    case "hr":
-      return <Rocket size={22} className="text-cyan-400" />;
-    default:
-      return <Sparkles size={22} className="text-teal-400" />;
-  }
-};
+// --- Utility ---
+const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 
-const getStatusColor = (status: string) => {
-  const statusLower = status.toLowerCase();
-  if (statusLower === "not started" || statusLower === "initiated") {
-    return "bg-neutral-700 text-neutral-300";
-  }
-  if (statusLower === "in progress" || statusLower === "in_progress") {
-    return "bg-cyan-500/20 text-cyan-300";
-  }
-  if (statusLower === "under review" || statusLower === "under_review") {
-    return "bg-amber-500/20 text-amber-300";
-  }
-  if (statusLower === "done" || statusLower === "completed") {
-    return "bg-green-500/20 text-green-300";
-  }
-  return "bg-neutral-700 text-neutral-300";
-};
+const ACCENT_PALETTE = ['#2B6CB0', '#1A365D', '#38A169', '#805AD5', '#DD6B20', '#D69E2E', '#E53E3E'] as const;
 
-// Helper function to format ETA date
-const formatETA = (eta: string | null): string => {
-  if (!eta) return "TBD";
-  try {
-    const date = new Date(eta);
-    const now = new Date();
-    const isPast = date < now;
-    
-    if (isPast && date.toDateString() === now.toDateString()) {
-      return "Today";
-    }
-    
-    return date.toLocaleDateString("en-US", { 
-      year: "numeric", 
-      month: "short", 
-      day: "numeric" 
-    });
-  } catch {
-    return eta;
-  }
-};
+function stackAccentColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+  return ACCENT_PALETTE[Math.abs(h) % ACCENT_PALETTE.length];
+}
 
-// Helper function to format relative time
-const formatRelativeTime = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return "just now";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-    
-    return date.toLocaleDateString("en-US", { 
-      month: "short", 
-      day: "numeric" 
-    });
-  } catch {
-    return "recently";
-  }
-};
+type AssignedEmployee = { name: string; role: string; specialization: string; assigned_at: string | null } | null;
 
-// --- New Shimmer Component ---
-const ShimmerCard = ({ glass }: { glass: string }) => {
-  // Shimmer effect classes
-  const shimmer = "animate-pulse bg-neutral-800/50 rounded-lg";
+export default function Stackboard() {
+  const [loading, setLoading] = useState(true);
+  const [purchasedStacks, setPurchasedStacks] = useState<PURCHASED_STACKS[]>([]);
+  const [, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  return (
-    <div className={cn("p-6", glass)}>
-      <div className="flex items-start justify-between mb-4">
-        {/* Icon and Text Placeholder */}
-        <div className="flex items-center gap-3">
-          <div className={cn("w-10 h-10 rounded-xl", shimmer)} />
-          <div>
-            <div className={cn("w-48 h-5 mb-1", shimmer)} />
-            <div className={cn("w-64 h-3", shimmer)} />
-          </div>
-        </div>
-        {/* Status Placeholder */}
-        <div className={cn("w-20 h-5 rounded-full", shimmer)} />
-      </div>
+  const [selectedStackId, setSelectedStackId] = useState<string | null>(null);
+  const [selectedStackName, setSelectedStackName] = useState<string>('Select a Stack');
 
-      {/* Progress Bar Placeholder */}
-      <div className="w-full bg-white/10 rounded-full h-3 mt-4 mb-2">
-        <div className={cn("w-2/3 h-3 rounded-full", shimmer)}></div>
-      </div>
-      <div className={cn("w-40 h-3 mb-4", shimmer)} />
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-      {/* Action buttons Placeholder */}
-      <div className="flex justify-between items-center">
-        <div className={cn("w-32 h-5", shimmer)} />
-        <div className={cn("w-28 h-8 rounded-full", shimmer)} />
-      </div>
-    </div>
-  );
-};
-// --- End New Shimmer Component ---
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
+  const activeStackIdRef = useRef<string | null>(null);
 
-export default function StackBoardPage() {
-  const [stacks, setStacks] = useState<StackProgress[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
-  const glass = "bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10";
-  const inner = "bg-white/5 backdrop-blur-sm rounded-xl border border-white/10";
-
+  // 1. Initial Data Fetch
   useEffect(() => {
-    async function loadOrderItems() {
+    const fetchData = async () => {
+      if (!user?.id) return;
       try {
-        setIsLoading(true);
-        setErrorMessage(null);
-        const supabase = createClient();
-        
-        // Get current user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError || !user) {
-          console.error('Error getting user:', authError);
-          setStacks([]);
-          setIsLoading(false);
+        const stacks = await getPurchasedStacks(user.id);
+        setPurchasedStacks(stacks);
+
+        if (stacks && stacks.length > 0 && !selectedStackId) {
+          setSelectedStackId(stacks[0].id);
+          setSelectedStackName(stacks[0].name);
+        }
+      } catch (error) {
+        console.error("Error fetching data: ", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!authLoading && user) {
+      fetchData();
+    } else if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [user, authLoading, selectedStackId]);
+
+  // Load substacks + assigned employee whenever the selected stack changes (incl. realtime selection)
+  useEffect(() => {
+    if (!selectedStackId) {
+      setPurchasedSubStacks([]);
+      setAssignedEmployee(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [substacks, employee] = await Promise.all([
+          getPurchasedSubStacks(selectedStackId),
+          getAssignedEmployee(selectedStackId),
+        ]);
+        if (!cancelled) {
+          setPurchasedSubStacks(substacks);
+          setAssignedEmployee(employee);
+        }
+      } catch (error) {
+        console.error("Error fetching substacks:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStackId]);
+
+  // 2.5 Real-time subscription for order_items updates (progress & status)
+  useEffect(() => {
+    if (!user?.id || purchasedStacks.length === 0) return;
+
+    const supabase = createClient();
+
+    const channel = supabase.channel(`user_orders_${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'order_items',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        const updatedItem = payload.new as { id: string; is_active?: boolean; status?: string; progress_percent?: number };
+        console.log('[Stackboard] Order item updated:', updatedItem);
+
+        if (updatedItem.is_active === false) {
+          setPurchasedStacks(prev => {
+            const next = prev.filter(stack => stack.id !== updatedItem.id);
+            if (next.length > 0 && activeStackIdRef.current === updatedItem.id) {
+              setSelectedStackId(next[0].id);
+              setSelectedStackName(next[0].name);
+            } else if (next.length === 0) {
+              setSelectedStackId(null);
+              setSelectedStackName('Select a Stack');
+            }
+            return next;
+          });
+          toast('A subscription was cancelled and removed from your tasks.');
           return;
         }
 
-        // Fetch order items with progress
-        const orderItemsData = await getOrderItemsWithProgress(user.id);
-        setStacks(orderItemsData);
-      } catch (error) {
-        console.error('Error loading order items:', error);
-        setStacks([]);
-        setErrorMessage("Unable to load your stacks right now. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
+        setPurchasedStacks(prev => prev.map(stack =>
+          stack.id === updatedItem.id
+            ? {
+              ...stack,
+              status: updatedItem.status?.toUpperCase() || stack.status,
+              progress_percent: updatedItem.progress_percent ?? stack.progress_percent
+            }
+            : stack
+        ));
+
+        const statusMessages: Record<string, string> = {
+          'in_progress': '🔧 Work has started on your order!',
+          'completed': '🎉 Your order has been completed!',
+          'processing': '📋 Your order is being processed',
+        };
+
+        if (statusMessages[updatedItem.status || '']) {
+          toast(statusMessages[updatedItem.status || '']);
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Stackboard] Realtime: Connected for order updates');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, purchasedStacks]);
+
+  useEffect(() => {
+    activeStackIdRef.current = selectedStackId;
+  }, [selectedStackId]);
+
+  const filteredStacks = useMemo(() => {
+    if (!searchQuery.trim()) return purchasedStacks;
+    const q = searchQuery.toLowerCase();
+    return purchasedStacks.filter(stack =>
+      stack.name.toLowerCase().includes(q)
+    );
+  }, [purchasedStacks, searchQuery]);
+
+  useEffect(() => {
+    if (!user?.id || purchasedStacks.length === 0) return;
+
+    const supabase = createClient();
+    const stackIds = purchasedStacks.map(s => s.id);
+
+    const channel = supabase
+      .channel(`unread_messages_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'project_messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as { order_item_id?: string; sender_id?: string };
+          const msgStackId = newMsg.order_item_id;
+
+          if (
+            msgStackId &&
+            stackIds.includes(msgStackId) &&
+            msgStackId !== activeStackIdRef.current &&
+            newMsg.sender_id !== user.id
+          ) {
+            setUnreadCounts(prev => ({
+              ...prev,
+              [msgStackId]: (prev[msgStackId] || 0) + 1
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Stackboard] Realtime: Connected for unread messages');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, purchasedStacks]);
+
+  const handleStackSelect = (stack: PURCHASED_STACKS) => {
+    if (selectedStackId === stack.id) return;
+
+    setSelectedStackId(stack.id);
+    setSelectedStackName(stack.name);
+    setPurchasedSubStacks([]);
+    setAssignedEmployee(null);
+
+    setUnreadCounts(prev => ({ ...prev, [stack.id]: 0 }));
+
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
     }
+  };
 
-    loadOrderItems();
-  }, []);
-
-  // Show shimmer effect while loading
-  if (isLoading) {
+  if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-        <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
-          <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
-            StackBoard
-          </h1>
-        </header>
-        
-        {/* Shimmer loading content */}
-        <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Render Shimmer Cards */}
-          <ShimmerCard glass={glass} />
-          <ShimmerCard glass={glass} />
-          <ShimmerCard glass={glass} />
-        </main>
-
-        <footer className="max-w-7xl mx-auto text-center py-10 text-neutral-500 text-sm border-t border-white/10 mt-10">
-          Loading your stacks...
-        </footer>
-      </div>
-    )
-  }
-
-  // Display "No active stacks" message only if not loading AND stacks are empty
-  if (!isLoading && stacks.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
-        <Rocket className="text-cyan-400 mb-6" size={48} />
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-          No active stacks yet
-        </h2>
-        <p className="text-neutral-500 mb-6">
-          Once you purchase a stack, progress tracking will appear here.
-        </p>
-        <Link
-          href="/private?tab=stacks"
-          className="px-6 py-3 rounded-full font-bold text-neutral-950 bg-gradient-to-r from-cyan-400 to-teal-500 hover:scale-105 transition-all duration-300 shadow-lg"
-        >
-          Explore Stacks
-        </Link>
+      <div className="flex h-screen items-center justify-center bg-[#F7FAFC]">
+        <p className="text-slate-500">Loading...</p>
       </div>
     );
   }
 
+  const activeStack = purchasedStacks.find(s => s.id === selectedStackId);
+  const progressPercent = activeStack?.progress_percent || 0;
+  const selectedStatus = activeStack?.status?.toLowerCase() || 'initiated';
+
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'initiated': return 'Queued';
+      case 'processing': return 'Assigned';
+      case 'in_progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      default: return status;
+    }
+  };
+
+  const headerColor = activeStack ? stackAccentColor(activeStack.id) : '#1A365D';
+  const headerInitial = (activeStack?.name || selectedStackName).charAt(0) || '?';
+  const headerName = activeStack?.name || selectedStackName;
+
+  const openSearchInSidebar = () => {
+    setSearchOpen(true);
+    setIsSidebarOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-      {/* Header - "Back to Dashboard" removed, title centered */}
-      <header className="max-w-7xl mx-auto flex items-center justify-center mb-10">
-        <h1 className="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-teal-500 bg-clip-text text-transparent text-center">
-          StackBoard
-        </h1>
-      </header>
+    <div className="flex h-screen w-full text-slate-800 overflow-hidden bg-[#F7FAFC] font-sans">
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto">
-        {errorMessage && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-200 rounded-2xl text-sm mb-6">
-            {errorMessage}
-          </div>
-        )}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {stacks.map((stack) => {
-            const progressColor = 
-              stack.progress === 100 
-                ? "bg-green-400"
-                : stack.statusDisplay === "Under Review"
-                ? "bg-amber-400"
-                : "bg-cyan-400";
-            
-            const etaText = stack.eta 
-              ? `Expected by ${formatETA(stack.eta)}`
-              : "ETA TBD";
-            
-            return (
-              <div key={stack.order_item_id} className={cn("p-6", glass)}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-xl ${inner}`}>{getIconForStack(stack.type)}</div>
-                    <div>
-                      <h2 className="text-xl font-bold">{stack.name}</h2>
-                      <p className="text-neutral-400 text-sm">{stack.description}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-semibold",
-                      getStatusColor(stack.statusDisplay)
-                    )}
-                  >
-                    {stack.statusDisplay}
-                  </span>
-                </div>
+      {!isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-20 md:hidden"
+          onClick={() => setIsSidebarOpen(true)}
+        />
+      )}
 
-                {/* Progress Bar */}
-                <div className="w-full bg-white/10 rounded-full h-3 mt-4 mb-2">
-                  <div
-                    className={cn("h-3 rounded-full transition-all duration-700", progressColor)}
-                    style={{ width: `${stack.progress}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-neutral-400 mb-4">
-                  {stack.progress}% complete — {etaText}
+      <aside className={cn(
+        "fixed md:relative z-30 h-full bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ease-in-out",
+        isSidebarOpen ? "w-80 translate-x-0" : "w-0 -translate-x-full md:w-20 md:translate-x-0"
+      )}>
+
+        <div className={cn(
+          "border-b border-slate-100 h-20 shrink-0 overflow-hidden",
+          isSidebarOpen ? "p-6 flex flex-col justify-center gap-0" : "md:px-0 md:py-4 md:flex md:items-center md:justify-center"
+        )}>
+          {isSidebarOpen && searchOpen ? (
+            <div className="flex items-center gap-2 w-full">
+              <Search size={18} className="text-slate-400 shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search stacks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-slate-400 text-slate-700"
+              />
+              <button
+                type="button"
+                onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className={cn(
+              "flex items-center justify-between w-full",
+              !isSidebarOpen && "md:hidden"
+            )}>
+              <div>
+                <h1 className="text-xl font-bold text-[#1A365D] whitespace-nowrap">
+                  Messages
+                </h1>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 whitespace-nowrap">
+                  Stack Engine v2
                 </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                >
+                  <Search size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="hidden md:flex p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors mx-auto"
+            >
+              <Menu size={18} />
+            </button>
+          )}
+        </div>
 
-                {/* Assigned Employee */}
-                {stack.assigned_employee && (
-                  <div className="mb-4 p-3 rounded-lg bg-teal-500/5 border border-teal-200/10">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-teal-400" />
-                      <span className="text-neutral-400">Assigned to: </span>
-                      <span className="text-teal-400 font-medium">
-                        {stack.assigned_employee.name}
-                      </span>
-                      <span className="text-neutral-500 text-xs">
-                        ({stack.assigned_employee.role})
-                      </span>
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
+          {filteredStacks.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-8">
+              {searchQuery ? 'No stacks match your search.' : 'No purchased stacks yet.'}
+            </p>
+          ) : (
+            filteredStacks.map((stack) => {
+              const unread = unreadCounts[stack.id] || 0;
+              const accent = stackAccentColor(stack.id);
+              return (
+                <div
+                  key={stack.id}
+                  onClick={() => handleStackSelect(stack)}
+                  className={cn(
+                    "group relative flex items-center gap-3 p-3 cursor-pointer transition-all rounded-xl",
+                    selectedStackId === stack.id
+                      ? "bg-[#F0F7FF] ring-1 ring-[#2B6CB0]/10"
+                      : "hover:bg-slate-50"
+                  )}
+                >
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                      style={{ backgroundColor: accent }}
+                    >
+                      {stack.name.charAt(0)}
+                    </div>
+                    {unread > 0 && (
+                      <div className={cn(
+                        "absolute -top-1 -right-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white",
+                        isSidebarOpen ? "h-5 min-w-5 px-0.5" : "h-4 w-4"
+                      )}>
+                        {isSidebarOpen ? (unread > 99 ? '99+' : unread) : ''}
+                      </div>
+                    )}
+                  </div>
+
+                  {isSidebarOpen && (
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-bold truncate text-[#1A365D]">
+                          {stack.name}
+                        </h3>
+                        <span className="text-[10px] font-medium text-slate-400 shrink-0 ml-1">
+                          {'\u00a0'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden max-w-[60px]">
+                          <div
+                            className="h-full bg-[#2B6CB0] rounded-full"
+                            style={{ width: `${stack.progress_percent}%` }}
+                          />
+                        </div>
+                        <p className={cn(
+                          "text-[10px] font-semibold truncate uppercase tracking-tighter",
+                          unread > 0 ? "text-slate-800" : "text-slate-500"
+                        )}>
+                          {getStatusLabel(stack.status)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {isSidebarOpen && (
+                    <Pin
+                      size={12}
+                      className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  )}
+
+                  {selectedStackId === stack.id && (
+                    <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#2B6CB0] rounded-r-full" />
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0 bg-white min-h-0">
+
+        <header className="h-20 border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              type="button"
+              className="md:hidden p-2 -ml-2 text-slate-500"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <div
+              className="w-10 h-10 rounded-lg shrink-0 text-white flex items-center justify-center font-bold shadow-md"
+              style={{ backgroundColor: headerColor }}
+            >
+              {headerInitial}
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-[#1A365D] truncate">
+                {headerName}
+              </h2>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className={cn(
+                  "w-2 h-2 rounded-full shrink-0",
+                  selectedStatus === 'in_progress' || selectedStatus === 'processing' ? "bg-[#38A169]" : "bg-slate-300"
+                )} />
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
+                  {selectedStatus === 'in_progress' || selectedStatus === 'processing'
+                    ? 'Expert Assigned'
+                    : selectedStatus === 'completed'
+                      ? 'Completed'
+                      : 'Awaiting Assignment'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={openSearchInSidebar}
+              className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all"
+            >
+              <Search size={18} />
+            </button>
+            <button type="button" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all" title="Start Call">
+              <Phone size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowInfoPanel(!showInfoPanel)}
+              className={cn(
+                "hidden sm:block p-2.5 rounded-full transition-all",
+                showInfoPanel ? "bg-[#EBF8FF] text-[#2B6CB0]" : "text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0]"
+              )}
+            >
+              <Info size={18} />
+            </button>
+            <button type="button" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all">
+              <MoreHorizontal size={18} />
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
+            <MessageDashboard
+              activeStackId={selectedStackId}
+              activeStackName={selectedStackName}
+              user={user}
+            />
+          </div>
+
+          {showInfoPanel && activeStack && (
+            <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)] transition-all animate-in slide-in-from-right-8 duration-300 z-20 shrink-0">
+              <div className="h-16 border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
+                <h3 className="font-bold text-[#1A365D] text-sm">Stack Details</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowInfoPanel(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
+                  <div className="relative mb-4">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#2B6CB0] to-[#4299E1] text-white flex items-center justify-center text-3xl font-bold shadow-md">
+                      {assignedEmployee?.name?.charAt(0) || '?'}
+                    </div>
+                    <div className={cn(
+                      "absolute bottom-0 right-1 w-4 h-4 rounded-full border-2 border-white",
+                      assignedEmployee ? "bg-green-500" : "bg-slate-400"
+                    )} />
+                  </div>
+                  <h4 className="font-bold text-[#1A365D] text-lg leading-tight">
+                    {assignedEmployee?.name || 'Unassigned'}
+                  </h4>
+                  <p className="text-sm text-slate-500 mt-1 flex items-center justify-center gap-1.5">
+                    <Briefcase size={14} />
+                    {assignedEmployee?.role || 'Awaiting Specialist'}
+                  </p>
+                  {assignedEmployee?.specialization && (
+                    <p className="text-xs text-slate-400 mt-1">{assignedEmployee.specialization}</p>
+                  )}
+                </div>
+
+                <div className="py-6 space-y-5">
+                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Order Info</h5>
+
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 p-2 bg-slate-50 rounded text-slate-400">
+                        <Hash size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Order ID</p>
+                        <p className="text-sm font-semibold text-[#1A365D]">{activeStack.id.substring(0, 8).toUpperCase()}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 p-2 bg-slate-50 rounded text-slate-400">
+                        <Calendar size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Assigned On</p>
+                        <p className="text-sm font-semibold text-[#1A365D]">
+                          {assignedEmployee?.assigned_at
+                            ? new Date(assignedEmployee.assigned_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : 'Not yet assigned'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
 
-                {/* Action buttons */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-neutral-400 text-sm">
-                    <Clock size={14} /> Updated {formatRelativeTime(stack.updated_at)}
+                <div className="pt-6 border-t border-slate-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progress</h5>
+                    <span className="text-xs font-bold text-[#2B6CB0]">{progressPercent}%</span>
                   </div>
-                  <button className="px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-cyan-400 to-teal-500 text-neutral-950 flex items-center gap-2 hover:scale-105 transition-all duration-300">
-                    <MessageCircle size={14} /> Ask Expert
-                  </button>
+
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#2B6CB0] rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+
+                  <p className="text-xs text-slate-500 mt-3 flex items-center gap-1.5">
+                    <span className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      activeStack.status?.toLowerCase() === 'completed' ? "bg-slate-400" : "bg-green-500 animate-pulse"
+                    )} />
+                    Current Status: <span className="font-semibold text-slate-700 capitalize">{getStatusLabel(activeStack.status)}</span>
+                  </p>
                 </div>
               </div>
-            );
-          })}
+            </aside>
+          )}
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-7xl mx-auto text-center py-10 text-neutral-500 text-sm border-t border-white/10 mt-10">
-        Tracking {stacks.length} stack{stacks.length !== 1 ? 's' : ''} in progress — growing faster every week 🚀
-      </footer>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #E2E8F0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #CBD5E0;
+        }
+      `}} />
     </div>
   );
 }

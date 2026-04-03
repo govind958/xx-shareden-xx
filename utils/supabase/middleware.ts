@@ -39,17 +39,26 @@ export async function updateSession(request: NextRequest) {
 
   // Skip auth check for admin routes (handled separately)
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
-  
+  // Skip auth check for employee portal auth routes (handled via employee sessions)
+  const isEmployeeAuthRoute =
+    request.nextUrl.pathname.startsWith('/Employee_portal/login') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/signup') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/pending-approval') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/forgot-password') ||
+    request.nextUrl.pathname.startsWith('/Employee_portal/reset-password');
+    
+
   if (
     !user &&
     !isAdminRoute &&
+    !isEmployeeAuthRoute &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/error')
   ) {
-    // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    const isEmployeeRoute = request.nextUrl.pathname.startsWith('/Employee_portal')
+    url.pathname = isEmployeeRoute ? '/Employee_portal/login' : '/login'
     return NextResponse.redirect(url)
   }
 

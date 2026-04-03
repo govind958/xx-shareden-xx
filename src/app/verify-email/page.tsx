@@ -1,33 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/button";
+import { Button } from "@/src/components/ui/button";
+import { MailCheck, GalleryVerticalEnd } from "lucide-react";
 
 export default function VerifyEmailPage() {
   return (
-    <main className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-teal-50 via-white to-teal-100 text-center px-6">
-      {/* Card */}
-      <div className="bg-white shadow-xl rounded-2xl p-8 sm:p-12 max-w-md w-full">
+    <main className="min-h-screen flex flex-col justify-center items-center bg-[#FDFDFD] text-center px-6 font-sans">
+      <div className="bg-white shadow-lg border border-slate-100 rounded-2xl p-8 sm:p-12 max-w-md w-full space-y-6">
+        {/* Brand */}
+        <div className="flex justify-center">
+          <div className="flex items-center gap-2">
+            <div className="flex size-6 items-center justify-center rounded-md bg-[#1A365D] text-white">
+              <GalleryVerticalEnd className="size-4" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-[#1A365D]">Stackboard.</span>
+          </div>
+        </div>
+
+        {/* Icon */}
+        <div className="flex justify-center">
+          <div className="flex size-16 items-center justify-center rounded-full bg-blue-50">
+            <MailCheck className="size-8 text-[#2B6CB0]" />
+          </div>
+        </div>
+
         {/* Heading */}
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4">
-          Verify Your{" "}
-          <span className="bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 bg-clip-text text-transparent">
-            Email
-          </span>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1A365D]">
+          Check your email
         </h1>
 
-        <p className="text-gray-600 text-sm sm:text-base mb-8">
-          We’ve sent you a verification link. Please check your inbox to confirm
-          your account. Once verified, you can log in and start using{" "}
-          <span className="font-semibold text-teal-600">ShareDen</span>.
+        <p className="text-slate-500 text-sm sm:text-base">
+          We&apos;ve sent a verification link to your email address. 
+          Click the link to verify your account, then come back here to log in.
         </p>
 
-        {/* Button back to login */}
         <Link href="/login">
-          <Button className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white font-semibold hover:from-teal-600 hover:to-teal-700 rounded-lg">
+          <Button className="w-full bg-[#2B6CB0] text-white font-bold hover:bg-[#1A365D] rounded-lg shadow-md transition-all active:scale-95">
             Back to Login
           </Button>
         </Link>
+
+        <p className="text-xs text-slate-400">
+          Didn&apos;t receive the email? Check your spam folder or try signing up again.
+        </p>
       </div>
 
       {/* Footer */}
