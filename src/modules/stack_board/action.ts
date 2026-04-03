@@ -44,7 +44,7 @@ export const getPurchasedStacks = async (userId: string) => {
 
     return data?.map(item => {
         // stacks is a single object (many-to-one relation)
-        const stack = item.stacks as any;
+        const stack = item.stacks as { name?: string; type?: string; base_price?: number } | null;
         return {
             id: item.id,
             stack_id: item.stack_id,

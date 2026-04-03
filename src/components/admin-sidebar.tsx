@@ -2,9 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
-import { createPortal } from "react-dom"
 import { Home, Layers3, Users, UserCircle2, Settings, 
-  ShoppingCart, LogOut, Loader2, Command, 
+  LogOut, Loader2, Command, 
   RefreshCcw, Globe, ShieldCheck, LifeBuoy, ListChecks, CreditCard
 } from "lucide-react"
 
@@ -30,7 +29,7 @@ export function AdminSidebar() {
   // Navigation State Management
   const [navTarget, setNavTarget] = useState<string | null>(null)
   const [isNavigating, setIsNavigating] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 

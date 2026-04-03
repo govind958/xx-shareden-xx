@@ -59,7 +59,8 @@ export const Canvas: React.FC = () => {
 
   useEffect(() => {
 
-    const handleAddCluster = (event: any) => {
+    const handleAddCluster = (event: Event) => {
+      const customEvent = event as CustomEvent<{ name?: string }>;
 
       if (!containerRef.current) return;
 
@@ -70,7 +71,7 @@ export const Canvas: React.FC = () => {
 
       const newNode: CanvasNode = {
         id: `node-${Date.now()}`,
-        label: event.detail?.name || 'Cluster Group',
+        label: customEvent.detail?.name || 'Cluster Group',
         type: 'group',
         x: x - 190,
         y: y - 120,
@@ -225,7 +226,7 @@ export const Canvas: React.FC = () => {
 
       router.push('/private?tab=stacks_cart');
 
-    } catch (error) {
+    } catch {
 
       alert('Failed to add to cart.');
 

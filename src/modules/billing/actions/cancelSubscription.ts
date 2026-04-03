@@ -57,7 +57,7 @@ export async function cancelSubscription(
     // If we have a Razorpay subscription id, cancel it at cycle end
     if (razorpaySubscriptionId) {
       try {
-        await (razorpay.subscriptions as unknown as { cancel: (id: string, params?: any) => Promise<unknown> })
+        await (razorpay.subscriptions as unknown as { cancel: (id: string, params?: { cancel_at_cycle_end?: boolean }) => Promise<unknown> })
           .cancel(razorpaySubscriptionId, { cancel_at_cycle_end: true });
 
         // Mark the order as no longer recurring

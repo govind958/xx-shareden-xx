@@ -3,10 +3,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Users, FolderTree, Settings,
+  LayoutDashboard, FolderTree, Settings,
   LogOut, ChevronLeft, ChevronRight, Sun, Moon, LucideIcon,
-  User as UserIcon,
-  BugIcon
+  User as UserIcon
 } from 'lucide-react';
 import { employeeLogout, verifyEmployeeSession } from '@/src/modules/employee/actions';
 

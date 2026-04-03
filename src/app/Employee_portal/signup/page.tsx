@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { employeeSignup } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock, User, Briefcase } from "lucide-react";
-import { redirect, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { validateInviteToken } from "@/src/modules/employee/actions";
 

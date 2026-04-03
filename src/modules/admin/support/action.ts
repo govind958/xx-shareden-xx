@@ -32,7 +32,7 @@ export async function getTickets() {
   const userIds = [...new Set(tickets.map((t) => t.user_id))]
  
   // 3. Fetch emails from auth.users via admin client
-  const { data: usersData, error: usersError } = await adminSupabase
+  const { } = await adminSupabase
     .from("auth.users")  // won't work directly — use listUsers workaround below
     .select("id, email")
     .in("id", userIds)

@@ -17,18 +17,21 @@ import { toast } from "sonner";
 // Create supabase client outside component to prevent recreation on each render
 const supabase = createClient();
 
+interface ProjectMessage { id: string | number; content: string; sender_id: string; sender_role: string; created_at: string; order_item_id: string; message_type?: string; file_url?: string; file_type?: string; file_name?: string; metadata?: { file?: { url: string; name: string; type: string } }; }
+interface MessageUser { id: string; email?: string; }
+
 interface MessageDashboardProps {
     activeStackId: string | null;
     activeStackName: string;
-    user: any;
+    user: MessageUser;
 }
 
 export default function MessageDashboard({
     activeStackId,
-    activeStackName,
+    // activeStackName is received for future use
     user,
 }: MessageDashboardProps) {
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<ProjectMessage[]>([]);
     const [input, setInput] = useState("");
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -70,7 +73,7 @@ export default function MessageDashboard({
                 },
                 (payload) => {
                     setMessages((prev) => {
-                        const newMsg = payload.new as any;
+                        const newMsg = payload.new as unknown as ProjectMessage;
                         // Prevent duplicates
                         const exists = prev.find(
                             (m) =>
@@ -206,8 +209,8 @@ export default function MessageDashboard({
                 });
                 toast.success("File shared!");
             }
-        } catch (error: any) {
-            console.error("Error uploading file:", error.message);
+        } catch (error: unknown) {
+            console.error("Error uploading file:", error instanceof Error ? error.message : error);
             toast.error("Failed to upload file");
         } finally {
             setIsUploading(false);
@@ -319,7 +322,7 @@ export default function MessageDashboard({
                                                     className={`text-sm font-semibold truncate ${isMe ? "text-white" : "text-[#1A365D]"
                                                         }`}
                                                 >
-                                                    {m.metadata.file.name}
+                                                    {m.metadata?.file?.name}
                                                 </p>
                                                 <p
                                                     className={`text-xs uppercase tracking-wide ${isMe
@@ -327,12 +330,12 @@ export default function MessageDashboard({
                                                         : "text-slate-400"
                                                         }`}
                                                 >
-                                                    {m.metadata.file.type?.split("/")[1] || "file"}
+                                                    {m.metadata?.file?.type?.split("/")[1] || "file"}
                                                 </p>
                                             </div>
                                             <div className="flex flex-col gap-1 items-end">
                                                 <a
-                                                    href={m.metadata.file.url}
+                                                    href={m.metadata?.file?.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className={`text-xs font-semibold flex items-center gap-1 ${isMe
@@ -343,8 +346,8 @@ export default function MessageDashboard({
                                                     Open <ExternalLink size={12} />
                                                 </a>
                                                 <a
-                                                    href={m.metadata.file.url}
-                                                    download={m.metadata.file.name}
+                                                    href={m.metadata?.file?.url}
+                                                    download={m.metadata?.file?.name}
                                                     className={`text-xs flex items-center gap-1 ${isMe
                                                         ? "text-white/60 hover:text-white"
                                                         : "text-slate-400 hover:text-slate-600"

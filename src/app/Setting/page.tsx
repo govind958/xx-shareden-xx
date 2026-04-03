@@ -248,6 +248,7 @@ export default function ClassicSaaSProfile() {
             <div className="flex flex-col sm:flex-row items-center gap-8">
               <label className="w-24 h-24 border-2 border-dashed border-slate-200 rounded-md flex items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group shrink-0 overflow-hidden">
                 {org?.company_logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={org.company_logo} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
                   <Upload size={20} className="text-slate-400 group-hover:text-blue-600" />

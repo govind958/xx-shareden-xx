@@ -159,8 +159,8 @@ const AetherClassic: FC = () => {
                   key={idx}
                   className="bg-[#F7FAFC] p-8 rounded-2xl border border-blue-50 shadow-sm hover:border-[#2B6CB0] transition-colors"
                 >
-                  <p className="text-slate-700 leading-relaxed mb-6 italic">
-                    "{item.quote}"
+                    <p className="text-slate-700 leading-relaxed mb-6 italic">
+                    &ldquo;{item.quote}&rdquo;
                   </p>
 
                   <div>

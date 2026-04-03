@@ -121,13 +121,16 @@ const StackboardClassic: FC = () => {
 
                 <div className="bg-[#1e4e80]/50 p-8 rounded-2xl border border-white/10 backdrop-blur-sm mt-12 max-w-md">
                   <p className="text-lg text-blue-50 mb-6 italic leading-relaxed">
-                    "Stackboard helped us achieve about 300% growth rate for our business by unifying our data."
+                    &ldquo;Stackboard helped us achieve about 300% growth rate for our business by unifying our data.&rdquo;
                   </p>
                   <div className="flex items-center gap-4">
-                    <img 
-                      src="https://avatar.iran.liara.run/public/30" 
-                      alt="User" 
-                      className="w-10 h-10 rounded-full border-2 border-white/20 bg-slate-200" 
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="https://avatar.iran.liara.run/public/30"
+                      alt="Hassan Al-aidy"
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 rounded-full border-2 border-white/20 bg-slate-200"
                     />
                     <div>
                       <p className="font-bold text-sm text-white">Hassan Al-aidy</p>
@@ -193,6 +196,7 @@ const StackboardClassic: FC = () => {
             <div className="relative group cursor-pointer">
               <div className="absolute -inset-4 bg-blue-50 rounded-[2rem] -z-10 group-hover:scale-105 transition duration-500 opacity-0 group-hover:opacity-100" />
               <div className="relative rounded-2xl overflow-hidden aspect-video shadow-2xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
                   alt="Team collaboration"
@@ -234,7 +238,7 @@ const StackboardClassic: FC = () => {
                 <p>
                   <strong className="text-[#2B6CB0]">Offer a seamless planning experience</strong> for your teams using agile tools. Drag and adjust timelines in moments with over 10 methodologies.
                 </p>
-                <p>Plan offline and sync once you're back. Use your mobile device to scan requirements directly into the backlog.</p>
+                <p>Plan offline and sync once you&apos;re back. Use your mobile device to scan requirements directly into the backlog.</p>
               </div>
 
               <div className="flex items-center gap-4 mt-10">
@@ -263,7 +267,7 @@ const StackboardClassic: FC = () => {
               href="/signup" 
               className="inline-block px-10 py-4 bg-[#2B6CB0] text-white rounded-xl text-lg font-bold hover:bg-[#3182ce] transition-all shadow-2xl hover:shadow-blue-500/20 hover:-translate-y-1 active:scale-95"
             >
-              Get Started Today — It's Free
+              Get Started Today — It&apos;s Free
             </Link>
           </div>
         </section>
@@ -307,7 +311,7 @@ const StackboardClassic: FC = () => {
 
 // --- HELPER UI COMPONENTS ---
 
-const InputField = ({ label, icon: Icon }: { label: string; icon?: any }) => (
+const InputField = ({ label, icon: Icon }: { label: string; icon?: React.ElementType }) => (
   <div className="border border-white/10 bg-white/5 rounded-xl p-3 text-[12px] flex items-center justify-between text-blue-100/60 transition hover:bg-white/10 cursor-default">
     <span>{label}</span>
     {Icon && <Icon className="w-3.5 h-3.5 text-white/30" />}

@@ -89,6 +89,7 @@ export function TopNav() {
               {loading ? (
                 <Cpu size={14} className="animate-spin text-white" />
               ) : orgLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={orgLogo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 initial
