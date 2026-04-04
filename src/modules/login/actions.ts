@@ -25,13 +25,14 @@ export async function login(formData: FormData) {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
   }
-
+  console.log("data", data)
   const { data: authData, error } = await supabase.auth.signInWithPassword(data)
-
+  console.log("authData", authData)
   if (error) {
     redirect('/login?error=' + encodeURIComponent('Invalid credentials. If you\'re new here, please sign up first.'))
   }
-
+  console.log("authData", authData)
+  console.log("authdata-meatadata", authData.user?.user_metadata)
   const userType = authData.user?.user_metadata?.user_type
   if (userType === 'employee') {
     await supabase.auth.signOut()
@@ -39,6 +40,7 @@ export async function login(formData: FormData) {
   }
 
   revalidatePath('/private', 'layout')
+  console.log("redirecting to private")
   redirect('/private')
 }
 
