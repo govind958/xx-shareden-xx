@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { getStacks, Stack, SubStack, DnDProvider } from '@/src/modules/product_stacks';
-import { CanvasContainer, Footer, PreMadeStacks } from '@/src/components/product-stacks';
+import { CanvasContainer, PreMadeStacks } from '@/src/components/product-stacks';
 
 /* --- LOADING --- */
 
@@ -77,7 +77,7 @@ export default function ProductStacksPage() {
       setStacks(prev => prev.filter(t => t.id !== id));
       setSubStacks(prev => prev.filter(s => s.stack_id !== id));
 
-    } catch (error) {
+    } catch {
 
       console.error('Delete operation failed');
 

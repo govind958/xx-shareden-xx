@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Stack } from '@/src/types/product_stacks';
 import { 
-  ArrowRight, Search, Trash2, User, X, Clock, Clock3, Users, 
+  ArrowRight, Search, Trash2, X, Clock3, Users, 
   BarChart3, LayoutGrid, Globe, Layers, Box, Database, 
   Shield, Zap, Server, Mail, Target, LucideIcon 
 } from 'lucide-react'; 
@@ -114,7 +114,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
 
       router.push('/private?tab=stacks_cart');
 
-    } catch (err) {
+    } catch {
 
       alert('Error adding to cart.');
 

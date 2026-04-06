@@ -5,7 +5,6 @@ import {
   CheckSquare,
   Clock,
   AlertTriangle,
-  Terminal,
   Hash,
   ArrowUpRight
 } from 'lucide-react';
@@ -14,7 +13,7 @@ import Link from 'next/link';
 
 const supabase = createClient();
 
-const statusColor = (status: string) => {
+const statusColor = (status: string | undefined) => {
   switch (status) {
     case 'completed': return 'bg-green-500/10 border-green-500/20 text-green-500';
     case 'in_progress': return 'bg-amber-500/10 border-amber-500/20 text-amber-500';
@@ -25,7 +24,7 @@ const statusColor = (status: string) => {
   }
 };
 
-const statusLabel = (status: string) => {
+const statusLabel = (status: string | undefined) => {
   switch (status) {
     case 'completed': return 'Completed';
     case 'in_progress': return 'Working';
@@ -36,7 +35,8 @@ const statusLabel = (status: string) => {
   }
 };
 
-const TaskRow = ({ id, task, status, progress, isActive, createdAt }: any) => (
+interface TaskRowProps { id: string; task: string | undefined; status: string | undefined; progress: number | undefined; isActive: boolean | undefined; createdAt: string; }
+const TaskRow = ({ id, task, status, progress, isActive, createdAt }: TaskRowProps) => (
   <tr className="border-b border-neutral-100 dark:border-neutral-900 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors group">
     <td className="py-5 px-4">
       <div className="flex items-center gap-3">
@@ -85,8 +85,9 @@ const TaskRow = ({ id, task, status, progress, isActive, createdAt }: any) => (
   </tr>
 );
 
+interface OrderTask { id: string; stack_id?: string; status?: string; progress_percent?: number; is_active?: boolean; created_at: string; stacks?: { name?: string }; }
 export default function TaskPage() {
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<OrderTask[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -126,7 +127,7 @@ export default function TaskPage() {
         if (error) {
           console.error("Fetch error:", error);
         } else {
-          setTasks(data || []);
+          setTasks(data as unknown as OrderTask[] || []);
         }
       }
       setLoading(false);

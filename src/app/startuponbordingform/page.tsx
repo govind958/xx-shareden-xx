@@ -30,7 +30,8 @@ export default function StartupOnboardingPage() {
 
       if (error) throw error
       setForms(data || [])
-    } catch (err: any) {
+    } catch (err: unknown) {
+      void err;
       toast.error("Failed to sync with ShareDen nodes")
     } finally {
       setLoading(false)
@@ -39,6 +40,7 @@ export default function StartupOnboardingPage() {
 
   useEffect(() => {
     fetchForms()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filteredForms = useMemo(() => {
@@ -62,8 +64,8 @@ export default function StartupOnboardingPage() {
       await fetchForms()
       formElement.reset()
       setIsDrawerOpen(false)
-    } catch (err: any) {
-      toast.error(err.message || "Execution Error")
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Execution Error")
     } finally {
       setIsSubmitting(false)
     }

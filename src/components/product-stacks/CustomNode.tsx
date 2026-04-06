@@ -3,7 +3,6 @@
 import {
   CheckCircle2,
   LayoutGrid,
-  Lock,
   ShoppingCart
 } from "lucide-react";
 

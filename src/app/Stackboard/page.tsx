@@ -38,7 +38,7 @@ type AssignedEmployee = { name: string; role: string; specialization: string; as
 export default function Stackboard() {
   const [loading, setLoading] = useState(true);
   const [purchasedStacks, setPurchasedStacks] = useState<PURCHASED_STACKS[]>([]);
-  const [purchasedSubStacks, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
+  const [, setPurchasedSubStacks] = useState<PURCHASED_SUBSTACKS[]>([]);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -79,7 +79,7 @@ export default function Stackboard() {
     } else if (!authLoading && !user) {
       setLoading(false);
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, selectedStackId]);
 
   // Load substacks + assigned employee whenever the selected stack changes (incl. realtime selection)
   useEffect(() => {
@@ -169,7 +169,7 @@ export default function Stackboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, purchasedStacks.length]);
+  }, [user?.id, purchasedStacks]);
 
   useEffect(() => {
     activeStackIdRef.current = selectedStackId;
@@ -224,7 +224,7 @@ export default function Stackboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, purchasedStacks.length]);
+  }, [user?.id, purchasedStacks]);
 
   const handleStackSelect = (stack: PURCHASED_STACKS) => {
     if (selectedStackId === stack.id) return;

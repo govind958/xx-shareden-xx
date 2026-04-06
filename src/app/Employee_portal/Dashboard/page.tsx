@@ -10,7 +10,8 @@ import {
 import { getEmployeeAssignments, verifyEmployeeSession } from '@/src/modules/employee/actions';
 import { redirect } from 'next/navigation';
 
-const StatCard = ({ title, value, change, icon: Icon, trend: TrendIcon }: any) => (
+interface StatCardProps { title: string; value: string | number | undefined; change: string; icon: React.ElementType; trend: React.ElementType; }
+const StatCard = ({ title, value, change, icon: Icon, trend: TrendIcon }: StatCardProps) => (
   <div className="bg-white dark:bg-black border border-neutral-200 dark:border-neutral-800 p-6 rounded-none">
     <div className="flex justify-between items-start mb-4">
       <div className="p-2 bg-neutral-100 dark:bg-neutral-900">
@@ -80,6 +81,7 @@ export default async function Dashboard() {
                     <td colSpan={5} className="p-8 text-center text-neutral-400">No orders assigned yet.</td>
                   </tr>
                 ) : (
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   assignments.map((a: any) => (
                     <tr key={a.id} className="border-b border-neutral-50 dark:border-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors">
                       <td className="p-4 text-teal-500 font-bold">{a.order_items?.stacks?.name ?? 'Unknown'}</td>

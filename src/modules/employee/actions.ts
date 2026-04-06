@@ -9,6 +9,10 @@ import {
         sendAdminNewEmployeeNotification,
         sendEmployeeApprovalEmail,
     } from "@/src/modules/email/send-employee-invite";
+import {
+    sendStatusNotificationEmail,
+    type OrderStatus,
+} from '@/src/modules/email/send-status-notification'
 import { randomBytes } from "crypto";
 
 // Generate a secure invite token
@@ -248,7 +252,7 @@ export async function verifyEmployeeSession(): Promise<{
     }
 }
 
-// Valid order item statuses - re-export from email module for consistency
+// Valid order item statuses - alias email module type for this surface
 export type OrderItemStatus = OrderStatus
 
 // Update order item status (for employees working on tasks)

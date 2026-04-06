@@ -4,12 +4,9 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/src/context/AuthContext';
 import {
-  ChevronLeft,
-  Info,
   Trash2,
   CreditCard,
   ShieldCheck,
-  CheckCircle2,
   Tag,
   X,
   Building2
@@ -74,8 +71,8 @@ export default function ZohoStyleCheckout() {
   const [couponLoading, setCouponLoading] = useState(false);
 
   const [cartStacks, setCartStacks] = useState<CartStack[]>([]);
-  const [profileData, setProfileData] = useState<any>(null);
-  const [organizationData, setOrganizationData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<{ email: string; name: string } | null>(null);
+  const [organizationData, setOrganizationData] = useState<{ name: string } | null>(null);
 
   // Billing Address State
   const [billingAddress, setBillingAddress] = useState({
@@ -87,7 +84,7 @@ export default function ZohoStyleCheckout() {
     city: '',
     zip_code: '',
   });
-  const [billingAddressLoaded, setBillingAddressLoaded] = useState(false);
+  const [, setBillingAddressLoaded] = useState(false);
 
   // When checked, this address is saved as 'office' (invoice-only) instead of 'headquarters'
   const [useOfficeAddress, setUseOfficeAddress] = useState(false);
@@ -150,14 +147,15 @@ export default function ZohoStyleCheckout() {
         setBillingAddressLoaded(true);
 
         if (cart.data) {
-          const formatted = cart.data.map((item: any) => {
-            // For custom stacks: use cluster_data
-            // For pre-made stacks: use stacks.sub_stacks
-            const subStacks = (item.cluster_data as any[])?.map(s => ({
+          type SubStackItem = { id?: string; name: string; price: number };
+          type ClusterItem = { name: string; price: number; is_free: boolean };
+          type CartItem = { id: string; total_price?: number; cluster_name?: string; cluster_data?: ClusterItem[]; stacks?: { id?: string; name?: string; type?: string; sub_stacks?: SubStackItem[] } };
+          const formatted = (cart.data as unknown as CartItem[]).map((item) => {
+            const subStacks = item.cluster_data?.map(s => ({
               name: s.name,
               price: s.price || 0,
               quantity: 1
-            })) || (item.stacks?.sub_stacks as any[])?.map((s: any) => ({
+            })) || item.stacks?.sub_stacks?.map((s) => ({
               id: s.id,
               name: s.name,
               price: s.price || 0,
@@ -677,7 +675,13 @@ const INDIAN_STATES = [
   'Andaman and Nicobar Islands', 'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep'
 ];
 
-function FormGroup({ label, type = 'text', isFull = false, ...props }: any) {
+interface FormGroupProps extends React.InputHTMLAttributes<HTMLInputElement | HTMLSelectElement> {
+  label: string;
+  type?: string;
+  isFull?: boolean;
+}
+
+function FormGroup({ label, type = 'text', isFull = false, ...props }: FormGroupProps) {
   return (
     <div className={isFull ? 'col-span-2' : 'col-span-1'}>
       <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-tight mb-1.5">{label}</label>

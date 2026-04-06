@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { Send, Terminal, ShieldAlert, Cpu, HardDrive, Globe } from 'lucide-react';
 
-const RequestOption = ({ title, icon: Icon, selected, onClick }: any) => (
+interface RequestOptionProps { title: string; icon: React.ElementType; selected: boolean; onClick: () => void; }
+const RequestOption = ({ title, icon: Icon, selected, onClick }: RequestOptionProps) => (
   <button 
     onClick={onClick}
     className={`flex items-center gap-4 p-4 border transition-all duration-200 text-left

@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useRef, useTransition, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  Zap, Send, Paperclip, MoreHorizontal, Search, 
-  Smile, Mic, CheckCheck, Terminal, Bell
+  Zap, Send, Paperclip, MoreHorizontal, Search,
+  Smile, CheckCheck, Terminal
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
@@ -21,17 +21,22 @@ const supabase = createClient();
 //   { id: '3', stacks: { name: 'SUPABASE_AUTH_PROTOCOL' }, status: 'initiated', progress_percent: 15, unread: 12 },
 // ];
 
+interface OrderItem { id: string; stack_id?: string; status?: string; progress_percent?: number; assigned_to?: string; stacks?: { name?: string }; unread?: number; }
+interface Message { id: string | number; content: string; sender_id: string; sender_role: string; created_at: string; order_item_id: string; message_type?: string; file_url?: string; file_type?: string; file_name?: string; metadata?: { file?: { url: string; name: string; type: string } }; }
+interface AuthUser { id: string; email?: string; }
+
 function StackboardMessagingUI() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderItemId = searchParams.get('id');
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [activeStack, setActiveStack] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
-  const [isUpdatingStatus, startStatusTransition] = useTransition();
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  // activeStack is used via realtime updates; state kept for re-renders
+  const [, setActiveStack] = useState<OrderItem | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [, setEmployeeId] = useState<string | null>(null);
+  const [, startStatusTransition] = useTransition();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -91,7 +96,7 @@ function StackboardMessagingUI() {
       setLoading(false);
     }
     init();
-  }, [orderItemId]);
+  }, [orderItemId, router]);
 
   // 2. Real-time Listeners (Messages & Progress)
   useEffect(()=>{
@@ -127,7 +132,7 @@ function StackboardMessagingUI() {
             filter: `order_item_id=eq.${orderItemId}`
           }, (payload) => {
             console.log('Realtime INSERT received:', payload);
-            const newMsg = payload.new as any;
+            const newMsg = payload.new as Message;
             // Deduplicate: only add if not already in state
             setMessages(prev => {
               const exists = prev.find(m => m.id === newMsg.id);
@@ -140,7 +145,7 @@ function StackboardMessagingUI() {
             table: 'order_items',
             filter: `id=eq.${orderItemId}`
           }, (payload) => {
-            setActiveStack(payload.new);
+            setActiveStack(payload.new as unknown as OrderItem);
           })
           .subscribe((status, err) => {
             console.log('Realtime subscription status:', status);
@@ -189,62 +194,43 @@ function StackboardMessagingUI() {
     }
   };
 
-  // Handle status update
+  // handleStatusUpdate and handleProgressUpdate are available for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleStatusUpdate = (newStatus: OrderItemStatus) => {
     if (!orderItemId) return;
-    
     startStatusTransition(async () => {
       const result = await updateOrderItemStatus(orderItemId, newStatus);
-      
       if (result.success) {
-        // Update local state optimistically
-        setActiveStack((prev: any) => prev ? { 
-          ...prev, 
+        setActiveStack((prev) => prev ? {
+          ...prev,
           status: newStatus,
           progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : prev.progress_percent
         } : prev);
-        
-        // Also update in orders list
-        setOrders(prev => prev.map(order => 
-          order.id === orderItemId 
-            ? { 
-                ...order, 
-                status: newStatus,
-                progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : order.progress_percent
-              } 
+        setOrders(prev => prev.map(order =>
+          order.id === orderItemId
+            ? { ...order, status: newStatus, progress_percent: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 25 : order.progress_percent }
             : order
         ));
-        
-        toast.success(
-          newStatus === 'in_progress' 
-            ? 'Started working on task!' 
-            : newStatus === 'completed' 
-              ? 'Task marked as completed!' 
-              : 'Status updated!'
-        );
+        toast.success(newStatus === 'in_progress' ? 'Started working on task!' : newStatus === 'completed' ? 'Task marked as completed!' : 'Status updated!');
       } else {
         toast.error(result.error || 'Failed to update status');
       }
     });
   };
-
-  // Handle progress update
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleProgressUpdate = async (newProgress: number) => {
     if (!orderItemId) return;
-    
     const result = await updateOrderItemProgress(orderItemId, newProgress);
-    
     if (result.success) {
-      setActiveStack((prev: any) => prev ? { ...prev, progress_percent: newProgress } : prev);
-      setOrders(prev => prev.map(order => 
+      setActiveStack((prev) => prev ? { ...prev, progress_percent: newProgress } : prev);
+      setOrders(prev => prev.map(order =>
         order.id === orderItemId ? { ...order, progress_percent: newProgress } : order
       ));
     } else {
       toast.error(result.error || 'Failed to update progress');
     }
   };
-
-  // Get status display info
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'initiated':
@@ -316,7 +302,7 @@ function StackboardMessagingUI() {
             >
               <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-black/20 flex items-center justify-center border border-black/5 dark:border-white/5 relative">
                 <Zap size={20} className={cn(item.id === orderItemId && "fill-current", theme.accentText)} />
-                {item.unread > 0 && (
+                {(item.unread ?? 0) > 0 && (
                   <span className={cn("absolute -top-1 -right-1 text-white dark:text-black text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-[#0a0a0a] animate-pulse", theme.accentBg)}>
                     {item.unread}
                   </span>

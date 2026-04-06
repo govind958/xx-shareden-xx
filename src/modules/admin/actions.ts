@@ -19,6 +19,19 @@ function generateSessionToken(): string {
   return randomBytes(32).toString('hex')
 }
 
+/** Embedded `stacks:stack_id (name)` may be typed as an array or a single row */
+function stackNameFromEmbedded(stacks: unknown): string {
+  if (stacks == null) return 'Your Stack'
+  if (Array.isArray(stacks)) {
+    const row = stacks[0] as { name?: string | null } | undefined
+    return row?.name || 'Your Stack'
+  }
+  if (typeof stacks === 'object' && 'name' in stacks) {
+    return (stacks as { name: string | null }).name || 'Your Stack'
+  }
+  return 'Your Stack'
+}
+
 // Admin login with email, password and secret key
 export async function adminLogin(formData: FormData) {
   const supabase = await createClient()
@@ -383,7 +396,7 @@ export async function assignEmployeeToOrderItem(
         .single()
 
       if (userData?.user?.email) {
-        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
+        const stackName = stackNameFromEmbedded(orderItem.stacks)
 
         const emailResult = await sendStatusNotificationEmail({
           customerEmail: userData.user.email,
@@ -502,7 +515,7 @@ export async function assignEmployeeAndNotify(
         .single()
 
       if (userData?.user?.email) {
-        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
+        const stackName = stackNameFromEmbedded(orderItem.stacks)
 
         const emailResult = await sendStatusNotificationEmail({
           customerEmail: userData.user.email,

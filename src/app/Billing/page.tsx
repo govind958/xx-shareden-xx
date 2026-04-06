@@ -40,7 +40,7 @@ const BillingPage: FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [purchasedStacks, setPurchasedStacks] = useState<PurchasedStack[]>([]);
   const [orders, setOrders] = useState<OrderWithStacks[]>([]);
-  const [selectedStack, setSelectedStack] = useState<any>(null);
+  const [selectedStack, setSelectedStack] = useState<(PurchasedStack & { billing_date: string; days_left: number }) | null>(null);
   const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(null);
 
   const { user } = useAuth();

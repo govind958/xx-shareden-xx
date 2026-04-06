@@ -83,7 +83,7 @@ export default function BuyNowButton({
   onSuccess,
   disabled,
   mode = "one-time",
-  recurringMethod,
+  // recurringMethod is accepted for API compatibility but not yet used
 }: BuyNowButtonProps) {
   const [loading, setLoading] = useState(false)
   const [verifyingPayment, setVerifyingPayment] = useState(false)

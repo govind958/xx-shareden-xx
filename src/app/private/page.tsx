@@ -9,7 +9,7 @@ import { useNotifications } from "@/src/hooks/use-notifications"
 // Fetched Components
 import { ClientSidebar } from "@/src/components/client-sidebar"
 import { TopNav } from "@/src/components/top-nav-clientside"
-import { Button } from "@/src/components/ui/button"
+
 
 // Page Views
 import ClientDashbordPage from "../ClientDashbord/page"
@@ -33,6 +33,7 @@ function PrivatePanelContent() {
   useNotifications(user?.id)
 
   useEffect(() => {
+    console.log("authLoading", authLoading)
     if (!authLoading && !user) window.location.href = "/login"
   }, [user, authLoading])
 

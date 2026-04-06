@@ -217,6 +217,7 @@ export default function ResetPasswordPage() {
             {/* Profile Section */}
             <div className="flex items-center gap-6">
               {/* Portrait Placeholder replacing Next.js Image for Preview */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src="https://i.pravatar.cc/150?img=47"
                 alt="Jane Doe"

@@ -5,8 +5,8 @@ import { createClient } from '@/utils/supabase/client';
 import { assignEmployeeAndNotify } from "@/src/modules/admin/actions";
 import {
   Search, Filter, Clock, CheckCircle2,
-  User, MessageSquare, UserPlus, X, Download,
-  CreditCard, Activity, MoreVertical, ShieldCheck,
+  User, UserPlus, X, Download,
+  CreditCard, Activity, MoreVertical,
   ArrowUpRight, Calendar, Layers, Hash, Check
 } from "lucide-react";
 
@@ -18,10 +18,13 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   cancelled: { label: "Cancelled", color: "text-neutral-500", bg: "bg-neutral-800 border-neutral-700" },
 };
 
+interface OrderItem { id: string; stack_id: string; status: string; progress_percent: number; assigned_to: string; stack_name?: string; }
+interface Order { id: string; total_amount?: number; created_at: string; user_id: string; order_items?: OrderItem[]; profile?: { user_id: string; name?: string } | null; }
+interface Employee { id: string; name?: string; email?: string; role?: string; specialization?: string; }
 export default function OrderCommandCenter() {
   const supabase = createClient();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]); // New: To store staff list
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]); // New: To store staff list
   const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false); // New: UI toggle for assignment list
@@ -97,6 +100,7 @@ export default function OrderCommandCenter() {
     }
 
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Logic: Assign Employee ---
@@ -111,9 +115,9 @@ export default function OrderCommandCenter() {
     // Update local state without refreshing the whole page
     setOrders(prev => prev.map(order => ({
       ...order,
-      order_items: order.order_items.map((item: any) =>
+      order_items: order.order_items?.map((item: OrderItem) =>
         item.id === itemId ? { ...item, assigned_to: employeeId, status: 'processing' } : item
-      )
+      ) ?? []
     })));
     setIsAssigning(false);
   };
@@ -170,10 +174,10 @@ export default function OrderCommandCenter() {
         {/* Overview Cards (UNTOUCHED) */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
-            { label: "Total Revenue", value: `₹${orders.reduce((acc, curr) => acc + curr.total_amount, 0).toLocaleString()}`, icon: CreditCard, change: "Live" },
+            { label: "Total Revenue", value: `₹${orders.reduce((acc, curr) => acc + (curr.total_amount ?? 0), 0).toLocaleString()}`, icon: CreditCard, change: "Live" },
             { label: "Active Orders", value: orders.length.toString(), icon: Clock, change: "Current" },
-            { label: "Processing Orders", value: orders.reduce((acc, o) => acc + (o.order_items?.filter((i: any) => i.status === 'processing').length || 0), 0).toString(), icon: Clock, change: "Active" },
-            { label: "Completed Orders", value: orders.reduce((acc, o) => acc + (o.order_items?.filter((i: any) => i.status === 'completed').length || 0), 0).toString(), icon: CheckCircle2, change: "Done" },
+            { label: "Processing Orders", value: orders.reduce((acc, o) => acc + ((o.order_items?.filter((i: OrderItem) => i.status === 'processing').length) || 0), 0).toString(), icon: Clock, change: "Active" },
+            { label: "Completed Orders", value: orders.reduce((acc, o) => acc + ((o.order_items?.filter((i: OrderItem) => i.status === 'completed').length) || 0), 0).toString(), icon: CheckCircle2, change: "Done" },
           ].map((item, i) => (
             <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] relative overflow-hidden group hover:border-teal-500/30 transition-all duration-500">
               <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
@@ -239,7 +243,7 @@ export default function OrderCommandCenter() {
                             <p className="text-[10px] text-neutral-600 mt-1">+{stackCount - 1} more stacks</p>
                           )}
                         </td>
-                        <td className="px-8 py-7"><p className="text-sm font-bold text-white font-mono tracking-tight">₹{order.total_amount.toLocaleString()}</p></td>
+                        <td className="px-8 py-7"><p className="text-sm font-bold text-white font-mono tracking-tight">₹{(order.total_amount ?? 0).toLocaleString()}</p></td>
                         <td className="px-8 py-7">
                           <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[statusKey]?.bg} ${statusConfig[statusKey]?.color}`}>
                             {statusConfig[statusKey]?.label}
@@ -298,7 +302,7 @@ export default function OrderCommandCenter() {
                       {employees.map((emp) => (
                         <button
                           key={emp.id}
-                          onClick={() => handleAssign(selectedOrder.order_items[0].id, emp.id)}
+                          onClick={() => handleAssign(selectedOrder.order_items?.[0]?.id ?? '', emp.id)}
                           className="flex items-center justify-between p-4 bg-black border border-neutral-800 rounded-xl hover:border-teal-500 group transition-all"
                         >
                           <div className="text-left">
@@ -333,7 +337,7 @@ export default function OrderCommandCenter() {
                     <div>
                       <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest leading-none">Assigned To</p>
                       <p className="text-sm font-bold text-white mt-1">
-                        {employees.find(e => e.id === selectedOrder.order_items[0].assigned_to)?.name || "External Agent"}
+                        {employees.find(e => e.id === selectedOrder.order_items?.[0]?.assigned_to)?.name || "External Agent"}
                       </p>
                     </div>
                   </div>
@@ -349,7 +353,7 @@ export default function OrderCommandCenter() {
                   </div>
                   <div className="pt-6 border-t border-neutral-900 flex justify-between items-center">
                     <span className="text-white font-bold">Total Amount</span>
-                    <span className="text-3xl font-bold text-teal-400 font-mono tracking-tighter">₹{selectedOrder.total_amount.toLocaleString()}</span>
+                    <span className="text-3xl font-bold text-teal-400 font-mono tracking-tighter">₹{(selectedOrder.total_amount ?? 0).toLocaleString()}</span>
                   </div>
                 </div>
               </section>
