@@ -1,57 +1,15 @@
-import React, { FC } from "react";
-import Link from "next/link";
-import {
-  MessageSquare,
-  Layers,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
-  Users,
-  ChevronDown,
-  GripVertical,
-  Play
-} from "lucide-react";
+"use client";
+import React, { FC } from 'react';
+import UserSideNavbar from "../components/UserSideNavbar";
+import Footer from "../components/UserSideFooterHomePage";
+import Hero from "../components/HomePageHeroSection";
+import TrustedBy from "../components/HomePageTrustSection";
+import ProblemSection from "../components/HomePageProblemSection";
 
 const StackboardClassic: FC = () => {
   return (
-    <div className="min-h-screen bg-[#F7FAFC] text-[#1A365D] font-sans antialiased">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition">
-            <div className="w-8 h-8 rounded-lg bg-[#1A365D] flex items-center justify-center">
-              <Layers className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg tracking-tight text-[#1A365D]">
-              Stackboard
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            {["Product", "Solutions", "Pricing", "Resources"].map((item) => (
-              <Link key={item} href={`/${item.toLowerCase()}`} className="hover:text-[#2B6CB0] transition-colors">
-                {item}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link 
-              href="/login" 
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-[#1A365D] transition"
-            >
-              Sign In
-            </Link>
-            <Link 
-              href="/login" 
-              className="px-5 py-2 text-sm font-semibold bg-[#2B6CB0] text-white rounded-lg hover:bg-[#1e4e80] transition-all shadow-md hover:shadow-lg active:scale-95"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#f8f7f2] text-[#0a0a0a] font-sans antialiased selection:bg-[#c53030] selection:text-white">
+      <UserSideNavbar />
 
       <main>
         {/* HERO */}
@@ -273,38 +231,7 @@ const StackboardClassic: FC = () => {
         </section>
       </main>
 
-      {/* FOOTER */}
-      <footer className="bg-white border-t border-slate-200 pt-20 pb-10 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-12">
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-6">
-              <Layers className="w-5 h-5 text-[#1A365D]" />
-              <span className="font-bold text-lg">Stackboard</span>
-            </div>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Making project management simple, visual, and highly productive for modern teams.
-            </p>
-          </div>
-          {FOOTER_LINKS.map((col) => (
-            <div key={col.title}>
-              <h5 className="font-bold text-slate-900 mb-6 uppercase text-[10px] tracking-widest">{col.title}</h5>
-              <ul className="space-y-4 text-sm text-slate-600">
-                {col.links.map((link) => (
-                  <li key={link}><Link href="#" className="hover:text-[#2B6CB0] transition">{link}</Link></li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-slate-100 text-center text-slate-400 text-[11px] uppercase tracking-widest">
-          © 2026 Stackboard Inc. All rights reserved.
-        </div>
-      </footer>
-
-      {/* FLOATING ACTION */}
-      <button className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-[#319795] text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-90 transition-all z-50 group">
-        <MessageSquare className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-      </button>
+      <Footer />
     </div>
   );
 };

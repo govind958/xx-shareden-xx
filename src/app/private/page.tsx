@@ -16,6 +16,7 @@ import ClientDashbordPage from "../ClientDashbord/page"
 import StacksPage from "../product_stacks/page"
 import StacksCartPage from "../Stacks_Cart/page"
 import StackboardPage from "../Stackboard/page"
+import Price from "../Price/page"
 import BillingPage from "../Billing/page"
 import OrganizationSettingsPage from "../Setting/page"
 
@@ -52,6 +53,7 @@ function PrivatePanelContent() {
       case "overview": return <ClientDashbordPage />
       case "stacks": return <StacksPage />
       case "stacks_cart": return <StacksCartPage />
+       case "client_price": return <Price/>
       case "stackboard": return <StackboardPage />
       case "billing": return <BillingPage />
       case "settings": return <OrganizationSettingsPage />
