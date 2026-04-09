@@ -6,6 +6,8 @@ import Hero from "../components/HomePageHeroSection";
 import TrustedBy from "../components/HomePageTrustSection";
 import ProblemSection from "../components/HomePageProblemSection";
 
+import Link from 'next/link';
+import { ArrowRight, Users, ChevronDown, Calendar, ChevronRight, ChevronLeft, GripVertical, Play } from 'lucide-react';
 const StackboardClassic: FC = () => {
   return (
     <div className="min-h-screen bg-[#f8f7f2] text-[#0a0a0a] font-sans antialiased selection:bg-[#c53030] selection:text-white">

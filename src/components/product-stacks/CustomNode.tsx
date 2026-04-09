@@ -143,13 +143,13 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
               </p>
             )}
 
-            <p className="text-[9px] text-slate-500 uppercase tracking-wider">
+            {/* <p className="text-[9px] text-slate-500 uppercase tracking-wider">
               Total Estimate
             </p>
 
             <p className={`text-lg font-mono ${isSaved ? "text-green-500" : "text-[#18C7C1]"}`}>
               ₹{(price || 0).toLocaleString()}
-            </p>
+            </p> */}
 
           </div>
 
@@ -232,13 +232,13 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
 
       </div>
 
-      {price !== undefined && (
+      {/* {price !== undefined && (
 
         <div className="absolute right-4 top-4 text-[11px] font-mono text-slate-300 bg-[#020617] border border-[#1E293B] px-2 py-1 rounded-lg">
           ₹{price.toLocaleString()}
         </div>
 
-      )}
+      )} */}
 
       {/* CONNECTION POINTS */}
 

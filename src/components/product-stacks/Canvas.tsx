@@ -1,14 +1,74 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDnD, CanvasNode, useZoom, useCanvasInteractions } from '@/src/modules/product_stacks';
 import { CustomNode } from './CustomNode';
 import { ZoomControls } from './ZoomControls';
-import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/src/context/AuthContext';
+import { X, AlertTriangle, ArrowRight } from 'lucide-react';
+import {
+  createDeployOrderForCustomCluster,
+  getStarterDeployLimits,
+} from '@/src/modules/orders/createDeployOrder';
 
 const STORAGE_KEY_CANVAS_NODES = 'product_stacks_canvas_nodes';
+
+type DialogState = {
+  open: boolean;
+  title: string;
+  message: string;
+  showUpgrade?: boolean;
+};
+
+const LimitDialog = ({
+  dialog,
+  onClose,
+  onUpgrade,
+}: {
+  dialog: DialogState;
+  onClose: () => void;
+  onUpgrade: () => void;
+}) => {
+  if (!dialog.open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={20} className="text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-slate-900">{dialog.title}</h3>
+            <p className="text-sm text-slate-500 mt-1">{dialog.message}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="px-6 pb-6 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+          >
+            Got it
+          </button>
+          {dialog.showUpgrade && (
+            <button
+              onClick={onUpgrade}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2 transition"
+            >
+              Upgrade to Pro
+              <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const Canvas: React.FC = () => {
 
@@ -27,6 +87,14 @@ export const Canvas: React.FC = () => {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [purchasingIds, setPurchasingIds] = useState<string[]>([]);
+  const [maxSubStacks, setMaxSubStacks] = useState(3);
+  const [dialog, setDialog] = useState<DialogState>({ open: false, title: '', message: '' });
+
+  const closeDialog = useCallback(() => setDialog(prev => ({ ...prev, open: false })), []);
+  const handleUpgrade = useCallback(() => {
+    closeDialog();
+    router.push('/private?tab=client_price');
+  }, [closeDialog, router]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +120,12 @@ export const Canvas: React.FC = () => {
       localStorage.setItem(STORAGE_KEY_CANVAS_NODES, JSON.stringify(nodes));
     }
   }, [nodes]);
+
+  useEffect(() => {
+    getStarterDeployLimits().then((limits) => {
+      setMaxSubStacks(limits.maxSubStacks);
+    });
+  }, [user]);
 
   /* ---------------------------
      CLICK TO ADD CLUSTER
@@ -134,6 +208,19 @@ export const Canvas: React.FC = () => {
 
     const targetGroup = groupAtPoint && !groupAtPoint.isSaved ? groupAtPoint : null;
 
+    if (targetGroup && !isGroup) {
+      const childCount = nodes.filter((n) => n.parentId === targetGroup.id).length;
+      if (childCount >= maxSubStacks) {
+        setDialog({
+          open: true,
+          title: 'Module limit reached',
+          message: `Starter plan allows up to ${maxSubStacks} modules per stack. Upgrade to Pro for unlimited modules.`,
+          showUpgrade: true,
+        });
+        return;
+      }
+    }
+
     const newNode: CanvasNode = {
 
       id: `node-${Date.now()}`,
@@ -186,49 +273,67 @@ export const Canvas: React.FC = () => {
 
     if (purchasingIds.includes(clusterId)) return;
 
-    setPurchasingIds(prev => [...prev, clusterId]);
+    if (!user) {
+      setDialog({ open: true, title: 'Sign in required', message: 'Please sign in to deploy a stack.' });
+      return;
+    }
 
     const clusterNode = nodes.find(n => n.id === clusterId);
 
     if (!clusterNode) return;
 
+    setPurchasingIds(prev => [...prev, clusterId]);
+
     const substacks = nodes.filter(n => n.parentId === clusterId);
 
-    const totalPrice = substacks.reduce((sum, n) => sum + (n.base_price || 0), 0);
-
-    if (!user) {
-      alert('Please sign in');
-      return;
-    }
+    // const totalPrice = substacks.reduce((sum, n) => sum + (n.base_price || 0), 0);
 
     try {
 
-      const supabase = createClient();
-
       const clusterData = substacks.map(node => ({
         name: node.label,
-        price: node.base_price || 0,
+        // price: node.base_price || 0,
+        price: 0,
+        is_free: false as const,
       }));
 
-      await supabase.from('cart_stacks').insert({
+      // --- Cart flow (disabled): insert cluster into cart_stacks, then navigate ---
+      // const supabase = createClient();
+      // const clusterDataForCart = substacks.map(node => ({
+      //   name: node.label,
+      //   price: node.base_price || 0,
+      // }));
+      // await supabase.from('cart_stacks').insert({
+      //   user_id: user.id,
+      //   cluster_name: clusterNode.label || 'Custom Stack',
+      //   cluster_data: clusterDataForCart,
+      //   total_price: totalPrice,
+      //   status: 'active',
+      // });
+      // router.push('/private?tab=client_price');
 
-        user_id: user.id,
-
-        cluster_name: clusterNode.label || 'Custom Stack',
-
-        cluster_data: clusterData,
-
-        total_price: totalPrice,
-
-        status: 'active',
-
+      const result = await createDeployOrderForCustomCluster({
+        clusterName: clusterNode.label || 'Custom Stack',
+        clusterData,
+        // totalPrice,
+        totalPrice:0,
       });
 
-      router.push('/private?tab=stacks_cart');
+      if (!result.success) {
+        setDialog({
+          open: true,
+          title: result.redirectToPricing ? 'Upgrade required' : 'Deployment failed',
+          message: result.error || 'Could not start deployment.',
+          showUpgrade: result.redirectToPricing,
+        });
+        return;
+      }
+
+      router.push('/private?tab=stackboard');
 
     } catch {
 
-      alert('Failed to add to cart.');
+      setDialog({ open: true, title: 'Deployment failed', message: 'Could not start deployment. Please try again.' });
 
     } finally {
 
@@ -384,6 +489,8 @@ export const Canvas: React.FC = () => {
         </div>
 
       )}
+
+      <LimitDialog dialog={dialog} onClose={closeDialog} onUpgrade={handleUpgrade} />
 
     </div>
 

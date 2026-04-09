@@ -1,16 +1,86 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Stack } from '@/src/types/product_stacks';
 import { 
   ArrowRight, Search, Trash2, X, Clock3, Users, 
   BarChart3, LayoutGrid, Globe, Layers, Box, Database, 
-  Shield, Zap, Server, Mail, Target, LucideIcon 
+  Shield, Zap, Server, Mail, Target, LucideIcon, AlertTriangle 
 } from 'lucide-react'; 
 import { createClient } from '@/utils/supabase/client';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
+import {
+  createDeployOrderForPreMadeStack,
+  getStarterDeployLimits,
+} from '@/src/modules/orders/createDeployOrder';
+
+type DialogState = {
+  open: boolean;
+  title: string;
+  message: string;
+  showUpgrade?: boolean;
+  confirmLabel?: string;
+  onConfirm?: () => void;
+};
+
+const LimitDialog = ({
+  dialog,
+  onClose,
+  onUpgrade,
+}: {
+  dialog: DialogState;
+  onClose: () => void;
+  onUpgrade: () => void;
+}) => {
+  if (!dialog.open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={20} className="text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-slate-900">{dialog.title}</h3>
+            <p className="text-sm text-slate-500 mt-1">{dialog.message}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="px-6 pb-6 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+          >
+            {dialog.onConfirm ? 'Cancel' : 'Got it'}
+          </button>
+          {dialog.onConfirm && (
+            <button
+              onClick={() => { onClose(); dialog.onConfirm?.(); }}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+            >
+              {dialog.confirmLabel || 'Continue'}
+            </button>
+          )}
+          {dialog.showUpgrade && !dialog.onConfirm && (
+            <button
+              onClick={onUpgrade}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2 transition"
+            >
+              Upgrade to Pro
+              <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface PreMadeStacksProps {
   stacks: Stack[];
@@ -45,6 +115,22 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
   const [viewingStack, setViewingStack] = useState<Stack | null>(null);
   const [loadingStackId, setLoadingStackId] = useState<string | null>(null);
   const [userCounts, setUserCounts] = useState<Record<string, number>>({});
+  const [isPaid, setIsPaid] = useState(false);
+  const [maxSubStacks, setMaxSubStacks] = useState(3);
+  const [dialog, setDialog] = useState<DialogState>({ open: false, title: '', message: '' });
+
+  const closeDialog = useCallback(() => setDialog(prev => ({ ...prev, open: false })), []);
+  const handleUpgrade = useCallback(() => {
+    closeDialog();
+    router.push('/private?tab=client_price');
+  }, [closeDialog, router]);
+
+  useEffect(() => {
+    getStarterDeployLimits().then((limits) => {
+      setIsPaid(limits.paid);
+      setMaxSubStacks(limits.maxSubStacks);
+    });
+  }, [user]);
 
   useEffect(() => {
     const fetchUserCounts = async () => {
@@ -81,48 +167,60 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
     stack.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const deployStack = useCallback(async (stack: Stack, subStackIds: string[]) => {
+    setLoadingStackId(stack.id);
+    try {
+      const result = await createDeployOrderForPreMadeStack({
+        stackId: stack.id,
+        subStackIds,
+        totalAmount: 0,
+      });
+
+      if (!result.success) {
+        setDialog({
+          open: true,
+          title: result.redirectToPricing ? 'Upgrade required' : 'Deployment failed',
+          message: result.error || 'Could not start deployment.',
+          showUpgrade: result.redirectToPricing,
+        });
+        return;
+      }
+
+      router.push('/private?tab=stackboard');
+    } catch {
+      setDialog({ open: true, title: 'Deployment failed', message: 'Could not start deployment. Please try again.' });
+    } finally {
+      setLoadingStackId(null);
+    }
+  }, [router]);
+
   const handleLoadTemplate = async (stack: Stack) => {
 
     if (loadingStackId === stack.id || !user) {
-
-      if (!user) alert('Please sign in to continue.');
+      if (!user) {
+        setDialog({ open: true, title: 'Sign in required', message: 'Please sign in to deploy a stack.' });
+      }
       return;
     }
 
-    setLoadingStackId(stack.id);
+    const allSubStackIds = stack.sub_stacks?.map(s => s.id) || [];
+    const subStackIds = isPaid
+      ? allSubStackIds
+      : allSubStackIds.slice(0, maxSubStacks);
 
-    try {
-
-      const supabase = createClient();
-
-      const subStackIds = stack.sub_stacks?.map(s => s.id) || [];
-
-      const totalPrice =
-        stack.sub_stacks?.reduce((sum, sub) => sum + (sub.price || 0), 0) ||
-        stack.base_price ||
-        0;
-
-      const { error } = await supabase.from('cart_stacks').insert({
-        user_id: user.id,
-        stack_id: stack.id,
-        sub_stack_ids: subStackIds,
-        total_price: totalPrice,
-        status: 'active',
+    if (!isPaid && allSubStackIds.length > maxSubStacks) {
+      setDialog({
+        open: true,
+        title: 'Module limit',
+        message: `Starter plan deploys only the first ${maxSubStacks} modules out of ${allSubStackIds.length}. Upgrade to Pro for all modules.`,
+        showUpgrade: false,
+        confirmLabel: `Deploy with ${maxSubStacks} modules`,
+        onConfirm: () => deployStack(stack, subStackIds),
       });
-
-      if (error) throw error;
-
-      router.push('/private?tab=stacks_cart');
-
-    } catch {
-
-      alert('Error adding to cart.');
-
-    } finally {
-
-      setLoadingStackId(null);
-
+      return;
     }
+
+    deployStack(stack, subStackIds);
   };
 
   return (
@@ -268,7 +366,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
 
               <div className="border-t pt-4 mt-auto">
 
-                <div className="flex justify-between items-center mb-4">
+                {/* <div className="flex justify-between items-center mb-4">
 
                   <span className="text-sm text-slate-500">Price</span>
 
@@ -276,7 +374,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
                     ₹{stack.base_price?.toLocaleString()}
                   </span>
 
-                </div>
+                </div> */}
 
                 <button
                   onClick={() => handleLoadTemplate(stack)}
@@ -303,6 +401,8 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
         onLoad={handleLoadTemplate}
         isLoading={loadingStackId === viewingStack?.id}
       />
+
+      <LimitDialog dialog={dialog} onClose={closeDialog} onUpgrade={handleUpgrade} />
 
     </section>
   );
@@ -393,7 +493,7 @@ const TemplateDetailsPanel = ({
 
         <div className="p-6 border-t">
 
-          <div className="flex justify-between items-center mb-4">
+          {/* <div className="flex justify-between items-center mb-4">
 
             <span className="text-slate-500">Total</span>
 
@@ -401,7 +501,7 @@ const TemplateDetailsPanel = ({
               ₹{stack.base_price?.toLocaleString()}
             </span>
 
-          </div>
+          </div> */}
 
           <button
             onClick={() => onLoad(stack)}

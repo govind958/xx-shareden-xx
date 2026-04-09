@@ -5,16 +5,13 @@ import { cn } from "@/src/lib/utils"
 import { 
   Home, 
   Package, 
-  ShoppingCart, 
   LayoutDashboard, 
   Settings, 
   LogOut, 
   PanelLeftClose, 
   PanelLeftOpen,
   CreditCard,   // Payment
-  Kanban,       // Board
   ReceiptText,  // Billing/Invoices
-  Square        // Corrected Icon
 } from "lucide-react"
 import ThemeToggle from "./toggle them on-off-client"
 
@@ -38,7 +35,6 @@ export function ClientSidebar({
   const navLinks = [
     { id: "overview", icon: Home, label: "Dashboard" },
     { id: "stacks", icon: Package, label: "Stacks" },
-    { id: "stacks_cart", icon: ShoppingCart, label: "Cart" },
     { id: "client_price", icon: CreditCard, label: "Price" },
     { id: "stackboard", icon: LayoutDashboard, label: "Stackboard" },
     { id: "billing", icon: ReceiptText, label: "Billing" },

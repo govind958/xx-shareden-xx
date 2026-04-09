@@ -192,11 +192,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
                           {stack.description || 'Drag to deploy to infrastructure'}
                         </p>
 
-                        {stack.base_price > 0 && (
+                        {/* {stack.base_price > 0 && (
                           <p className="text-[9px] text-teal-400 font-mono">
                             ₹{stack.base_price.toLocaleString()}
                           </p>
-                        )}
+                        )} */}
 
                         {/* SUB STACKS */}
 
@@ -224,17 +224,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
                                   });
                                 }}
                                 onMouseDown={(e) => e.stopPropagation()}
-                                className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-teal-500/50 cursor-grab active:cursor-grabbing transition-all group/sub text-[10px] flex items-center justify-between"
+                                className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-teal-500/50 cursor-grab active:cursor-grabbing transition-all group/sub text-[10px] flex items-center justify-start gap-2"
                               >
                                 <span className="text-slate-300 truncate group-hover/sub:text-white transition-colors">
                                   {sub.name}
                                 </span>
 
-                                <span className="text-teal-400 font-mono group-hover/sub:text-teal-300 transition-colors">
+                                {/* <span className="text-teal-400 font-mono group-hover/sub:text-teal-300 transition-colors">
                                   {sub.is_free
                                     ? 'FREE'
                                     : `₹${sub.price.toLocaleString()}`}
-                                </span>
+                                </span> */}
 
                               </div>
 
