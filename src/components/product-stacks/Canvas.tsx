@@ -293,7 +293,11 @@ export const Canvas: React.FC = () => {
           )}
           
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              setNodes([]);
+              setSelectedId(null);
+              localStorage.removeItem(STORAGE_KEY_CANVAS_NODES);
+            }}
             className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all active:rotate-180"
             title="Refresh Canvas"
           >
