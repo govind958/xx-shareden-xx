@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { 
   Users, UserCheck, Filter, 
   ChevronRight, X, Mail, Trash2, Code2, 
-  Terminal, Cpu, Globe, ExternalLink, Check, Clock
+  Terminal, Globe, ExternalLink, Check, Clock
 } from "lucide-react"
 
 import { sendEmployeeInvite } from "@/src/modules/employee/actions";
@@ -33,11 +33,7 @@ export default function AdminEmployeesPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
 
   // --- DATA FETCHING ---
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  async function fetchEmployees() {
+  const fetchEmployees = React.useCallback(async () => {
     setLoading(true);
     const [empRes, pendingRes] = await Promise.all([
       supabase.from("employees").select("*").order("created_at", { ascending: false }),
@@ -46,12 +42,17 @@ export default function AdminEmployeesPage() {
     if (!empRes.error) setEmployees(empRes.data || []);
     if (!pendingRes.error) setPendingEmployees(pendingRes.data || []);
     setLoading(false);
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   // --- ANALYTICS CALCULATIONS ---
   const activeCount = employees.filter(e => e.is_active).length;
   const inactiveCount = employees.length - activeCount;
-  const loadFactor = employees.length > 0 ? ((activeCount / employees.length) * 100).toFixed(1) : "0";
+  void (employees.length > 0 ? ((activeCount / employees.length) * 100).toFixed(1) : "0");
 
   const stats = [
     { label: "Total Employees", val: employees.length, icon: Users, status: "Active" },

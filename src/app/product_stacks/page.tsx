@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { getStacks, Stack, SubStack, DnDProvider } from '@/src/modules/product_stacks';
-import { CanvasContainer, Footer, PreMadeStacks } from '@/src/components/product-stacks';
+import { CanvasContainer, PreMadeStacks } from '@/src/components/product-stacks';
 
 /* --- LOADING --- */
 

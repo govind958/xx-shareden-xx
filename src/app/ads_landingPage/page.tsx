@@ -2,8 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  Plus, 
-  Minus, 
+  Plus,  
   CheckCircle2, 
   ArrowRight, 
   TrendingUp, 

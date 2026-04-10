@@ -8,9 +8,10 @@ import {
   ArrowUpRight, CheckCircle2, Clock
 } from 'lucide-react';
 
+interface TaskItem { id: string; status?: string; progress_percent?: number; section_type?: string; target?: number; limit?: number; stacks?: { name?: string }; }
 export default function ProjectPage() {
   const supabase = createClient();
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -31,14 +32,14 @@ export default function ProjectPage() {
             .eq('assigned_to', employee.id);
 
           if (!error && data) {
-            setTasks(data);
+            setTasks(data as unknown as TaskItem[]);
           }
         }
       }
       setLoading(false);
     }
     fetchAssignedTasks();
-  }, []);
+  }, [supabase]);
 
   const filteredTasks = tasks.filter(t =>
     (t.stacks?.name || t.id).toLowerCase().includes(searchQuery.toLowerCase())

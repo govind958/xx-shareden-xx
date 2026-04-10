@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react"
 import {
-  IndianRupee, ClipboardList, Clock, Layers,
-  Activity, Zap,
-  Search, Bell, Trash2, Download
+  IndianRupee, ClipboardList, Clock,
+  Activity,
+  Trash2, Download
 } from "lucide-react"
 import { SpreadsheetRow } from "@/src/types/admin"
 import { AdminDashboardProps } from "@/src/types/admin"

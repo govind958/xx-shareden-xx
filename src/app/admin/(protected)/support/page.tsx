@@ -29,8 +29,8 @@ export default function SupportPanel() {
       setError(null)
       const data = await getTickets()
       setTickets(data)
-    } catch (err: any) {
-      setError(err.message ?? "Failed to load tickets")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load tickets")
     } finally {
       setLoading(false)
     }
@@ -71,9 +71,9 @@ export default function SupportPanel() {
     try {
       setUpdatingId(id)
       await updateTicketStatus(id, newStatus)
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Revert on failure
-      setError(`Failed to update status: ${err.message}`)
+      setError(`Failed to update status: ${err instanceof Error ? err.message : 'Unknown error'}`)
       fetchTickets()
     } finally {
       setUpdatingId(null)
@@ -91,8 +91,8 @@ export default function SupportPanel() {
     try {
       setDeletingId(id)
       await deleteTicket(id)
-    } catch (err: any) {
-      setError(`Failed to delete ticket: ${err.message}`)
+    } catch (err: unknown) {
+      setError(`Failed to delete ticket: ${err instanceof Error ? err.message : 'Unknown error'}`)
       fetchTickets() // re-sync
     } finally {
       setDeletingId(null)

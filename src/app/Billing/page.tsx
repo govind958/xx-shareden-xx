@@ -40,7 +40,7 @@ const BillingPage: FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [purchasedStacks, setPurchasedStacks] = useState<PurchasedStack[]>([]);
   const [orders, setOrders] = useState<OrderWithStacks[]>([]);
-  const [selectedStack, setSelectedStack] = useState<any>(null);
+  const [selectedStack, setSelectedStack] = useState<(PurchasedStack & { billing_date: string; days_left: number }) | null>(null);
   const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(null);
 
   const { user } = useAuth();
@@ -138,7 +138,7 @@ const BillingPage: FC = () => {
               Billing Address
             </h2>
             <a
-              href="/Stacks_Cart"
+              href="/private?tab=client_price"
               className="text-xs font-bold text-[#2B6CB0] hover:text-[#1A365D] flex items-center gap-1 transition-colors"
             >
               <Pencil size={12} /> Edit
@@ -178,7 +178,7 @@ const BillingPage: FC = () => {
             <div className="text-center py-6">
               <p className="text-slate-400 text-sm">No billing address saved yet.</p>
               <a
-                href="/Stacks_Cart"
+                href="/private?tab=client_price"
                 className="mt-2 inline-block text-xs font-bold text-[#2B6CB0] hover:text-[#1A365D] transition-colors"
               >
                 Add billing address →

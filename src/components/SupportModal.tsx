@@ -83,7 +83,7 @@ export default function SupportModal({ onClose, userId }: SupportModalProps) {
 
     const clearAttachment = () => {
       setAttachmentFile(null);
-      fileInputRef.current?.value && (fileInputRef.current.value = "");
+      if (fileInputRef.current?.value) fileInputRef.current.value = "";
     };
   
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

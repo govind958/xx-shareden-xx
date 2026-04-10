@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { 
   User, Shield, Mail, Save, Fingerprint, 
@@ -32,11 +32,7 @@ export default function EmployeeSettings() {
     is_active: false
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  async function fetchProfile() {
+  const fetchProfile = useCallback(async () => {
 
     setLoading(true);
 
@@ -71,7 +67,14 @@ export default function EmployeeSettings() {
     }
 
     setLoading(false);
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  // keep fetchProfile declaration for use in handleUpdate below
 
   async function handleUpdate(e: React.FormEvent) {
 

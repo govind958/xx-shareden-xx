@@ -8,7 +8,7 @@ export interface PURCHASED_STACKS {
   price: number;
   status: string;
   progress_percent: number;
-  icon?: any; // Optional icon component
+  icon?: React.ElementType; // Optional icon component
 }
 
 export interface PURCHASED_SUBSTACKS {

@@ -11,7 +11,7 @@ const SaveCluster = ({
     height, 
     isSaved,
     onResizeStart,
-    onConnectStart,
+    // onConnectStart is forwarded but not used internally
     onSave
   }: { 
     id: string;

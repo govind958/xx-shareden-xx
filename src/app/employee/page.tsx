@@ -97,7 +97,7 @@ export default function EmployeePage() {
     }
 
     loadAssignments()
-  }, [])
+  }, [authLoading, user])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {

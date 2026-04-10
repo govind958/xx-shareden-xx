@@ -1,13 +1,59 @@
 "use client";
 
-import React, { useState } from "react";
-import { Check, Zap, Shield, Crown, Info, ArrowRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Check, Zap, Shield, Crown, Info, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/src/context/AuthContext";
+import {
+  createPlanSubscription,
+  verifyPlanSubscription,
+  getUserActivePlan,
+  type PlanName,
+} from "@/src/modules/razorpay/planSubscription";
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay: any;
+  }
+}
+
+const loadRazorpayScript = () =>
+  new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
 
 const PricingPage = () => {
+  const router = useRouter();
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [activePlan, setActivePlan] = useState<string | null>(null);
 
-  const plans = [
+  useEffect(() => {
+    getUserActivePlan().then((sub) => {
+      if (sub) setActivePlan(sub.plan);
+    });
+  }, []);
+
+  const plans: {
+    key: PlanName;
+    name: string;
+    description: string;
+    monthlyPrice: number;
+    yearlyPrice: number;
+    icon: typeof Zap;
+    features: string[];
+    cta: string;
+    highlight: boolean;
+  }[] = [
     {
+      key: "starter",
       name: "Starter",
       description: "Perfect for individuals and small side projects.",
       monthlyPrice: 0,
@@ -18,26 +64,102 @@ const PricingPage = () => {
       highlight: false,
     },
     {
+      key: "pro",
       name: "Pro",
       description: "Advanced tools for growing teams and professionals.",
       monthlyPrice: 29,
       yearlyPrice: 19,
       icon: Shield,
       features: ["Unlimited Stacks", "Advanced Analytics", "Priority Email Support", "10GB Storage", "Custom Domains"],
-      cta: "Start Free Trial",
-      highlight: true, // Most Popular
+      cta: "Subscribe",
+      highlight: true,
     },
     {
+      key: "enterprise",
       name: "Enterprise",
       description: "Scale without limits with dedicated support.",
       monthlyPrice: 99,
       yearlyPrice: 79,
       icon: Crown,
       features: ["Everything in Pro", "SLA Guarantee", "Dedicated Manager", "Unlimited Storage", "Custom Contracts"],
-      cta: "Contact Sales",
+      cta: "Subscribe",
       highlight: false,
     },
   ];
+
+  const handleSelectPlan = async (plan: (typeof plans)[number]) => {
+    if (!user) {
+      alert("Please sign in to choose a plan.");
+      return;
+    }
+
+    if (activePlan === plan.key) return;
+
+    setLoadingPlan(plan.key);
+
+    try {
+      if (plan.key === "starter") {
+        const result = await createPlanSubscription("starter", "monthly");
+        if ("error" in result) {
+          alert(result.error);
+          return;
+        }
+        setActivePlan("starter");
+        router.push("/private?tab=stacks");
+        return;
+      }
+
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert("Failed to load payment SDK. Check your connection.");
+        return;
+      }
+
+      const result = await createPlanSubscription(plan.key, billingCycle);
+      if ("error" in result) {
+        alert(result.error);
+        return;
+      }
+
+      if (!("subscriptionId" in result)) return;
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        subscription_id: result.subscriptionId,
+        name: "Shareden",
+        description: `${plan.name} Plan – ${billingCycle}`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        handler: async (response: any) => {
+          const verification = await verifyPlanSubscription({
+            razorpay_subscription_id: response.razorpay_subscription_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            plan: plan.key,
+            billingCycle,
+          });
+
+          if ("error" in verification) {
+            alert(`Payment failed: ${verification.error}`);
+          } else {
+            setActivePlan(plan.key);
+            alert("Plan activated successfully!");
+            router.push("/private?tab=stacks");
+          }
+        },
+        prefill: { email: user.email || "" },
+        theme: { color: "#2B6CB0" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch {
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const isCurrentPlan = (key: string) => activePlan === key;
 
   return (
     <main className="min-h-screen bg-[#FDFDFD] font-sans text-slate-900 p-4 md:p-12">
@@ -57,7 +179,7 @@ const PricingPage = () => {
             <span className={`text-xs font-bold uppercase tracking-wider ${billingCycle === "monthly" ? "text-[#1A365D]" : "text-slate-400"}`}>
               Monthly
             </span>
-            <button 
+            <button
               onClick={() => setBillingCycle(billingCycle === "monthly" ? "yearly" : "monthly")}
               className="w-12 h-6 bg-slate-200 rounded-full relative transition-colors duration-200 focus:outline-none"
             >
@@ -72,12 +194,12 @@ const PricingPage = () => {
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {plans.map((plan, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={`relative bg-white rounded-xl border p-8 transition-all duration-300 ${
-                plan.highlight 
-                ? "border-[#2B6CB0] shadow-xl scale-105 z-10" 
-                : "border-slate-200 shadow-sm hover:shadow-md"
+                plan.highlight
+                  ? "border-[#2B6CB0] shadow-xl scale-105 z-10"
+                  : "border-slate-200 shadow-sm hover:shadow-md"
               }`}
             >
               {plan.highlight && (
@@ -100,9 +222,13 @@ const PricingPage = () => {
                 <div className="mb-8">
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-bold text-[#1A365D]">
-                      ₹{billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice}
+                      {plan.key === "starter"
+                        ? "Free"
+                        : `₹${billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice}`}
                     </span>
-                    <span className="text-slate-400 text-sm">/month</span>
+                    {plan.key !== "starter" && (
+                      <span className="text-slate-400 text-sm">/month</span>
+                    )}
                   </div>
                   {billingCycle === "yearly" && plan.yearlyPrice > 0 && (
                     <p className="text-[10px] text-emerald-600 font-bold mt-1 uppercase tracking-tight">
@@ -121,16 +247,28 @@ const PricingPage = () => {
                   ))}
                 </ul>
 
-                {/* Action Button */}
-                <button 
-                  className={`w-full py-3 rounded text-xs font-bold uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 ${
-                    plan.highlight 
-                    ? "bg-[#2B6CB0] text-white shadow-md hover:bg-[#1A365D]" 
-                    : "bg-white border border-slate-200 text-[#1A365D] hover:bg-slate-50"
+                <button
+                  onClick={() => handleSelectPlan(plan)}
+                  disabled={loadingPlan === plan.key || isCurrentPlan(plan.key)}
+                  className={`w-full py-3 rounded text-xs font-bold uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+                    isCurrentPlan(plan.key)
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : plan.highlight
+                      ? "bg-[#2B6CB0] text-white shadow-md hover:bg-[#1A365D]"
+                      : "bg-white border border-slate-200 text-[#1A365D] hover:bg-slate-50"
                   }`}
                 >
-                  {plan.cta}
-                  <ArrowRight size={14} />
+                  {loadingPlan === plan.key ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : isCurrentPlan(plan.key) ? (
+                    <>
+                      Current Plan <CheckCircle2 size={14} />
+                    </>
+                  ) : (
+                    <>
+                      {plan.cta} <ArrowRight size={14} />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
