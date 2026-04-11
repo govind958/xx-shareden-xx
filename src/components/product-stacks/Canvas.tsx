@@ -2,25 +2,29 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  useDnD, 
-  CanvasNode, 
-  useZoom, 
-  useCanvasInteractions 
+import {
+  useDnD,
+  CanvasNode,
+  useZoom,
+  useCanvasInteractions
 } from '@/src/modules/product_stacks';
 import { CustomNode } from './CustomNode';
 import { ZoomControls } from './ZoomControls';
 import { useAuth } from '@/src/context/AuthContext';
-import { RefreshCw, Trash2, Rocket, LayoutGrid } from 'lucide-react';
+import { RefreshCw, Trash2, Rocket, AlertTriangle, X, ArrowRight } from 'lucide-react';
+import {
+  createDeployOrderForCustomCluster,
+  getStarterDeployLimits,
+} from '@/src/modules/orders/createDeployOrder';
 
 const STORAGE_KEY_CANVAS_NODES = 'product_stacks_canvas_nodes';
-const GRID_SIZE = 25; 
+const GRID_SIZE = 25;
 
 const THEME = {
-  canvasBg: 'bg-[#FDFDFD]',        
-  gridColor: '#cbd5e1',           
-  gridOpacity: 'opacity-40',      
-  selectionRing: 'ring-[#2B6CB0]', 
+  canvasBg: 'bg-[#FDFDFD]',
+  gridColor: '#cbd5e1',
+  gridOpacity: 'opacity-40',
+  selectionRing: 'ring-[#2B6CB0]',
   hudBg: 'bg-white/95',
   textMain: 'text-[#1A365D]',
   textMuted: 'text-slate-500'
@@ -31,6 +35,8 @@ type DialogState = {
   title: string;
   message: string;
   showUpgrade?: boolean;
+  confirmLabel?: string;
+  onConfirm?: () => void;
 };
 
 const LimitDialog = ({
@@ -65,9 +71,20 @@ const LimitDialog = ({
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
           >
-            Got it
+            {dialog.onConfirm ? 'Cancel' : 'Got it'}
           </button>
-          {dialog.showUpgrade && (
+          {dialog.onConfirm && (
+            <button
+              onClick={() => {
+                onClose();
+                dialog.onConfirm?.();
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+            >
+              {dialog.confirmLabel || 'Continue'}
+            </button>
+          )}
+          {dialog.showUpgrade && !dialog.onConfirm && (
             <button
               onClick={onUpgrade}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2 transition"
@@ -82,6 +99,10 @@ const LimitDialog = ({
   );
 };
 
+function isModuleNode(n: CanvasNode): boolean {
+  return n.type !== 'group';
+}
+
 export const Canvas: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
@@ -95,10 +116,13 @@ export const Canvas: React.FC = () => {
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [dialog, setDialog] = useState<DialogState>({ open: false, title: '', message: '' });
+  const [isPaid, setIsPaid] = useState(false);
+  const [maxSubStacks, setMaxSubStacks] = useState(3);
+
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   const [dragItem] = useDnD();
   const { scale, panOffset, zoomIn, zoomOut, resetZoom, handleWheel } = useZoom();
 
@@ -109,26 +133,93 @@ export const Canvas: React.FC = () => {
     onMouseUp,
   } = useCanvasInteractions(nodes, setNodes, scale, panOffset, containerRef);
 
-  // --- GLOBAL DEPLOY LOGIC ---
+  const moduleNodes = useMemo(() => nodes.filter(isModuleNode), [nodes]);
+
+  useEffect(() => {
+    getStarterDeployLimits().then((limits) => {
+      setIsPaid(limits.paid);
+      setMaxSubStacks(limits.maxSubStacks);
+    });
+  }, []);
+
+  const closeDialog = useCallback(() => setDialog((d) => ({ ...d, open: false })), []);
+  const handleUpgrade = useCallback(() => {
+    closeDialog();
+    router.push('/private?tab=client_price');
+  }, [closeDialog, router]);
+
+  const runDeploy = useCallback(async (modules: CanvasNode[]) => {
+    const clusterData = modules.map((n) => ({
+      name: (n.label || 'Module').trim() || 'Module',
+      price: n.base_price || 0,
+    }));
+    const totalPrice = clusterData.reduce((s, c) => s + c.price, 0);
+    const clusterName = `Canvas ${new Date().toLocaleDateString()}`;
+
+    const result = await createDeployOrderForCustomCluster({
+      clusterName,
+      clusterData,
+      totalPrice,
+    });
+
+    if (!result.success) {
+      setDialog({
+        open: true,
+        title: result.redirectToPricing ? 'Upgrade required' : 'Deployment failed',
+        message: result.error || 'Could not create your deployment.',
+        showUpgrade: result.redirectToPricing,
+      });
+      return;
+    }
+
+    setNodes([]);
+    setSelectedId(null);
+    localStorage.removeItem(STORAGE_KEY_CANVAS_NODES);
+    router.push('/private?tab=stackboard');
+  }, [router]);
+
   const handleGlobalDeploy = async () => {
-    if (nodes.length === 0 || isDeploying || !user) return;
+    if (moduleNodes.length === 0 || isDeploying) return;
+
+    if (!user) {
+      setDialog({
+        open: true,
+        title: 'Sign in required',
+        message: 'Please sign in to deploy your stack.',
+      });
+      return;
+    }
+
     setIsDeploying(true);
 
     try {
-      const supabase = createClient();
-      
-      // We are now deploying ALL nodes present on the canvas
-      await supabase.from('cart_stacks').insert({
-        user_id: user.id,
-        cluster_name: `Canvas Export ${new Date().toLocaleDateString()}`,
-        cluster_data: nodes.map(n => ({ name: n.label, price: n.base_price || 0 })),
-        total_price: nodes.reduce((s, n) => s + (n.base_price || 0), 0),
-        status: 'active',
+      if (!isPaid && moduleNodes.length > maxSubStacks) {
+        setDialog({
+          open: true,
+          title: 'Module limit',
+          message: `Starter plan allows up to ${maxSubStacks} modules per deployment. Go to Billing to upgrade to Pro for unlimited modules, or deploy the first ${maxSubStacks} modules now.`,
+          confirmLabel: `Deploy ${maxSubStacks} modules`,
+          onConfirm: () => {
+            void (async () => {
+              setIsDeploying(true);
+              try {
+                await runDeploy(moduleNodes.slice(0, maxSubStacks));
+              } finally {
+                setIsDeploying(false);
+              }
+            })();
+          },
+        });
+        return;
+      }
+
+      await runDeploy(moduleNodes);
+    } catch {
+      setDialog({
+        open: true,
+        title: 'Deployment failed',
+        message: 'Something went wrong. Please try again.',
       });
-      
-      router.push('/private?tab=stacks_cart');
-    } catch (err) {
-      alert('Error deploying canvas');
     } finally {
       setIsDeploying(false);
     }
@@ -162,11 +253,12 @@ export const Canvas: React.FC = () => {
     if (!dragItem || !containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
-    let x = snapToGrid((e.clientX - rect.left - panOffset.x) / scale);
-    let y = snapToGrid((e.clientY - rect.top - panOffset.y) / scale);
+    const x = snapToGrid((e.clientX - rect.left - panOffset.x) / scale);
+    const y = snapToGrid((e.clientY - rect.top - panOffset.y) / scale);
 
     const groupAtPoint = getGroupAtPoint(x, y);
     const targetGroup = groupAtPoint && !groupAtPoint.isSaved ? groupAtPoint : null;
+    const isGroup = dragItem.type === 'group';
 
     if (targetGroup && !isGroup) {
       const childCount = nodes.filter((n) => n.parentId === targetGroup.id).length;
@@ -206,6 +298,8 @@ export const Canvas: React.FC = () => {
       onMouseUp={onMouseUp}
       onWheel={handleWheel}
     >
+      <LimitDialog dialog={dialog} onClose={closeDialog} onUpgrade={handleUpgrade} />
+
       {/* GRID LAYER */}
       <div
         className="absolute inset-0"
@@ -231,7 +325,7 @@ export const Canvas: React.FC = () => {
           return (
             <div
               key={node.id}
-              className={`absolute transition-all duration-150 ${hoveredGroupId === node.id ? `ring-2 ${THEME.selectionRing} rounded-lg` : ''}`}
+              className="absolute transition-all duration-150"
               style={{ left: absX, top: absY, zIndex: node.type === 'group' ? 1 : 10 }}
               onMouseDown={(e: React.MouseEvent) => { e.stopPropagation(); setSelectedId(node.id); startDrag(e, node.id); }}
             >
@@ -255,17 +349,17 @@ export const Canvas: React.FC = () => {
 
       {/* PERMANENT HUD */}
       <div className={`absolute top-6 left-1/2 -translate-x-1/2 flex items-center p-1.5 gap-1 ${THEME.hudBg} backdrop-blur-xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[22px] z-50 animate-in fade-in slide-in-from-top-4 duration-500`}>
-        
+
         {/* LEFT: CONTEXT */}
         <div className="pl-4 pr-6 py-1 border-r border-slate-200/60 min-w-[180px]">
           <div className="flex items-center gap-2 mb-0.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${nodes.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full ${moduleNodes.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
             <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.15em]">
               {selectedId ? 'Selection Active' : 'Canvas Overview'}
             </p>
           </div>
           <p className={`text-sm ${THEME.textMain} font-extrabold tracking-tight truncate`}>
-            {selectedNode ? selectedNode.label : `${nodes.length} Modules on Canvas`}
+            {selectedNode ? selectedNode.label : `${moduleNodes.length} module${moduleNodes.length === 1 ? '' : 's'} on canvas`}
           </p>
         </div>
 
@@ -291,7 +385,7 @@ export const Canvas: React.FC = () => {
               </button>
             </>
           )}
-          
+
           <button
             onClick={() => {
               setNodes([]);
@@ -308,19 +402,19 @@ export const Canvas: React.FC = () => {
         {/* RIGHT: GLOBAL DEPLOY */}
         <div className="pl-1 pr-1">
           <button
-            onClick={handleGlobalDeploy}
-            disabled={nodes.length === 0 || isDeploying}
+            onClick={() => void handleGlobalDeploy()}
+            disabled={moduleNodes.length === 0 || isDeploying}
             className={`
               flex items-center gap-2.5 px-6 py-3 rounded-[16px] transition-all duration-300 hover:-translate-y-0.5 active:scale-95 group text-white shadow-lg
-              ${nodes.length > 0 
-                ? "bg-[#12141a] hover:bg-blue-600 shadow-blue-500/20" 
+              ${moduleNodes.length > 0
+                ? "bg-[#12141a] hover:bg-blue-600 shadow-blue-500/20"
                 : "bg-slate-200 cursor-not-allowed shadow-none"
-              } 
+              }
             `}
           >
-            <Rocket size={16} className={nodes.length > 0 ? "group-hover:animate-bounce" : ""} />
+            <Rocket size={16} className={moduleNodes.length > 0 ? "group-hover:animate-bounce" : ""} />
             <span className="text-[11px] font-black uppercase tracking-[0.12em]">
-              {isDeploying ? 'Deploying...' : `Deploy Stacks (${nodes.length})`}
+              {isDeploying ? 'Deploying...' : `Deploy (${moduleNodes.length})`}
             </span>
           </button>
         </div>
