@@ -17,7 +17,7 @@ const Navbar: FC = () => {
     { name: "Platform", href: "/platform" },
     { name: "Solutions", href: "/solutions" },
     { name: "Resources", href: "/resources" },
-    { name: "Pricing", href: "/pricing" },
+    { name: "Pricing", href: "/HomePricePage" },
   ];
 
   const navBg = scrolled 
