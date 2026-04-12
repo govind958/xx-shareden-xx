@@ -364,7 +364,7 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
 
               {/* FOOTER */}
 
-              <div className="border-t pt-4 mt-auto">
+              <div className="pt-4 mt-auto">
 
                 {/* <div className="flex justify-between items-center mb-4">
 
