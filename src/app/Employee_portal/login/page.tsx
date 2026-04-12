@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { employeeLogin } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock, ShieldCheck, Clock, Users } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function EmployeeLoginPage() {
+function EmployeeLoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
@@ -216,5 +216,17 @@ export default function EmployeeLoginPage() {
 
       </div>
     </main>
+  );
+}
+
+export default function EmployeeLoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex bg-neutral-950 text-white items-center justify-center">
+        <div className="text-teal-400">Loading...</div>
+      </main>
+    }>
+      <EmployeeLoginContent />
+    </Suspense>
   );
 }

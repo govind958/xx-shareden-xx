@@ -577,12 +577,14 @@ export default function Stackboard() {
 
         <div className="flex-1 flex overflow-hidden min-h-0">
           <div className="flex-1 min-w-0 flex flex-col min-h-0">
-            <MessageDashboard
-              activeStackId={selectedItem?.orderItemId || null}
-              activeSubStackId={selectedItem?.subStackId || null}
-              activeStackName={selectedItem?.name || 'Select a Stack'}
-              user={user}
-            />
+            {user && (
+              <MessageDashboard
+                activeStackId={selectedItem?.orderItemId || null}
+                activeSubStackId={selectedItem?.subStackId || null}
+                activeStackName={selectedItem?.name || 'Select a Stack'}
+                user={user}
+              />
+            )}
           </div>
 
           {showInfoPanel && selectedItem && (

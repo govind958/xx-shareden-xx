@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
@@ -10,7 +10,7 @@ import Image from "next/image";
 
 import JaneDoePortrait from "@/src/app/Image/alert.png";
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
@@ -227,5 +227,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-svh bg-[#FDFDFD] flex items-center justify-center">
+        <div className="text-slate-500">Loading...</div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
