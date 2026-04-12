@@ -1,40 +1,71 @@
 "use client"
 
 import React, { useEffect, useState, Suspense } from "react"
+import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/src/context/AuthContext"
 import { logout } from "@/src/modules/logout/actions"
 import { useNotifications } from "@/src/hooks/use-notifications"
 
-// Fetched Components
 import { ClientSidebar } from "@/src/components/client-sidebar"
 import { TopNav } from "@/src/components/top-nav-clientside"
 
+function TabFallback() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
+        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
+      </div>
+    </div>
+  )
+}
 
-// Page Views
-import ClientDashbordPage from "../ClientDashbord/page"
-import StacksPage from "../product_stacks/page"
-// Cart checkout replaced by plan-based subscription — see Price page
-// import StacksCartPage from "../Stacks_Cart/page"
-import StackboardPage from "../Stackboard/page"
-import Price from "../Price/page"
-import BillingPage from "../Billing/page"
-import OrganizationSettingsPage from "../Setting/page"
+const ClientDashbordPage = dynamic(() => import("../ClientDashbord/page"), {
+  loading: TabFallback,
+})
+const StacksPage = dynamic(() => import("../product_stacks/page"), {
+  loading: TabFallback,
+})
+const StackboardPage = dynamic(() => import("../Stackboard/page"), {
+  loading: TabFallback,
+})
+const Price = dynamic(() => import("../Price/page"), {
+  loading: TabFallback,
+})
+const BillingPage = dynamic(() => import("../Billing/page"), {
+  loading: TabFallback,
+})
+const OrganizationSettingsPage = dynamic(() => import("../Setting/page"), {
+  loading: TabFallback,
+})
+
+function PrivateShellFallback() {
+  return (
+    <div className="h-screen w-full flex items-center justify-center bg-[#F9FAFB]">
+      <div className="flex items-center gap-1.5" role="status" aria-label="Loading">
+        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
+        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
+      </div>
+    </div>
+  )
+}
 
 function PrivatePanelContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
-  
+
   const [activeTab, setActiveTab] = useState("overview")
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false) // For mobile
-  const [isCollapsed, setIsCollapsed] = useState(false)   // For desktop
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [sidebarTheme, setSidebarTheme] = useState<'light' | 'dark'>('light')
 
   useNotifications(user?.id)
 
   useEffect(() => {
-    console.log("authLoading", authLoading)
     if (!authLoading && !user) window.location.href = "/login"
   }, [user, authLoading])
 
@@ -53,8 +84,7 @@ function PrivatePanelContent() {
     switch (activeTab) {
       case "overview": return <ClientDashbordPage />
       case "stacks": return <StacksPage />
-      // case "stacks_cart": return <StacksCartPage />
-      case "client_price": return <Price/>
+      case "client_price": return <Price />
       case "stackboard": return <StackboardPage />
       case "billing": return <BillingPage />
       case "settings": return <OrganizationSettingsPage />
@@ -64,18 +94,16 @@ function PrivatePanelContent() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#F9FAFB] overflow-hidden transition-colors duration-500">
-      
-      {/* TopNav no longer needs collapse props as the button moved to Sidebar */}
       <TopNav />
 
       <div className="flex flex-1 overflow-hidden relative">
-        <ClientSidebar 
-          activeTab={activeTab} 
-          onTabChange={handleTabChange} 
+        <ClientSidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
           logoutAction={logout}
           isOpen={isSidebarOpen}
           isCollapsed={isCollapsed}
-          setIsCollapsed={setIsCollapsed} // Passed here to be used in Sidebar
+          setIsCollapsed={setIsCollapsed}
           sidebarTheme={sidebarTheme}
           setSidebarTheme={setSidebarTheme}
         />
@@ -86,8 +114,6 @@ function PrivatePanelContent() {
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-[1600px] mx-auto">
-            
-            
             <div className="animate-in fade-in slide-in-from-bottom-3 duration-700">
               {renderMainContent()}
             </div>
@@ -100,7 +126,7 @@ function PrivatePanelContent() {
 
 export default function PrivatePanelPage() {
   return (
-    <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-white">Loading Workspace...</div>}>
+    <Suspense fallback={<PrivateShellFallback />}>
       <PrivatePanelContent />
     </Suspense>
   )

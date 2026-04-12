@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -56,7 +56,10 @@ export default function Stackboard() {
 
   const { user, loading: authLoading } = useAuth();
 
-  // 1. Initial Data Fetch
+  // 1. Initial Data Fetch — only depends on auth state, not selectedItem
+  const selectedItemRef = useRef(selectedItem);
+  selectedItemRef.current = selectedItem;
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) return;
@@ -64,7 +67,7 @@ export default function Stackboard() {
         const items = await getStackboardSidebarItems(user.id);
         setSidebarItems(items);
 
-        if (items && items.length > 0 && !selectedItem) {
+        if (items && items.length > 0 && !selectedItemRef.current) {
           setSelectedItem(items[0]);
         }
       } catch (error) {
@@ -79,7 +82,7 @@ export default function Stackboard() {
     } else if (!authLoading && !user) {
       setLoading(false);
     }
-  }, [user, authLoading, selectedItem]);
+  }, [user, authLoading]);
 
   // Load assigned employee whenever the selected item changes
   useEffect(() => {
@@ -239,13 +242,13 @@ export default function Stackboard() {
     };
   }, [user?.id, sidebarItems]);
 
-  const handleItemSelect = (item: StackboardSidebarItem) => {
-    if (selectedItem?.id === item.id && selectedItem?.itemType === item.itemType) return;
-
-    setSelectedItem(item);
+  const handleItemSelect = useCallback((item: StackboardSidebarItem) => {
+    setSelectedItem(prev => {
+      if (prev?.id === item.id && prev?.itemType === item.itemType) return prev;
+      return item;
+    });
     setAssignedEmployee(null);
 
-    // Clear unread count for this item
     const itemKey = item.subStackId 
       ? `${item.orderItemId}-${item.subStackId}` 
       : item.orderItemId;
@@ -254,12 +257,16 @@ export default function Stackboard() {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
-  };
+  }, []);
 
   if (loading || authLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F7FAFC]">
-        <p className="text-slate-500">Loading...</p>
+        <div className="flex items-center gap-1.5" role="status" aria-label="Loading">
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
+        </div>
       </div>
     );
   }
@@ -581,7 +588,7 @@ export default function Stackboard() {
               activeStackId={selectedItem?.orderItemId || null}
               activeSubStackId={selectedItem?.subStackId || null}
               activeStackName={selectedItem?.name || 'Select a Stack'}
-              user={user}
+              user={user!}
             />
           </div>
 
