@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { employeeSignup } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock, User, Briefcase } from "lucide-react";
@@ -11,7 +11,7 @@ import { validateInviteToken } from "@/src/modules/employee/actions";
 const glassmorphismClass =
     "bg-neutral-900/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-teal-500/20";
 
-export default function EmployeeSignupPage() {
+function EmployeeSignupContent() {
     const searchParams = useSearchParams();
     const error = searchParams.get("error");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -193,5 +193,17 @@ export default function EmployeeSignupPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function EmployeeSignupPage() {
+    return (
+        <Suspense fallback={
+            <main className="flex flex-col min-h-screen bg-neutral-950 text-neutral-50 font-sans items-center justify-center">
+                <div className="text-teal-400">Loading...</div>
+            </main>
+        }>
+            <EmployeeSignupContent />
+        </Suspense>
     );
 }
