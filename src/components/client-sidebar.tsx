@@ -3,8 +3,15 @@
 import React from "react"
 import { cn } from "@/src/lib/utils"
 import { 
-  Home, Package, ShoppingCart, LayoutDashboard, 
-  Settings, LogOut, PanelLeftClose, PanelLeftOpen 
+  Home, 
+  Package, 
+  LayoutDashboard, 
+  Settings, 
+  LogOut, 
+  PanelLeftClose, 
+  PanelLeftOpen,
+  CreditCard,   // Payment
+  ReceiptText,  // Billing/Invoices
 } from "lucide-react"
 import ThemeToggle from "./toggle them on-off-client"
 
@@ -28,9 +35,9 @@ export function ClientSidebar({
   const navLinks = [
     { id: "overview", icon: Home, label: "Dashboard" },
     { id: "stacks", icon: Package, label: "Stacks" },
-    { id: "stacks_cart", icon: ShoppingCart, label: "Cart" },
+    { id: "client_price", icon: CreditCard, label: "Price" },
     { id: "stackboard", icon: LayoutDashboard, label: "Stackboard" },
-    { id: "billing", icon: LayoutDashboard, label: "Billing" },
+    { id: "billing", icon: ReceiptText, label: "Billing" },
     { id: "settings", icon: Settings, label: "Settings" },
   ]
 

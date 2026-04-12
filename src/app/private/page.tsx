@@ -14,8 +14,10 @@ import { TopNav } from "@/src/components/top-nav-clientside"
 // Page Views
 import ClientDashbordPage from "../ClientDashbord/page"
 import StacksPage from "../product_stacks/page"
-import StacksCartPage from "../Stacks_Cart/page"
+// Cart checkout replaced by plan-based subscription — see Price page
+// import StacksCartPage from "../Stacks_Cart/page"
 import StackboardPage from "../Stackboard/page"
+import Price from "../Price/page"
 import BillingPage from "../Billing/page"
 import OrganizationSettingsPage from "../Setting/page"
 
@@ -32,6 +34,7 @@ function PrivatePanelContent() {
   useNotifications(user?.id)
 
   useEffect(() => {
+    console.log("authLoading", authLoading)
     if (!authLoading && !user) window.location.href = "/login"
   }, [user, authLoading])
 
@@ -50,7 +53,8 @@ function PrivatePanelContent() {
     switch (activeTab) {
       case "overview": return <ClientDashbordPage />
       case "stacks": return <StacksPage />
-      case "stacks_cart": return <StacksCartPage />
+      // case "stacks_cart": return <StacksCartPage />
+      case "client_price": return <Price/>
       case "stackboard": return <StackboardPage />
       case "billing": return <BillingPage />
       case "settings": return <OrganizationSettingsPage />

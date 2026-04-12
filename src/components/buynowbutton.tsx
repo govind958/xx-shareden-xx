@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import {
   createOrder,
   createRecurringSubscription,
-  verifyPaymentAndCreateStackOrder,
-  verifySubscriptionPaymentAndCreateStackOrder,
+  // Old cart-based verify functions removed — plan subscription now handles payment
+  // verifyPaymentAndCreateStackOrder,
+  // verifySubscriptionPaymentAndCreateStackOrder,
 } from "@/src/modules/razorpay/payment"
 
 import { Button } from "@/src/components/ui/button"
@@ -175,48 +176,53 @@ export default function BuyNowButton({
         console.log("Payment successful, verifying...", response)
         setVerifyingPayment(true)
 
-        try {
-          const verification = isRecurring
-            ? await verifySubscriptionPaymentAndCreateStackOrder({
-                razorpay_subscription_id: response.razorpay_subscription_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                cartItems: cartItems,
-                discountAmount: discountAmount,
-                couponId: couponId,
-                billingCycle: billingCycle,
-              })
-            : await verifyPaymentAndCreateStackOrder({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                cartItems: cartItems,
-                discountAmount: discountAmount,
-                couponId: couponId,
-                billingCycle: billingCycle,
-              })
+        // try {
+        //   const verification = isRecurring
+        //     ? await verifySubscriptionPaymentAndCreateStackOrder({
+        //         razorpay_subscription_id: response.razorpay_subscription_id,
+        //         razorpay_payment_id: response.razorpay_payment_id,
+        //         razorpay_signature: response.razorpay_signature,
+        //         cartItems: cartItems,
+        //         discountAmount: discountAmount,
+        //         couponId: couponId,
+        //         billingCycle: billingCycle,
+        //       })
+        //     : await verifyPaymentAndCreateStackOrder({
+        //         razorpay_order_id: response.razorpay_order_id,
+        //         razorpay_payment_id: response.razorpay_payment_id,
+        //         razorpay_signature: response.razorpay_signature,
+        //         cartItems: cartItems,
+        //         discountAmount: discountAmount,
+        //         couponId: couponId,
+        //         billingCycle: billingCycle,
+        //       })
 
-          if (verification.error) {
-            setDialogType("error")
-            setDialogMessage(`Payment failed: ${verification.error}`)
-            setDialogOpen(true)
-          } else {
-            setDialogType("success")
-            setDialogMessage("Payment successful! Your stacks are being prepared.")
-            setPaymentId(verification.paymentId || "")
-            setDialogOpen(true)
+        //   if (verification.error) {
+        //     setDialogType("error")
+        //     setDialogMessage(`Payment failed: ${verification.error}`)
+        //     setDialogOpen(true)
+        //   } else {
+        //     setDialogType("success")
+        //     setDialogMessage("Payment successful! Your stacks are being prepared.")
+        //     setPaymentId(verification.paymentId || "")
+        //     setDialogOpen(true)
 
-            if (onSuccess) {
-              onSuccess(verification)
-            }
-          }
-        } catch (err) {
-          setDialogType("error")
-          setDialogMessage(`Verification failed: ${err instanceof Error ? err.message : "Unknown error"}`)
-          setDialogOpen(true)
-        } finally {
-          setVerifyingPayment(false)
-        }
+        //     if (onSuccess) {
+        //       onSuccess(verification)
+        //     }
+        //   }
+        // } catch (err) {
+        //   setDialogType("error")
+        //   setDialogMessage(`Verification failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+        //   setDialogOpen(true)
+        // } finally {
+        //   setVerifyingPayment(false)
+        // }        
+        console.log("BuyNowButton handler called (deprecated)", response)
+        setDialogType("error")
+        setDialogMessage("This checkout flow is no longer active. Please use the Pricing page to subscribe to a plan.")
+        setDialogOpen(true)
+        setVerifyingPayment(false)
       },
       prefill: {
         name: userDetails?.name || "",

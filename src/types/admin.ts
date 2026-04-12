@@ -28,6 +28,21 @@ export type OrderEmployeeAssignment = {
   employees?: Employee | null
 }
 
+export type SubstackAssignment = {
+  id: string
+  order_item_id: string
+  sub_stack_id: string
+  employee_id: string
+  status: string
+  notes?: string | null
+  assigned_at?: string
+}
+
+export type OrderSubstackRow = {
+  id: string
+  name: string
+}
+
 export type OrderItem = {
   id: string
   order_id?: string
@@ -36,9 +51,12 @@ export type OrderItem = {
   status: string
   progress_percent: number | null
   assigned_to?: string | null
+  sub_stack_ids?: string[] | null
   created_at: string
   stacks?: StackSummary | null
   employee_assignments?: OrderEmployeeAssignment[]
+  substacks?: OrderSubstackRow[]
+  substack_assignments?: SubstackAssignment[]
   profiles?: Profile | null
 }
 

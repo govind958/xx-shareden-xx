@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import {
   CheckSquare,
   Clock,
-  AlertTriangle,
   Hash,
-  ArrowUpRight
+  ArrowUpRight,
+  Layers,
+  Box
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
@@ -18,6 +19,7 @@ const statusColor = (status: string | undefined) => {
     case 'completed': return 'bg-green-500/10 border-green-500/20 text-green-500';
     case 'in_progress': return 'bg-amber-500/10 border-amber-500/20 text-amber-500';
     case 'processing': return 'bg-blue-500/10 border-blue-500/20 text-blue-500';
+    case 'assigned': return 'bg-blue-500/10 border-blue-500/20 text-blue-500';
     case 'initiated': return 'bg-neutral-500/10 border-neutral-500/20 text-neutral-400';
     case 'cancelled': return 'bg-red-500/10 border-red-500/20 text-red-500';
     default: return 'bg-neutral-800 border-neutral-700 text-neutral-500';
@@ -29,14 +31,25 @@ const statusLabel = (status: string | undefined) => {
     case 'completed': return 'Completed';
     case 'in_progress': return 'Working';
     case 'processing': return 'Assigned';
+    case 'assigned': return 'Assigned';
     case 'initiated': return 'Not Started';
     case 'cancelled': return 'Cancelled';
     default: return status;
   }
 };
 
-interface TaskRowProps { id: string; task: string | undefined; status: string | undefined; progress: number | undefined; isActive: boolean | undefined; createdAt: string; }
-const TaskRow = ({ id, task, status, progress, isActive, createdAt }: TaskRowProps) => (
+interface TaskRowProps {
+  id: string;
+  task: string | undefined;
+  status: string | undefined;
+  progress: number | undefined;
+  isActive: boolean | undefined;
+  createdAt: string;
+  type: 'stack' | 'substack';
+  parentStackName?: string;
+}
+
+const TaskRow = ({ id, task, status, progress, isActive, createdAt, type, parentStackName }: TaskRowProps) => (
   <tr className="border-b border-neutral-100 dark:border-neutral-900 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors group">
     <td className="py-5 px-4">
       <div className="flex items-center gap-3">
@@ -45,9 +58,28 @@ const TaskRow = ({ id, task, status, progress, isActive, createdAt }: TaskRowPro
       </div>
     </td>
     <td className="py-5 px-4">
-      <p className="text-[10px] font-black uppercase tracking-widest text-black dark:text-white">
-        {task || "Standard_Stack"}
-      </p>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          {type === 'stack' ? (
+            <Layers size={12} className="text-teal-500" />
+          ) : (
+            <Box size={12} className="text-purple-500" />
+          )}
+          <p className="text-[10px] font-black uppercase tracking-widest text-black dark:text-white">
+            {task || "Standard_Stack"}
+          </p>
+        </div>
+        {type === 'substack' && parentStackName && (
+          <span className="text-[9px] text-neutral-500 ml-5">
+            in {parentStackName}
+          </span>
+        )}
+      </div>
+    </td>
+    <td className="py-5 px-4">
+      <span className={`text-[9px] font-black uppercase px-2 py-1 border rounded ${type === 'stack' ? 'bg-teal-500/10 border-teal-500/20 text-teal-500' : 'bg-purple-500/10 border-purple-500/20 text-purple-500'}`}>
+        {type === 'stack' ? 'Stack' : 'Module'}
+      </span>
     </td>
     <td className="py-5 px-4">
       <div className="flex items-center gap-2">
@@ -65,9 +97,9 @@ const TaskRow = ({ id, task, status, progress, isActive, createdAt }: TaskRowPro
     <td className="py-5 px-4">
       <div className="flex items-center gap-2">
         <div className="w-16 bg-neutral-800 h-1 rounded-full overflow-hidden">
-          <div className="bg-teal-500 h-full" style={{ width: `${progress}%` }} />
+          <div className="bg-teal-500 h-full" style={{ width: `${progress || 0}%` }} />
         </div>
-        <span className="text-[10px] font-mono text-neutral-400">{progress}%</span>
+        <span className="text-[10px] font-mono text-neutral-400">{progress || 0}%</span>
       </div>
     </td>
     <td className="py-5 px-4 text-right">
@@ -85,9 +117,20 @@ const TaskRow = ({ id, task, status, progress, isActive, createdAt }: TaskRowPro
   </tr>
 );
 
-interface OrderTask { id: string; stack_id?: string; status?: string; progress_percent?: number; is_active?: boolean; created_at: string; stacks?: { name?: string }; }
+interface TaskItem {
+  id: string;
+  orderItemId: string;
+  name: string;
+  status?: string;
+  progress_percent?: number;
+  is_active?: boolean;
+  created_at: string;
+  type: 'stack' | 'substack';
+  parentStackName?: string;
+}
+
 export default function TaskPage() {
-  const [tasks, setTasks] = useState<OrderTask[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -96,7 +139,6 @@ export default function TaskPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        // Look up employee record by email
         const { data: employee } = await supabase
           .from('employees')
           .select('id')
@@ -109,8 +151,10 @@ export default function TaskPage() {
           return;
         }
 
-        // Fetch order_items assigned to this employee
-        const { data, error } = await supabase
+        const allTasks: TaskItem[] = [];
+
+        // Fetch order_items directly assigned to this employee (full stack assignments)
+        const { data: stackAssignments, error: stackError } = await supabase
           .from('order_items')
           .select(`
             id,
@@ -124,11 +168,78 @@ export default function TaskPage() {
           .eq('assigned_to', employee.id)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error("Fetch error:", error);
-        } else {
-          setTasks(data as unknown as OrderTask[] || []);
+        if (stackError) {
+          console.error("Stack fetch error:", stackError);
+        } else if (stackAssignments) {
+          for (const item of stackAssignments) {
+            const stacks = item.stacks as { name?: string } | null;
+            allTasks.push({
+              id: item.id,
+              orderItemId: item.id,
+              name: stacks?.name || 'Standard Stack',
+              status: item.status,
+              progress_percent: item.progress_percent,
+              is_active: item.is_active,
+              created_at: item.created_at,
+              type: 'stack',
+            });
+          }
         }
+
+        // Fetch substack assignments for this employee
+        const { data: substackAssignments, error: substackError } = await supabase
+          .from('substack_assignments')
+          .select(`
+            id,
+            status,
+            created_at,
+            sub_stack_id,
+            order_item_id,
+            sub_stacks:sub_stack_id (id, name),
+            order_items:order_item_id (
+              id,
+              status,
+              progress_percent,
+              is_active,
+              stacks:stack_id (name)
+            )
+          `)
+          .eq('employee_id', employee.id)
+          .order('created_at', { ascending: false });
+
+        if (substackError) {
+          console.error("Substack fetch error:", substackError);
+        } else if (substackAssignments) {
+          for (const assignment of substackAssignments) {
+            const subStackData = assignment.sub_stacks;
+            const orderItemData = assignment.order_items;
+
+            // Handle both single object and array responses from Supabase
+            const subStack = Array.isArray(subStackData) ? subStackData[0] : subStackData;
+            const orderItem = Array.isArray(orderItemData) ? orderItemData[0] : orderItemData;
+
+            if (subStack && orderItem) {
+              const stacksData = (orderItem as { stacks?: { name: string } | { name: string }[] | null }).stacks;
+              const parentStack = Array.isArray(stacksData) ? stacksData[0] : stacksData;
+
+              allTasks.push({
+                id: orderItem.id,
+                orderItemId: orderItem.id,
+                name: (subStack as { name?: string }).name || 'Module',
+                status: assignment.status ?? undefined,
+                progress_percent: (orderItem as { progress_percent?: number }).progress_percent,
+                is_active: (orderItem as { is_active?: boolean }).is_active,
+                created_at: assignment.created_at ?? new Date().toISOString(),
+                type: 'substack',
+                parentStackName: parentStack?.name,
+              });
+            }
+          }
+        }
+
+        // Sort all tasks by created_at descending
+        allTasks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setTasks(allTasks);
       }
       setLoading(false);
     }
@@ -136,7 +247,8 @@ export default function TaskPage() {
     fetchTasks();
   }, []);
 
-  const activeTasks = tasks.filter(t => t.status === 'in_progress' || (t.status !== 'completed' && t.is_active));
+  const stackTasks = tasks.filter(t => t.type === 'stack');
+  const substackTasks = tasks.filter(t => t.type === 'substack');
   const completedTasks = tasks.filter(t => t.status === 'completed');
   const inProgressTasks = tasks.filter(t => t.status === 'in_progress');
 
@@ -152,6 +264,16 @@ export default function TaskPage() {
           </div>
           <h1 className="text-5xl font-black text-black dark:text-white tracking-tighter uppercase italic">Task_Matrix</h1>
         </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-2 bg-teal-500/10 border border-teal-500/20 rounded-lg">
+            <Layers size={14} className="text-teal-500" />
+            <span className="text-[10px] font-black text-teal-500 uppercase">{stackTasks.length} Stacks</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <Box size={14} className="text-purple-500" />
+            <span className="text-[10px] font-black text-purple-500 uppercase">{substackTasks.length} Modules</span>
+          </div>
+        </div>
       </header>
 
       {/* Task Table */}
@@ -161,7 +283,8 @@ export default function TaskPage() {
             <thead>
               <tr className="bg-zinc-50 dark:bg-black border-b border-neutral-200 dark:border-neutral-800">
                 <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">UID</th>
-                <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">Stack</th>
+                <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">Task</th>
+                <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">Type</th>
                 <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">Activity</th>
                 <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">Status</th>
                 <th className="p-4 text-[9px] font-black uppercase text-neutral-400 tracking-widest">Progress</th>
@@ -171,22 +294,24 @@ export default function TaskPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="p-20 text-center animate-pulse text-neutral-500">Loading assigned tasks...</td></tr>
+                <tr><td colSpan={8} className="p-20 text-center animate-pulse text-neutral-500">Loading assigned tasks...</td></tr>
               ) : tasks.length > 0 ? (
-                tasks.map((task) => (
+                tasks.map((task, index) => (
                   <TaskRow
-                    key={task.id}
+                    key={`${task.type}-${task.id}-${index}`}
                     id={task.id}
-                    task={task.stacks?.name || task.stack_id}
+                    task={task.name}
                     status={task.status}
                     progress={task.progress_percent}
                     isActive={task.is_active}
                     createdAt={task.created_at}
+                    type={task.type}
+                    parentStackName={task.parentStackName}
                   />
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="p-20 text-center">
+                  <td colSpan={8} className="p-20 text-center">
                     <p className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-500">
                       No_Tasks_Assigned
                     </p>
@@ -199,19 +324,26 @@ export default function TaskPage() {
       </div>
 
       {/* Analytics Footer */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
+          <Layers size={20} className="text-teal-500" />
+          <div>
+            <p className="text-[10px] font-black dark:text-white uppercase">{stackTasks.length} Stacks</p>
+            <p className="text-[9px] font-bold text-neutral-500 uppercase">Full Assignments</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
+          <Box size={20} className="text-purple-500" />
+          <div>
+            <p className="text-[10px] font-black dark:text-white uppercase">{substackTasks.length} Modules</p>
+            <p className="text-[9px] font-bold text-neutral-500 uppercase">Substack Tasks</p>
+          </div>
+        </div>
         <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
           <Clock size={20} className="text-amber-500" />
           <div>
             <p className="text-[10px] font-black dark:text-white uppercase">{inProgressTasks.length} Working</p>
             <p className="text-[9px] font-bold text-neutral-500 uppercase">In Progress</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">
-          <AlertTriangle size={20} className="text-blue-500" />
-          <div>
-            <p className="text-[10px] font-black dark:text-white uppercase">{activeTasks.length - inProgressTasks.length} Pending</p>
-            <p className="text-[9px] font-bold text-neutral-500 uppercase">Not Started</p>
           </div>
         </div>
         <div className="flex items-center gap-4 p-6 bg-zinc-50 dark:bg-black/40 border border-neutral-100 dark:border-neutral-800 rounded-2xl">

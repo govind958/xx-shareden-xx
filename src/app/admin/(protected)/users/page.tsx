@@ -1,46 +1,81 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from '@/utils/supabase/client';
-import { assignEmployeeAndNotify } from "@/src/modules/admin/actions";
+import {
+  assignEmployeeAndNotify,
+  assignEmployeeToSubstack,
+  unassignEmployeeFromSubstack,
+} from "@/src/modules/admin/actions";
 import {
   Search, Filter, Clock, CheckCircle2,
   User, UserPlus, X, Download,
-  CreditCard, Activity, MoreVertical,
-  ArrowUpRight, Calendar, Layers, Hash, Check
+  CreditCard, Activity,
+  ArrowUpRight, Calendar, Layers, Hash, Check, Box
 } from "lucide-react";
 
-// --- Configuration ---
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: "Pending Review", color: "text-amber-400", bg: "bg-amber-400/10 border-amber-400/20" },
+  initiated: { label: "Pending Review", color: "text-amber-400", bg: "bg-amber-400/10 border-amber-400/20" },
   processing: { label: "Processing", color: "text-teal-400", bg: "bg-teal-400/10 border-teal-400/20" },
+  in_progress: { label: "In Progress", color: "text-teal-400", bg: "bg-teal-400/10 border-teal-400/20" },
   completed: { label: "Delivered", color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20" },
   cancelled: { label: "Cancelled", color: "text-neutral-500", bg: "bg-neutral-800 border-neutral-700" },
 };
 
-interface OrderItem { id: string; stack_id: string; status: string; progress_percent: number; assigned_to: string; stack_name?: string; }
-interface Order { id: string; total_amount?: number; created_at: string; user_id: string; order_items?: OrderItem[]; profile?: { user_id: string; name?: string } | null; }
+interface SubstackAssignmentRow {
+  id: string;
+  order_item_id: string;
+  sub_stack_id: string;
+  employee_id: string;
+  status: string;
+}
+
+interface OrderItem {
+  id: string;
+  stack_id: string;
+  status: string;
+  progress_percent: number;
+  assigned_to: string | null;
+  sub_stack_ids: string[] | null;
+  stack_name?: string | null;
+  _substack_names?: { id: string; name: string }[];
+  _substack_assignments?: SubstackAssignmentRow[];
+}
+
+interface Order {
+  id: string;
+  total_amount?: number;
+  created_at: string;
+  user_id: string;
+  order_items?: OrderItem[];
+  profile?: { user_id: string; name?: string } | null;
+}
+
 interface Employee { id: string; name?: string; email?: string; role?: string; specialization?: string; }
+
 export default function OrderCommandCenter() {
   const supabase = createClient();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]); // New: To store staff list
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [isAssigning, setIsAssigning] = useState(false); // New: UI toggle for assignment list
+  const [assigningTarget, setAssigningTarget] = useState<{
+    orderItemId: string;
+    subStackId: string;
+  } | null>(null);
+  const [assigningLegacyItemId, setAssigningLegacyItemId] = useState<string | null>(null);
 
-  // --- Real Database Fetch ---
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
 
-      // Fetch Orders with order_items
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select(`
           id, total_amount, created_at, user_id,
           order_items (
-            id, stack_id, status, progress_percent, assigned_to
+            id, stack_id, status, progress_percent, assigned_to, sub_stack_ids
           )
         `)
         .order('created_at', { ascending: false });
@@ -50,47 +85,78 @@ export default function OrderCommandCenter() {
       }
 
       if (orderData && orderData.length > 0) {
-        // Get unique user IDs for profiles
         const userIds = [...new Set(orderData.map(o => o.user_id))];
-        
-        // Get unique stack IDs for stack names
+
         const stackIds = [...new Set(
-          orderData.flatMap(o => 
+          orderData.flatMap(o =>
             o.order_items?.map((item: { stack_id: string }) => item.stack_id) || []
           ).filter(Boolean)
-        )];
+        )] as string[];
 
-        // Fetch profiles
+        const orderItemIds = orderData.flatMap(o =>
+          o.order_items?.map((item: { id: string }) => item.id) || []
+        );
+
+        const allSubStackIds = [...new Set(
+          orderData.flatMap(o =>
+            (o.order_items || []).flatMap(
+              (item: { sub_stack_ids?: string[] | null }) => item.sub_stack_ids || []
+            )
+          ).filter(Boolean)
+        )] as string[];
+
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('user_id, name')
           .in('user_id', userIds);
 
-        // Fetch stacks
         const { data: stacksData } = await supabase
           .from('stacks')
           .select('id, name')
           .in('id', stackIds);
 
-        // Create a map for quick lookup
         const stacksMap = new Map(stacksData?.map(s => [s.id, s.name]) || []);
 
-        // Merge profiles and stack names into orders
+        let subStacksMap = new Map<string, string>();
+        if (allSubStackIds.length > 0) {
+          const { data: subStacksData } = await supabase
+            .from('sub_stacks')
+            .select('id, name')
+            .in('id', allSubStackIds);
+          subStacksMap = new Map(subStacksData?.map(s => [s.id, s.name]) || []);
+        }
+
+        let subAssignments: SubstackAssignmentRow[] = [];
+        if (orderItemIds.length > 0) {
+          const { data: sa } = await supabase
+            .from('substack_assignments')
+            .select('id, order_item_id, sub_stack_id, employee_id, status')
+            .in('order_item_id', orderItemIds);
+          subAssignments = (sa || []) as SubstackAssignmentRow[];
+        }
+
         const ordersWithData = orderData.map(order => ({
           ...order,
           profile: profilesData?.find(p => p.user_id === order.user_id) || null,
-          order_items: order.order_items?.map((item: { stack_id: string; id: string; status: string; progress_percent: number; assigned_to: string }) => ({
-            ...item,
-            stack_name: stacksMap.get(item.stack_id) || null
-          })) || []
+          order_items: order.order_items?.map((item: OrderItem) => {
+            const mine = subAssignments.filter(a => a.order_item_id === item.id);
+            return {
+              ...item,
+              stack_name: stacksMap.get(item.stack_id) || null,
+              _substack_names: (item.sub_stack_ids || []).map(sid => ({
+                id: sid,
+                name: subStacksMap.get(sid) || 'Module',
+              })),
+              _substack_assignments: mine,
+            };
+          }) || []
         }));
 
-        setOrders(ordersWithData);
+        setOrders(ordersWithData as Order[]);
       } else {
         setOrders(orderData || []);
       }
 
-      // Fetch Employees for assignment
       const { data: empData } = await supabase
         .from('employees')
         .select('id, name, role');
@@ -103,31 +169,85 @@ export default function OrderCommandCenter() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Logic: Assign Employee ---
-  const handleAssign = async (itemId: string, employeeId: string) => {
+  const handleAssignLegacy = async (itemId: string, employeeId: string) => {
     const result = await assignEmployeeAndNotify(employeeId, itemId);
-
     if (result.error) {
       alert(`Error: ${result.error}`);
       return;
     }
-
-    // Update local state without refreshing the whole page
     setOrders(prev => prev.map(order => ({
       ...order,
       order_items: order.order_items?.map((item: OrderItem) =>
         item.id === itemId ? { ...item, assigned_to: employeeId, status: 'processing' } : item
       ) ?? []
     })));
-    setIsAssigning(false);
+    setAssigningLegacyItemId(null);
+  };
+
+  const handleAssignSubstack = async (
+    orderItemId: string,
+    subStackId: string,
+    employeeId: string
+  ) => {
+    const result = await assignEmployeeToSubstack(employeeId, orderItemId, subStackId);
+    if ('error' in result && result.error) {
+      alert(`Error: ${result.error}`);
+      return;
+    }
+    const row =
+      'assignment' in result && result.assignment
+        ? (result.assignment as SubstackAssignmentRow)
+        : null;
+    if (!row) {
+      setAssigningTarget(null);
+      return;
+    }
+
+    setOrders(prev => prev.map(order => ({
+      ...order,
+      order_items: order.order_items?.map((item: OrderItem) => {
+        if (item.id !== orderItemId) return item;
+        const next = [...(item._substack_assignments || [])];
+        const idx = next.findIndex(a => a.sub_stack_id === subStackId);
+        if (idx >= 0) next[idx] = row;
+        else next.push(row);
+        return {
+          ...item,
+          status: item.status === 'initiated' ? 'processing' : item.status,
+          _substack_assignments: next,
+        };
+      }) ?? []
+    })));
+
+    setAssigningTarget(null);
+  };
+
+  const handleUnassignSubstack = async (assignmentId: string) => {
+    const result = await unassignEmployeeFromSubstack(assignmentId);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+      return;
+    }
+    setOrders(prev => prev.map(order => ({
+      ...order,
+      order_items: order.order_items?.map((item: OrderItem) => ({
+        ...item,
+        _substack_assignments: (item._substack_assignments || []).filter(a => a.id !== assignmentId),
+      })) ?? []
+    })));
   };
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
+  const drawerProgress = useMemo(() => {
+    if (!selectedOrder?.order_items?.length) return 0;
+    const sum = selectedOrder.order_items.reduce((acc, i) => acc + (i.progress_percent || 0), 0);
+    return Math.round(sum / selectedOrder.order_items.length);
+  }, [selectedOrder]);
+
   return (
     <div className="min-h-screen bg-[#020202] text-neutral-400 font-sans selection:bg-teal-500/30">
 
-      {/* 1. TOP GLOBAL NAVIGATION (UNTOUCHED) */}
       <nav className="h-20 border-b border-neutral-900 bg-[#050505]/50 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">
@@ -152,7 +272,6 @@ export default function OrderCommandCenter() {
         </div>
       </nav>
 
-      {/* 2. MAIN CONTENT AREA (UNTOUCHED) */}
       <main className="max-w-[1600px] mx-auto p-8 lg:p-12 space-y-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
@@ -171,12 +290,11 @@ export default function OrderCommandCenter() {
           </div>
         </div>
 
-        {/* Overview Cards (UNTOUCHED) */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
             { label: "Total Revenue", value: `₹${orders.reduce((acc, curr) => acc + (curr.total_amount ?? 0), 0).toLocaleString()}`, icon: CreditCard, change: "Live" },
             { label: "Active Orders", value: orders.length.toString(), icon: Clock, change: "Current" },
-            { label: "Processing Orders", value: orders.reduce((acc, o) => acc + ((o.order_items?.filter((i: OrderItem) => i.status === 'processing').length) || 0), 0).toString(), icon: Clock, change: "Active" },
+            { label: "Processing Orders", value: orders.reduce((acc, o) => acc + ((o.order_items?.filter((i: OrderItem) => i.status === 'processing' || i.status === 'in_progress').length) || 0), 0).toString(), icon: Clock, change: "Active" },
             { label: "Completed Orders", value: orders.reduce((acc, o) => acc + ((o.order_items?.filter((i: OrderItem) => i.status === 'completed').length) || 0), 0).toString(), icon: CheckCircle2, change: "Done" },
           ].map((item, i) => (
             <div key={i} className="bg-neutral-900/30 border border-neutral-800/60 p-6 rounded-[24px] relative overflow-hidden group hover:border-teal-500/30 transition-all duration-500">
@@ -192,7 +310,6 @@ export default function OrderCommandCenter() {
           ))}
         </div>
 
-        {/* Main Orders Table (UNTOUCHED Logic) */}
         <div className="bg-[#080808] border border-neutral-900 rounded-[32px] overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -216,7 +333,7 @@ export default function OrderCommandCenter() {
                     const userName = order.profile?.name || 'Unknown User';
                     const stackName = firstItem?.stack_name || 'Custom Stack';
                     const stackCount = order.order_items?.length || 0;
-                    
+
                     return (
                       <tr key={order.id} onClick={() => setSelectedOrderId(order.id)} className="group hover:bg-teal-500/[0.03] transition-all cursor-pointer">
                         <td className="px-8 py-7">
@@ -245,8 +362,8 @@ export default function OrderCommandCenter() {
                         </td>
                         <td className="px-8 py-7"><p className="text-sm font-bold text-white font-mono tracking-tight">₹{(order.total_amount ?? 0).toLocaleString()}</p></td>
                         <td className="px-8 py-7">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[statusKey]?.bg} ${statusConfig[statusKey]?.color}`}>
-                            {statusConfig[statusKey]?.label}
+                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${statusConfig[statusKey]?.bg || statusConfig.pending.bg} ${statusConfig[statusKey]?.color || statusConfig.pending.color}`}>
+                            {statusConfig[statusKey]?.label || statusKey}
                           </span>
                         </td>
                         <td className="px-8 py-7 text-right">
@@ -264,10 +381,9 @@ export default function OrderCommandCenter() {
         </div>
       </main>
 
-      {/* 3. ORDER DETAIL DRAWER (MODIFIED FOR ASSIGNMENT) */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => { setSelectedOrderId(null); setIsAssigning(false); }} />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => { setSelectedOrderId(null); setAssigningTarget(null); setAssigningLegacyItemId(null); }} />
           <aside className="relative w-full max-w-xl bg-[#080808] border-l border-neutral-900 h-screen flex flex-col shadow-2xl animate-in slide-in-from-right duration-500">
 
             <div className="p-8 border-b border-neutral-900 flex justify-between items-center bg-[#0a0a0a]">
@@ -275,73 +391,155 @@ export default function OrderCommandCenter() {
                 <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.3em]">Deployment Profile</span>
                 <h3 className="text-2xl font-bold text-white mt-1">{selectedOrder.id.slice(0, 8)}</h3>
               </div>
-              <button onClick={() => { setSelectedOrderId(null); setIsAssigning(false); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
+              <button onClick={() => { setSelectedOrderId(null); setAssigningTarget(null); setAssigningLegacyItemId(null); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-10 space-y-12">
+            <div className="flex-1 overflow-y-auto p-10 space-y-10">
               <section>
                 <div className="flex items-center justify-between mb-8">
                   <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Live Status</h5>
-                  <span className="text-[10px] bg-teal-500/10 text-teal-400 px-2 py-1 rounded font-bold">{selectedOrder.order_items?.[0]?.progress_percent || 0}% Complete</span>
+                  <span className="text-[10px] bg-teal-500/10 text-teal-400 px-2 py-1 rounded font-bold">{drawerProgress}% Complete</span>
                 </div>
-                <div className="h-2 w-full bg-neutral-900 rounded-full mb-8 overflow-hidden">
-                  <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${selectedOrder.order_items?.[0]?.progress_percent || 0}%` }} />
+                <div className="h-2 w-full bg-neutral-900 rounded-full mb-2 overflow-hidden">
+                  <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${drawerProgress}%` }} />
                 </div>
               </section>
 
-              {/* EMPLOYEE ASSIGNMENT SECTION (Embedded in your Grid) */}
               <section className="space-y-4">
-                <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Resource Allocation</h5>
+                <h5 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Resource allocation — modules</h5>
+                <p className="text-[11px] text-neutral-600 leading-relaxed">
+                  Assign each module (substack) to a team member. Different departments can own different modules on the same order line.
+                </p>
 
-                {isAssigning ? (
-                  <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl p-4 space-y-2 animate-in fade-in zoom-in duration-300">
-                    <p className="text-[10px] font-black text-neutral-600 uppercase mb-4 tracking-widest">Select Personnel</p>
-                    <div className="grid gap-2 max-h-48 overflow-y-auto pr-2">
-                      {employees.map((emp) => (
-                        <button
-                          key={emp.id}
-                          onClick={() => handleAssign(selectedOrder.order_items?.[0]?.id ?? '', emp.id)}
-                          className="flex items-center justify-between p-4 bg-black border border-neutral-800 rounded-xl hover:border-teal-500 group transition-all"
-                        >
-                          <div className="text-left">
-                            <p className="text-sm font-bold text-white group-hover:text-teal-400">{emp.name}</p>
-                            <p className="text-[10px] text-neutral-500">{emp.role}</p>
-                          </div>
-                          <Check size={16} className="text-neutral-800 group-hover:text-teal-500" />
-                        </button>
-                      ))}
-                    </div>
-                    <button onClick={() => setIsAssigning(false)} className="w-full mt-2 py-2 text-[10px] font-bold text-neutral-600 hover:text-white uppercase">Cancel</button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setIsAssigning(true)}
-                      className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition"
-                    >
-                      <UserPlus size={16} />
-                      {selectedOrder.order_items?.[0]?.assigned_to ? "Change Team" : "Assign Team"}
-                    </button>
-                    <button className="flex items-center justify-center gap-2 py-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-xs font-bold hover:bg-neutral-800 transition">
-                      <MoreVertical size={16} /> Order Actions
-                    </button>
-                  </div>
-                )}
+                {selectedOrder.order_items?.map((item) => {
+                  const modules = item._substack_names || [];
+                  const hasModules = modules.length > 0;
 
-                {/* Show current assignee info if exists */}
-                {selectedOrder.order_items?.[0]?.assigned_to && !isAssigning && (
-                  <div className="flex items-center gap-3 p-4 bg-teal-500/5 border border-teal-500/20 rounded-2xl">
-                    <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-500"><User size={14} /></div>
-                    <div>
-                      <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest leading-none">Assigned To</p>
-                      <p className="text-sm font-bold text-white mt-1">
-                        {employees.find(e => e.id === selectedOrder.order_items?.[0]?.assigned_to)?.name || "External Agent"}
-                      </p>
+                  return (
+                    <div key={item.id} className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-bold text-white">
+                        <Layers size={16} className="text-teal-500" />
+                        {item.stack_name || 'Stack'}
+                        <span className="text-[10px] font-mono text-neutral-500 ml-auto">{item.id.slice(0, 8)}</span>
+                      </div>
+
+                      {!hasModules ? (
+                        <div className="space-y-2">
+                          <p className="text-[11px] text-neutral-500">No module breakdown on this line — assign the whole line item.</p>
+                          {assigningLegacyItemId === item.id ? (
+                            <div className="grid gap-2 max-h-40 overflow-y-auto">
+                              {employees.map((emp) => (
+                                <button
+                                  key={emp.id}
+                                  type="button"
+                                  onClick={() => handleAssignLegacy(item.id, emp.id)}
+                                  className="flex items-center justify-between p-3 bg-black border border-neutral-800 rounded-xl hover:border-teal-500 text-left"
+                                >
+                                  <span className="text-sm text-white">{emp.name}</span>
+                                  <Check size={14} className="text-teal-500" />
+                                </button>
+                              ))}
+                              <button type="button" onClick={() => setAssigningLegacyItemId(null)} className="text-[10px] text-neutral-500 uppercase">Cancel</button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setAssigningLegacyItemId(item.id)}
+                              className="flex items-center gap-2 px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs font-bold text-white hover:bg-neutral-800"
+                            >
+                              <UserPlus size={14} />
+                              {item.assigned_to ? 'Change assignee' : 'Assign line item'}
+                            </button>
+                          )}
+                          {item.assigned_to && (
+                            <p className="text-xs text-teal-400">
+                              {employees.find(e => e.id === item.assigned_to)?.name || 'Assigned'}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {modules.map((mod) => {
+                            const assignRow = (item._substack_assignments || []).find(
+                              a => a.sub_stack_id === mod.id
+                            );
+                            const picking =
+                              assigningTarget?.orderItemId === item.id &&
+                              assigningTarget?.subStackId === mod.id;
+
+                            return (
+                              <div
+                                key={mod.id}
+                                className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-xl bg-black/60 border border-neutral-800/80"
+                              >
+                                <div className="flex items-start gap-2 flex-1 min-w-0">
+                                  <Box size={14} className="text-neutral-500 mt-0.5 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-neutral-100 truncate">{mod.name}</p>
+                                    {assignRow && (
+                                      <p className="text-[11px] text-teal-500/90 mt-0.5">
+                                        {employees.find(e => e.id === assignRow.employee_id)?.name || 'Assigned'}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {picking ? (
+                                    <div className="flex flex-col gap-1 w-full sm:w-48 max-h-36 overflow-y-auto">
+                                      {employees.map((emp) => (
+                                        <button
+                                          key={emp.id}
+                                          type="button"
+                                          onClick={() => handleAssignSubstack(item.id, mod.id, emp.id)}
+                                          className="text-left px-2 py-1.5 rounded-lg text-xs bg-neutral-900 border border-neutral-800 hover:border-teal-500 text-white"
+                                        >
+                                          {emp.name}
+                                        </button>
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => setAssigningTarget(null)}
+                                        className="text-[10px] text-neutral-500 uppercase"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setAssigningTarget({ orderItemId: item.id, subStackId: mod.id })
+                                        }
+                                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-neutral-800 text-white hover:bg-neutral-700"
+                                      >
+                                        {assignRow ? 'Change' : 'Assign'}
+                                      </button>
+                                      {assignRow && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (assignRow.id.startsWith('temp-')) return;
+                                            void handleUnassignSubstack(assignRow.id);
+                                          }}
+                                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-red-400/90 hover:bg-red-950/40"
+                                        >
+                                          Clear
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </section>
 
               <section className="bg-neutral-900/30 border border-neutral-800 rounded-[28px] p-8 space-y-6">
@@ -349,7 +547,7 @@ export default function OrderCommandCenter() {
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Order Reference</span>
-                    <span className="text-white font-mono">{selectedOrder.id}</span>
+                    <span className="text-white font-mono text-xs break-all">{selectedOrder.id}</span>
                   </div>
                   <div className="pt-6 border-t border-neutral-900 flex justify-between items-center">
                     <span className="text-white font-bold">Total Amount</span>

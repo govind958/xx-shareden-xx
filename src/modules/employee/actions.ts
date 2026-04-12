@@ -9,6 +9,10 @@ import {
         sendAdminNewEmployeeNotification,
         sendEmployeeApprovalEmail,
     } from "@/src/modules/email/send-employee-invite";
+import {
+    sendStatusNotificationEmail,
+    type OrderStatus,
+} from '@/src/modules/email/send-status-notification'
 import { randomBytes } from "crypto";
 
 // Generate a secure invite token
@@ -248,7 +252,7 @@ export async function verifyEmployeeSession(): Promise<{
     }
 }
 
-// Valid order item statuses - re-export from email module for consistency
+// Valid order item statuses - alias email module type for this surface
 export type OrderItemStatus = OrderStatus
 
 // Update order item status (for employees working on tasks)
@@ -283,7 +287,18 @@ export async function updateOrderItemStatus(
         return { success: false, error: 'Order item not found' }
     }
 
-    if (orderItem.assigned_to !== employee.id) {
+    const { data: subAccess } = await supabase
+        .from('substack_assignments')
+        .select('id')
+        .eq('order_item_id', orderItemId)
+        .eq('employee_id', employee.id)
+        .limit(1)
+        .maybeSingle()
+
+    const hasAccess =
+        orderItem.assigned_to === employee.id || !!subAccess
+
+    if (!hasAccess) {
         return { success: false, error: 'You are not assigned to this order item' }
     }
 
@@ -325,6 +340,12 @@ export async function updateOrderItemStatus(
     
     await supabase
         .from('employee_assignments')
+        .update({ status: assignmentStatus })
+        .eq('order_item_id', orderItemId)
+        .eq('employee_id', employee.id)
+
+    await supabase
+        .from('substack_assignments')
         .update({ status: assignmentStatus })
         .eq('order_item_id', orderItemId)
         .eq('employee_id', employee.id)
@@ -397,7 +418,18 @@ export async function updateOrderItemProgress(
         return { success: false, error: 'Order item not found' }
     }
 
-    if (orderItem.assigned_to !== employee.id) {
+    const { data: subAccess } = await supabase
+        .from('substack_assignments')
+        .select('id')
+        .eq('order_item_id', orderItemId)
+        .eq('employee_id', employee.id)
+        .limit(1)
+        .maybeSingle()
+
+    const hasAccess =
+        orderItem.assigned_to === employee.id || !!subAccess
+
+    if (!hasAccess) {
         return { success: false, error: 'You are not assigned to this order item' }
     }
 
@@ -414,11 +446,11 @@ export async function updateOrderItemProgress(
     return { success: true }
 }
 
-// Get employee assignments
+// Get employee assignments (whole line items + per-substack modules)
 export async function getEmployeeAssignments(employeeId: string) {
     const supabase = await createClient()
-  
-    const { data, error } = await supabase
+
+    const { data: itemRows, error: errItem } = await supabase
       .from('employee_assignments')
       .select(`
         id,
@@ -442,8 +474,43 @@ export async function getEmployeeAssignments(employeeId: string) {
       `)
       .eq('employee_id', employeeId)
       .order('assigned_at', { ascending: false })
-  
-    return { data, error }
+
+    const { data: subRows, error: errSub } = await supabase
+      .from('substack_assignments')
+      .select(`
+        id,
+        status,
+        created_at,
+        sub_stack_id,
+        sub_stacks:sub_stack_id ( id, name ),
+        order_items:order_item_id (
+          id,
+          order_id,
+          status,
+          progress_percent,
+          step,
+          stacks:stack_id ( id, name, type ),
+          orders!order_items_order_id_fkey (
+            id,
+            subscription_duration,
+            subscription_status,
+            is_recurring,
+            created_at
+          )
+        )
+      `)
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })
+
+    const merged = [
+      ...(itemRows || []).map((a) => ({ ...a, assignment_kind: 'order_item' as const })),
+      ...(subRows || []).map((a) => ({ ...a, assigned_at: a.created_at, assignment_kind: 'substack' as const })),
+    ].sort(
+      (a, b) =>
+        new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
+    )
+
+    return { data: merged, error: errItem || errSub }
   }
 
   // Admin: Send Employee invitation
