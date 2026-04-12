@@ -17,17 +17,19 @@ import { toast } from "sonner";
 // Create supabase client outside component to prevent recreation on each render
 const supabase = createClient();
 
-interface ProjectMessage { id: string | number; content: string; sender_id: string; sender_role: string; created_at: string; order_item_id: string; message_type?: string; file_url?: string; file_type?: string; file_name?: string; metadata?: { file?: { url: string; name: string; type: string } }; }
+interface ProjectMessage { id: string | number; content: string; sender_id: string; sender_role: string; created_at: string; order_item_id: string; sub_stack_id?: string | null; message_type?: string; file_url?: string; file_type?: string; file_name?: string; metadata?: { file?: { url: string; name: string; type: string } }; }
 interface MessageUser { id: string; email?: string; }
 
 interface MessageDashboardProps {
     activeStackId: string | null;
+    activeSubStackId?: string | null;
     activeStackName: string;
     user: MessageUser;
 }
 
 export default function MessageDashboard({
     activeStackId,
+    activeSubStackId,
     // activeStackName is received for future use
     user,
 }: MessageDashboardProps) {
@@ -48,11 +50,22 @@ export default function MessageDashboard({
 
         const fetchMessages = async () => {
             setLoadingMessages(true);
-            const { data } = await supabase
+            
+            // Build query based on whether we're filtering by substack
+            let query = supabase
                 .from("project_messages")
                 .select("*")
-                .eq("order_item_id", activeStackId)
-                .order("created_at", { ascending: true });
+                .eq("order_item_id", activeStackId);
+            
+            // If a substack is selected, filter by sub_stack_id
+            // If no substack (stack-level), show messages with null sub_stack_id
+            if (activeSubStackId) {
+                query = query.eq("sub_stack_id", activeSubStackId);
+            } else {
+                query = query.is("sub_stack_id", null);
+            }
+            
+            const { data } = await query.order("created_at", { ascending: true });
 
             if (data) setMessages(data);
             setLoadingMessages(false);
@@ -60,9 +73,13 @@ export default function MessageDashboard({
 
         fetchMessages();
 
-        // Real-time subscription
+        // Real-time subscription - filter in the handler since we can't filter by null in postgres_changes
+        const channelName = activeSubStackId 
+            ? `client_view_${activeStackId}_${activeSubStackId}`
+            : `client_view_${activeStackId}_stack`;
+            
         const channel = supabase
-            .channel(`client_view_${activeStackId}`)
+            .channel(channelName)
             .on(
                 "postgres_changes",
                 {
@@ -72,8 +89,17 @@ export default function MessageDashboard({
                     filter: `order_item_id=eq.${activeStackId}`,
                 },
                 (payload) => {
+                    const newMsg = payload.new as unknown as ProjectMessage;
+                    
+                    // Filter: only add if sub_stack_id matches our current view
+                    const msgSubStackId = newMsg.sub_stack_id || null;
+                    const currentSubStackId = activeSubStackId || null;
+                    
+                    if (msgSubStackId !== currentSubStackId) {
+                        return; // Message is for a different thread
+                    }
+                    
                     setMessages((prev) => {
-                        const newMsg = payload.new as unknown as ProjectMessage;
                         // Prevent duplicates
                         const exists = prev.find(
                             (m) =>
@@ -98,7 +124,7 @@ export default function MessageDashboard({
             )
             .subscribe((status, err) => {
                 if (status === "SUBSCRIBED") {
-                    console.log("[MessageDashboard] Realtime: Connected");
+                    console.log("[MessageDashboard] Realtime: Connected for", activeSubStackId ? "substack" : "stack");
                 } else if (status === "CHANNEL_ERROR") {
                     console.error("[MessageDashboard] Realtime: Channel error", err);
                 }
@@ -107,7 +133,7 @@ export default function MessageDashboard({
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeStackId]);
+    }, [activeStackId, activeSubStackId]);
 
     // ── 2. Auto-scroll ────────────────────────────────────────────────
     useEffect(() => {
@@ -125,27 +151,40 @@ export default function MessageDashboard({
         const tempId = Date.now();
 
         // Optimistic update
-        const optimisticMsg = {
+        const optimisticMsg: ProjectMessage = {
             id: tempId,
             content,
             sender_id: user.id,
             sender_role: "client",
             created_at: new Date().toISOString(),
             order_item_id: activeStackId,
+            sub_stack_id: activeSubStackId || null,
         };
 
         setMessages((prev) => [...prev, optimisticMsg]);
         setInput("");
 
-        // DB insert
+        // DB insert - include sub_stack_id if present
+        const insertData: {
+            order_item_id: string;
+            content: string;
+            sender_id: string;
+            sender_role: string;
+            sub_stack_id?: string;
+        } = {
+            order_item_id: activeStackId,
+            content,
+            sender_id: user.id,
+            sender_role: "client",
+        };
+        
+        if (activeSubStackId) {
+            insertData.sub_stack_id = activeSubStackId;
+        }
+
         const { data, error } = await supabase
             .from("project_messages")
-            .insert({
-                order_item_id: activeStackId,
-                content,
-                sender_id: user.id,
-                sender_role: "client",
-            })
+            .insert(insertData)
             .select()
             .single();
 
@@ -182,21 +221,39 @@ export default function MessageDashboard({
                 data: { publicUrl },
             } = supabase.storage.from("chats-file").getPublicUrl(filePath);
 
+            // Build insert data with optional sub_stack_id
+            const insertData: {
+                order_item_id: string;
+                content: string;
+                sender_id: string;
+                sender_role: string;
+                message_type: string;
+                file_url: string;
+                file_type: string;
+                file_name: string;
+                metadata: { file: { url: string; name: string; type: string } };
+                sub_stack_id?: string;
+            } = {
+                order_item_id: activeStackId,
+                content: `Shared a file: ${file.name}`,
+                sender_id: user.id,
+                sender_role: "client",
+                message_type: "file",
+                file_url: publicUrl,
+                file_type: file.type,
+                file_name: file.name,
+                metadata: {
+                    file: { url: publicUrl, name: file.name, type: file.type },
+                },
+            };
+            
+            if (activeSubStackId) {
+                insertData.sub_stack_id = activeSubStackId;
+            }
+
             const { data, error: dbError } = await supabase
                 .from("project_messages")
-                .insert({
-                    order_item_id: activeStackId,
-                    content: `Shared a file: ${file.name}`,
-                    sender_id: user.id,
-                    sender_role: "client",
-                    message_type: "file",
-                    file_url: publicUrl,
-                    file_type: file.type,
-                    file_name: file.name,
-                    metadata: {
-                        file: { url: publicUrl, name: file.name, type: file.type },
-                    },
-                })
+                .insert(insertData)
                 .select()
                 .single();
 

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useTransition, Suspense } from 'rea
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Zap, Send, Paperclip, MoreHorizontal, Search,
-  Smile, CheckCheck, Terminal
+  Smile, CheckCheck, Terminal, Layers, Box
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
@@ -21,18 +21,33 @@ const supabase = createClient();
 //   { id: '3', stacks: { name: 'SUPABASE_AUTH_PROTOCOL' }, status: 'initiated', progress_percent: 15, unread: 12 },
 // ];
 
-interface OrderItem { id: string; stack_id?: string; status?: string; progress_percent?: number; assigned_to?: string; stacks?: { name?: string }; unread?: number; }
-interface Message { id: string | number; content: string; sender_id: string; sender_role: string; created_at: string; order_item_id: string; message_type?: string; file_url?: string; file_type?: string; file_name?: string; metadata?: { file?: { url: string; name: string; type: string } }; }
+interface OrderItem {
+  id: string;
+  orderItemId: string; // The actual order_item_id
+  subStackId?: string | null; // The sub_stack_id if this is a substack item
+  stack_id?: string;
+  status?: string;
+  progress_percent?: number;
+  assigned_to?: string;
+  stacks?: { name?: string };
+  unread?: number;
+  type?: 'stack' | 'substack';
+  substackName?: string;
+  parentStackName?: string;
+}
+interface Message { id: string | number; content: string; sender_id: string; sender_role: string; created_at: string; order_item_id: string; sub_stack_id?: string | null; message_type?: string; file_url?: string; file_type?: string; file_name?: string; metadata?: { file?: { url: string; name: string; type: string } }; }
 interface AuthUser { id: string; email?: string; }
 
 function StackboardMessagingUI() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderItemId = searchParams.get('id');
+  const subStackIdParam = searchParams.get('substack');
 
   const [orders, setOrders] = useState<OrderItem[]>([]);
   // activeStack is used via realtime updates; state kept for re-renders
   const [, setActiveStack] = useState<OrderItem | null>(null);
+  const [, setSelectedItem] = useState<OrderItem | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [, setEmployeeId] = useState<string | null>(null);
@@ -68,14 +83,90 @@ function StackboardMessagingUI() {
 
     setUser({ id: employee.id, email: employee.email });
     setEmployeeId(employee.id);
-          // Fetch order_items assigned to this employee
-          const { data: cartItems } = await supabase
-          .from('order_items')
-          .select('*, stacks(name)')
-          .eq('assigned_to', employee.id)
-          .order('created_at', { ascending: false });
-  
-        setOrders(cartItems || []);
+
+    const allOrders: OrderItem[] = [];
+
+    // Fetch order_items directly assigned to this employee (full stack assignments)
+    const { data: stackItems } = await supabase
+      .from('order_items')
+      .select('*, stacks(name)')
+      .eq('assigned_to', employee.id)
+      .order('created_at', { ascending: false });
+
+    if (stackItems) {
+      for (const item of stackItems) {
+        allOrders.push({
+          ...item,
+          id: item.id, // Use order_item_id as the unique key for stacks
+          orderItemId: item.id,
+          subStackId: null,
+          type: 'stack' as const,
+        });
+      }
+    }
+
+    // Fetch substack assignments for this employee
+    const { data: substackAssignments } = await supabase
+      .from('substack_assignments')
+      .select(`
+        id,
+        status,
+        created_at,
+        sub_stack_id,
+        order_item_id,
+        sub_stacks:sub_stack_id (id, name),
+        order_items:order_item_id (
+          id,
+          status,
+          progress_percent,
+          is_active,
+          stacks:stack_id (name)
+        )
+      `)
+      .eq('employee_id', employee.id)
+      .order('created_at', { ascending: false });
+
+    if (substackAssignments) {
+      for (const assignment of substackAssignments) {
+        const subStackData = assignment.sub_stacks;
+        const orderItemData = assignment.order_items;
+
+        const subStack = Array.isArray(subStackData) ? subStackData[0] : subStackData;
+        const orderItem = Array.isArray(orderItemData) ? orderItemData[0] : orderItemData;
+
+        if (subStack && orderItem) {
+          const stacksData = (orderItem as { stacks?: { name: string } | { name: string }[] | null }).stacks;
+          const parentStack = Array.isArray(stacksData) ? stacksData[0] : stacksData;
+
+          allOrders.push({
+            id: `${orderItem.id}-${assignment.sub_stack_id}`, // Unique key for substack items
+            orderItemId: orderItem.id,
+            subStackId: assignment.sub_stack_id,
+            status: assignment.status ?? (orderItem as { status?: string }).status,
+            progress_percent: (orderItem as { progress_percent?: number }).progress_percent,
+            type: 'substack' as const,
+            substackName: (subStack as { name?: string }).name || 'Module',
+            parentStackName: parentStack?.name,
+            stacks: { name: (subStack as { name?: string }).name || 'Module' },
+          });
+        }
+      }
+    }
+
+    setOrders(allOrders);
+    
+    // Set selected item based on URL params
+    if (orderItemId) {
+      const found = allOrders.find(item => {
+        if (subStackIdParam) {
+          return item.orderItemId === orderItemId && item.subStackId === subStackIdParam;
+        }
+        return item.orderItemId === orderItemId && !item.subStackId;
+      });
+      if (found) {
+        setSelectedItem(found);
+      }
+    }
       
       // If an ID is in URL, fetch that specific stack's details
       if (orderItemId) {
@@ -86,86 +177,107 @@ function StackboardMessagingUI() {
           .single();
         setActiveStack(currentTask);
 
-        const { data: history } = await supabase
+        // Fetch messages filtered by sub_stack_id if present
+        let messageQuery = supabase
           .from('project_messages')
           .select('*')
-          .eq('order_item_id', orderItemId)
-          .order('created_at', { ascending: true });
+          .eq('order_item_id', orderItemId);
+        
+        if (subStackIdParam) {
+          messageQuery = messageQuery.eq('sub_stack_id', subStackIdParam);
+        } else {
+          messageQuery = messageQuery.is('sub_stack_id', null);
+        }
+
+        const { data: history } = await messageQuery.order('created_at', { ascending: true });
         setMessages(history || []);
       }
       setLoading(false);
     }
     init();
-  }, [orderItemId, router]);
+  }, [orderItemId, subStackIdParam, router]);
 
   // 2. Real-time Listeners (Messages & Progress)
   useEffect(()=>{
     if(!orderItemId) return;
 
-    //Function to fetch messages (used for polling fallback)
+    // Function to fetch messages (used for polling fallback)
     const fetchMessages = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('project_messages')
         .select('*')
-        .eq('order_item_id', orderItemId)
-        .order('created_at', { ascending: true });
+        .eq('order_item_id', orderItemId);
+      
+      if (subStackIdParam) {
+        query = query.eq('sub_stack_id', subStackIdParam);
+      } else {
+        query = query.is('sub_stack_id', null);
+      }
+
+      const { data } = await query.order('created_at', { ascending: true });
       
       if (data) {
-        // Always use the fresh data from DB to avoid duplicates
         setMessages(data);
       }
     };
-    console.log('Setting up realtime for order:', orderItemId);
-        // Debug: Check auth state
-        supabase.auth.getSession().then(({ data, error }) => {
-          console.log('Current auth session:', data?.session ? 'EXISTS' : 'NONE', error);
-          if (data?.session) {
-            console.log('Session user:', data.session.user.email);
-          }
+
+    const channelName = subStackIdParam 
+      ? `nexus_${orderItemId}_${subStackIdParam}`
+      : `nexus_${orderItemId}_stack`;
+    
+    console.log('Setting up realtime for:', channelName);
+
+    const channel = supabase.channel(channelName)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'project_messages',
+        filter: `order_item_id=eq.${orderItemId}`
+      }, (payload) => {
+        console.log('Realtime INSERT received:', payload);
+        const newMsg = payload.new as Message;
+        
+        // Filter: only add if sub_stack_id matches our current view
+        const msgSubStackId = newMsg.sub_stack_id || null;
+        const currentSubStackId = subStackIdParam || null;
+        
+        if (msgSubStackId !== currentSubStackId) {
+          return; // Message is for a different thread
+        }
+        
+        // Deduplicate: only add if not already in state
+        setMessages(prev => {
+          const exists = prev.find(m => m.id === newMsg.id);
+          return exists ? prev : [...prev, newMsg];
         });
-    
-        const channel = supabase.channel(`nexus_${orderItemId}`)
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'project_messages',
-            filter: `order_item_id=eq.${orderItemId}`
-          }, (payload) => {
-            console.log('Realtime INSERT received:', payload);
-            const newMsg = payload.new as Message;
-            // Deduplicate: only add if not already in state
-            setMessages(prev => {
-              const exists = prev.find(m => m.id === newMsg.id);
-              return exists ? prev : [...prev, newMsg];
-            });
-          })
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'order_items',
-            filter: `id=eq.${orderItemId}`
-          }, (payload) => {
-            setActiveStack(payload.new as unknown as OrderItem);
-          })
-          .subscribe((status, err) => {
-            console.log('Realtime subscription status:', status);
-            if (status === 'SUBSCRIBED') {
-              console.log('Realtime: Connected to channel (Employee Portal)');
-            } else if (status === 'CHANNEL_ERROR') {
-              console.error('Realtime: Channel error', err);
-            } else if (status === 'TIMED_OUT') {
-              console.error('Realtime: Connection timed out');
-            }
-          });
-    
-        // Polling fallback - fetch every 3 seconds in case realtime doesn't work
-        const pollInterval = setInterval(fetchMessages, 3000);
-    
-        return () => { 
-          clearInterval(pollInterval);
-          supabase.removeChannel(channel); 
-        };
-  }, [orderItemId]);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'order_items',
+        filter: `id=eq.${orderItemId}`
+      }, (payload) => {
+        setActiveStack(payload.new as unknown as OrderItem);
+      })
+      .subscribe((status, err) => {
+        console.log('Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime: Connected to channel (Employee Portal)');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Realtime: Channel error', err);
+        } else if (status === 'TIMED_OUT') {
+          console.error('Realtime: Connection timed out');
+        }
+      });
+
+    // Polling fallback - fetch every 3 seconds in case realtime doesn't work
+    const pollInterval = setInterval(fetchMessages, 3000);
+
+    return () => { 
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel); 
+    };
+  }, [orderItemId, subStackIdParam]);
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -177,12 +289,29 @@ function StackboardMessagingUI() {
     const messageContent = input.trim();
     setInput(""); // Clear input immediately for better UX
 
-    const { data, error } = await supabase.from('project_messages').insert({
+    // Build insert data with optional sub_stack_id
+    const insertData: {
+      order_item_id: string;
+      content: string;
+      sender_id: string;
+      sender_role: string;
+      sub_stack_id?: string;
+    } = {
       order_item_id: orderItemId,
       content: messageContent,
       sender_id: user.id,
       sender_role: 'employee'
-    }).select().single();
+    };
+
+    if (subStackIdParam) {
+      insertData.sub_stack_id = subStackIdParam;
+    }
+
+    const { data, error } = await supabase
+      .from('project_messages')
+      .insert(insertData)
+      .select()
+      .single();
 
     // Add message to local state immediately (optimistic update)
     if (!error && data) {
@@ -291,17 +420,39 @@ function StackboardMessagingUI() {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {orders.map((item) => (
+          {orders.map((item, index) => {
+            // Check if this item is currently selected
+            const isSelected = item.orderItemId === orderItemId && 
+              (item.subStackId ? item.subStackId === subStackIdParam : !subStackIdParam);
+            
+            // Build the URL with substack param if needed
+            const itemUrl = item.subStackId 
+              ? `?id=${item.orderItemId}&substack=${item.subStackId}`
+              : `?id=${item.orderItemId}`;
+
+            return (
             <div
-              key={item.id}
-              onClick={() => router.push(`?id=${item.id}`)}
+              key={`${item.type}-${item.id}-${index}`}
+              onClick={() => {
+                setSelectedItem(item);
+                router.push(itemUrl);
+              }}
               className={cn(
                 "flex items-center gap-3 px-4 py-4 cursor-pointer border-b border-black/[0.03] dark:border-white/[0.03] transition-all relative",
-                item.id === orderItemId ? "bg-teal-500/10 dark:bg-white/[0.05]" : "hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
+                isSelected ? "bg-teal-500/10 dark:bg-white/[0.05]" : "hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
               )}
             >
-              <div className="w-12 h-12 rounded-full bg-black/5 dark:bg-black/20 flex items-center justify-center border border-black/5 dark:border-white/5 relative">
-                <Zap size={20} className={cn(item.id === orderItemId && "fill-current", theme.accentText)} />
+              <div className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center border relative",
+                item.type === 'substack' 
+                  ? "bg-purple-500/10 dark:bg-purple-500/20 border-purple-500/20" 
+                  : "bg-black/5 dark:bg-black/20 border-black/5 dark:border-white/5"
+              )}>
+                {item.type === 'substack' ? (
+                  <Box size={20} className={cn(item.id === orderItemId && "fill-current", "text-purple-500")} />
+                ) : (
+                  <Layers size={20} className={cn(item.id === orderItemId && "fill-current", theme.accentText)} />
+                )}
                 {(item.unread ?? 0) > 0 && (
                   <span className={cn("absolute -top-1 -right-1 text-white dark:text-black text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-[#0a0a0a] animate-pulse", theme.accentBg)}>
                     {item.unread}
@@ -310,18 +461,33 @@ function StackboardMessagingUI() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-0.5">
-                  <h3 className="text-xs font-black truncate uppercase tracking-tight">{item.stacks?.name}</h3>
-                  <span className="text-[9px] opacity-40 font-mono">11:04</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="text-xs font-black truncate uppercase tracking-tight">
+                      {item.type === 'substack' ? item.substackName : item.stacks?.name}
+                    </h3>
+                    <span className={cn(
+                      "text-[8px] font-black uppercase px-1.5 py-0.5 rounded shrink-0",
+                      item.type === 'substack' 
+                        ? "bg-purple-500/20 text-purple-500" 
+                        : "bg-teal-500/20 text-teal-500"
+                    )}>
+                      {item.type === 'substack' ? 'Module' : 'Stack'}
+                    </span>
+                  </div>
                 </div>
+                {item.type === 'substack' && item.parentStackName && (
+                  <p className="text-[9px] opacity-50 truncate font-mono mb-0.5">in {item.parentStackName}</p>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] opacity-60 truncate italic font-mono uppercase">{item.status}</p>
                   <div className="w-12 h-[3px] bg-black/10 dark:bg-white/10 rounded-full overflow-hidden shrink-0">
-                    <div className={cn("h-full transition-all duration-1000", theme.accentBg)} style={{ width: `${item.progress_percent}%` }} />
+                    <div className={cn("h-full transition-all duration-1000", item.type === 'substack' ? "bg-purple-500" : theme.accentBg)} style={{ width: `${item.progress_percent || 0}%` }} />
                   </div>
                 </div>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </aside>
 

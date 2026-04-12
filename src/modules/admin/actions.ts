@@ -546,6 +546,123 @@ export async function assignEmployeeAndNotify(
   return { success: true }
 }
 
+/** Assign one catalog module (substack) within an order line item to an employee. */
+export async function assignEmployeeToSubstack(
+  employeeId: string,
+  orderItemId: string,
+  subStackId: string,
+  notes?: string
+) {
+  const supabase = await createClient()
+  const adminClient = createAdminClient()
+
+  const { data: row, error: fetchErr } = await supabase
+    .from('order_items')
+    .select(`
+      id,
+      user_id,
+      status,
+      sub_stack_ids,
+      stacks:stack_id (name)
+    `)
+    .eq('id', orderItemId)
+    .single()
+
+  if (fetchErr || !row) {
+    return { error: 'Order item not found' }
+  }
+
+  const ids = row.sub_stack_ids as string[] | null
+  if (!ids?.length || !ids.includes(subStackId)) {
+    return { error: 'This module is not part of this order line item' }
+  }
+
+  const { data: subRow } = await supabase
+    .from('sub_stacks')
+    .select('name')
+    .eq('id', subStackId)
+    .single()
+
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('name')
+    .eq('id', employeeId)
+    .single()
+
+  const { data: upserted, error: upsertError } = await supabase
+    .from('substack_assignments')
+    .upsert(
+      {
+        order_item_id: orderItemId,
+        sub_stack_id: subStackId,
+        employee_id: employeeId,
+        status: 'assigned',
+        notes: notes || null,
+      },
+      { onConflict: 'order_item_id,sub_stack_id' }
+    )
+    .select('id, order_item_id, sub_stack_id, employee_id, status')
+    .single()
+
+  if (upsertError) {
+    return { error: upsertError.message }
+  }
+
+  if (row.status === 'initiated') {
+    await supabase
+      .from('order_items')
+      .update({ status: 'processing' })
+      .eq('id', orderItemId)
+  }
+
+  const stackName = stackNameFromEmbedded(row.stacks)
+  const moduleLabel = subRow?.name || 'Module'
+  const displayStack = `${stackName} — ${moduleLabel}`
+
+  if (row.user_id) {
+    try {
+      const { data: userData } = await adminClient.auth.admin.getUserById(row.user_id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', row.user_id)
+        .single()
+
+      if (userData?.user?.email) {
+        await sendStatusNotificationEmail({
+          customerEmail: userData.user.email,
+          customerName: profile?.name || 'Valued Customer',
+          orderItemId,
+          stackName: displayStack,
+          newStatus: 'processing' as OrderStatus,
+          previousStatus: row.status as OrderStatus,
+          employeeName: employee?.name,
+          adminNote: notes,
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send substack assignment email:', emailError)
+    }
+  }
+
+  return { success: true, assignment: upserted }
+}
+
+/** Remove a per-module assignment. */
+export async function unassignEmployeeFromSubstack(assignmentId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('substack_assignments')
+    .delete()
+    .eq('id', assignmentId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
 // Unassign employee from order item
 export async function unassignEmployeeFromOrderItem(assignmentId: string) {
   const { isValid } = await verifyAdminSession()

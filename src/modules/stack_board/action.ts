@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-
+import type { SubstackAssignment, StackboardSidebarItem } from "@/src/types/stack_board";
 
 interface AssignedEmployee {
     name: string;
@@ -144,4 +144,215 @@ export const getAssignedEmployee = async(orderItemId: string) => {
     };
 
     return result;
+}
+
+// Get substack assignments for a specific order item (for client view)
+export const getSubstackAssignmentsForClient = async (orderItemId: string, parentStackName: string): Promise<SubstackAssignment[]> => {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from("substack_assignments")
+        .select(`
+            id,
+            status,
+            sub_stack_id,
+            order_item_id,
+            employee_id,
+            sub_stacks:sub_stack_id (id, name),
+            employees:employee_id (id, name, role)
+        `)
+        .eq("order_item_id", orderItemId);
+
+    if (error) {
+        console.error("Error fetching substack assignments:", error);
+        return [];
+    }
+
+    if (!data || data.length === 0) {
+        return [];
+    }
+
+    return data.map((assignment) => {
+        const subStack = Array.isArray(assignment.sub_stacks) 
+            ? assignment.sub_stacks[0] 
+            : assignment.sub_stacks;
+        const employee = Array.isArray(assignment.employees) 
+            ? assignment.employees[0] 
+            : assignment.employees;
+
+        return {
+            id: assignment.id,
+            orderItemId: assignment.order_item_id,
+            subStackId: assignment.sub_stack_id,
+            subStackName: (subStack as { name?: string })?.name || 'Module',
+            parentStackName: parentStackName,
+            status: assignment.status || 'assigned',
+            employeeId: assignment.employee_id,
+            employeeName: (employee as { name?: string })?.name || null,
+            employeeRole: (employee as { role?: string })?.role || null,
+        };
+    });
+};
+
+// Get all sidebar items (stacks + substacks) for a user
+export const getStackboardSidebarItems = async (userId: string): Promise<StackboardSidebarItem[]> => {
+    const supabase = await createClient();
+
+    // First, get all order_items (stacks) for the user
+    const { data: orderItems, error: orderError } = await supabase
+        .from("order_items")
+        .select(`
+            id,
+            stack_id,
+            status,
+            progress_percent,
+            assigned_to,
+            stacks (id, name, type)
+        `)
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+    if (orderError) {
+        console.error("Error fetching order_items:", orderError);
+        return [];
+    }
+
+    if (!orderItems || orderItems.length === 0) {
+        return [];
+    }
+
+    const sidebarItems: StackboardSidebarItem[] = [];
+
+    // Get all order item IDs for batch fetching
+    const orderItemIds = orderItems.map(item => item.id);
+
+    // Get assigned employee IDs from order_items for batch fetching
+    const assignedToIds = orderItems
+        .map(item => item.assigned_to)
+        .filter((id): id is string => !!id);
+
+    // Fetch employees for stack-level assignments
+    const employeesMap = new Map<string, { id: string; name: string; role: string }>();
+    if (assignedToIds.length > 0) {
+        const { data: employees } = await supabase
+            .from("employees")
+            .select("id, name, role")
+            .in("id", assignedToIds);
+        
+        if (employees) {
+            for (const emp of employees) {
+                employeesMap.set(emp.id, emp);
+            }
+        }
+    }
+
+    // Fetch all substack assignments for these order items
+    const { data: allSubstackAssignments, error: substackError } = await supabase
+        .from("substack_assignments")
+        .select(`
+            id,
+            status,
+            sub_stack_id,
+            order_item_id,
+            employee_id,
+            sub_stacks:sub_stack_id (id, name),
+            employees:employee_id (id, name, role)
+        `)
+        .in("order_item_id", orderItemIds);
+
+    if (substackError) {
+        console.error("Error fetching substack assignments:", substackError);
+    }
+
+    // Group substack assignments by order_item_id
+    const substacksByOrderItem = new Map<string, typeof allSubstackAssignments>();
+    if (allSubstackAssignments) {
+        for (const assignment of allSubstackAssignments) {
+            const existing = substacksByOrderItem.get(assignment.order_item_id) || [];
+            existing.push(assignment);
+            substacksByOrderItem.set(assignment.order_item_id, existing);
+        }
+    }
+
+    // Build sidebar items
+    for (const item of orderItems) {
+        const stack = Array.isArray(item.stacks) ? item.stacks[0] : item.stacks;
+        const stackName = (stack as { name?: string })?.name || 'Unknown Stack';
+        const assignedEmployee = item.assigned_to ? employeesMap.get(item.assigned_to) : null;
+
+        // Add the stack itself as a sidebar item (for general communication)
+        sidebarItems.push({
+            id: item.id,
+            orderItemId: item.id,
+            subStackId: null,
+            name: stackName,
+            itemType: 'stack',
+            status: item.status?.toUpperCase() || 'INITIATED',
+            progress_percent: item.progress_percent || 0,
+            assignedEmployee: assignedEmployee ? {
+                id: assignedEmployee.id,
+                name: assignedEmployee.name || 'Unknown',
+                role: assignedEmployee.role || 'Unknown',
+            } : null,
+        });
+
+        // Add substacks for this order item
+        const substacks = substacksByOrderItem.get(item.id) || [];
+        for (const subAssignment of substacks) {
+            const subStack = Array.isArray(subAssignment.sub_stacks) 
+                ? subAssignment.sub_stacks[0] 
+                : subAssignment.sub_stacks;
+            const subEmployee = Array.isArray(subAssignment.employees) 
+                ? subAssignment.employees[0] 
+                : subAssignment.employees;
+
+            sidebarItems.push({
+                id: subAssignment.id,
+                orderItemId: subAssignment.order_item_id,
+                subStackId: subAssignment.sub_stack_id,
+                name: (subStack as { name?: string })?.name || 'Module',
+                itemType: 'substack',
+                parentStackName: stackName,
+                status: subAssignment.status?.toUpperCase() || 'ASSIGNED',
+                progress_percent: item.progress_percent || 0, // Use parent's progress
+                assignedEmployee: subEmployee ? {
+                    id: (subEmployee as { id: string }).id,
+                    name: (subEmployee as { name?: string }).name || 'Unknown',
+                    role: (subEmployee as { role?: string }).role || 'Unknown',
+                } : null,
+            });
+        }
+    }
+
+    return sidebarItems;
+};
+
+// Get assigned employee for a specific substack
+export const getAssignedEmployeeForSubstack = async (orderItemId: string, subStackId: string) => {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from("substack_assignments")
+        .select(`
+            employee_id,
+            created_at,
+            employees:employee_id (name, role, specialization)
+        `)
+        .eq("order_item_id", orderItemId)
+        .eq("sub_stack_id", subStackId)
+        .maybeSingle();
+
+    if (error || !data?.employee_id) {
+        return null;
+    }
+
+    const emp = Array.isArray(data.employees) ? data.employees[0] : data.employees;
+
+    return {
+        name: (emp as { name?: string })?.name || 'Unknown Employee',
+        role: (emp as { role?: string })?.role || 'Unknown Role',
+        specialization: (emp as { specialization?: string })?.specialization || '',
+        assigned_at: data.created_at ?? null,
+    };
 }
