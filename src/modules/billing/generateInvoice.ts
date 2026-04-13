@@ -1,14 +1,5 @@
 import type { OrderWithStacks, BillingAddress } from "@/src/types/billing";
 
-const GST_RATE = 0.18;
-
-function fmt(amount: number): string {
-  return "\u20B9" + amount.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 function fmtDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -21,14 +12,6 @@ function buildInvoiceHTML(
   order: OrderWithStacks,
   billingAddress?: BillingAddress | null
 ): string {
-  const subtotal = order.stacks.reduce((sum, s) => sum + s.base_price, 0);
-  const discount = order.discount_amount ?? 0;
-  const taxableAmount = Math.max(0, subtotal - discount);
-  const gst = taxableAmount * GST_RATE;
-  const calculatedTotal = taxableAmount + gst;
-  // Use actual paid amount from order (cart/payment already includes GST)
-  const total = order.total_amount ?? calculatedTotal;
-
   const addressLines: string[] = [];
   if (billingAddress) {
     if (billingAddress.company_name) addressLines.push(billingAddress.company_name);
@@ -51,7 +34,6 @@ function buildInvoiceHTML(
             <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;">${++rowNum}</td>
             <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#0f172a; font-weight:600; font-size:13px;">${stack.stack_name}</td>
             <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px;">${stack.stack_type ?? "\u2014"}</td>
-            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:13px; width:140px;">${fmt(stack.base_price)}</td>
           </tr>`);
         for (const sub of stack.sub_stacks!) {
           rows.push(`
@@ -59,7 +41,6 @@ function buildInvoiceHTML(
             <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;"></td>
             <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; color:#475569; font-size:12px; padding-left:28px;">↳ ${sub.name}</td>
             <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:12px;">Add-on</td>
-            <td style="padding:10px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:12px; width:140px;">${fmt(sub.price)}</td>
           </tr>`);
         }
       } else {
@@ -68,19 +49,11 @@ function buildInvoiceHTML(
             <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px; text-align:center; width:40px;">${++rowNum}</td>
             <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#0f172a; font-weight:600; font-size:13px;">${stack.stack_name}</td>
             <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; color:#64748b; font-size:13px;">${stack.stack_type ?? "\u2014"}</td>
-            <td style="padding:14px 16px; border-bottom:1px solid #eef2f7; text-align:right; color:#0f172a; font-weight:600; font-size:13px; width:140px;">${fmt(stack.base_price)}</td>
           </tr>`);
       }
       return rows;
     })
     .join("");
-
-  const discountRow = discount > 0
-    ? `<tr>
-        <td style="padding:8px 0; color:#059669; font-size:13px;">Discount</td>
-        <td style="padding:8px 0; text-align:right; font-weight:600; color:#059669; font-size:13px;">-${fmt(discount)}</td>
-       </tr>`
-    : "";
 
   return `
 <div id="invoice-root" style="width:700px; padding:48px 52px; font-family: Arial, Helvetica, sans-serif; color:#1e293b; background:#ffffff; box-sizing:border-box;">
@@ -146,43 +119,8 @@ function buildInvoiceHTML(
       <th style="padding:12px 16px; text-align:center; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; width:40px;">#</th>
       <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">Description</th>
       <th style="padding:12px 16px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">Type</th>
-      <th style="padding:12px 16px; text-align:right; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; width:140px;">Amount</th>
     </tr>
     ${itemRows}
-  </table>
-
-  <!-- ===== TOTALS ===== -->
-  <table style="width:100%; margin-bottom:40px;" cellpadding="0" cellspacing="0">
-    <tr>
-      <td style="width:55%;"></td>
-      <td style="width:45%;">
-        <table style="width:100%;" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding:8px 0; color:#64748b; font-size:13px;">Subtotal</td>
-            <td style="padding:8px 0; text-align:right; font-weight:600; font-size:13px; color:#0f172a;">${fmt(subtotal)}</td>
-          </tr>
-          ${discountRow}
-          <tr>
-            <td style="padding:8px 0; color:#64748b; font-size:13px;">Taxable Amount</td>
-            <td style="padding:8px 0; text-align:right; font-weight:600; font-size:13px; color:#0f172a;">${fmt(taxableAmount)}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px 0 16px 0; color:#64748b; font-size:13px; border-bottom:1px solid #e2e8f0;">GST (18%)</td>
-            <td style="padding:8px 0 16px 0; text-align:right; font-weight:600; font-size:13px; color:#0f172a; border-bottom:1px solid #e2e8f0;">${fmt(gst)}</td>
-          </tr>
-          <tr>
-            <td colspan="2" style="padding-top:14px;">
-              <table style="width:100%; background:#0f172a;" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:14px 18px; font-weight:700; font-size:14px; color:#ffffff;">Total Due</td>
-                  <td style="padding:14px 18px; font-weight:800; font-size:17px; color:#ffffff; text-align:right;">${fmt(total)}</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
   </table>
 
   <!-- ===== FOOTER ===== -->

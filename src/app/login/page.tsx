@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
 import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle } from "lucide-react";
-import mixpanel from "@/src/lib/mixpanelClient";
 import Image from "next/image";
 
 import JaneDoePortrait from "@/src/app/Image/alert.png";
@@ -15,7 +14,9 @@ function LoginContent() {
   const error = searchParams.get("error");
 
   useEffect(() => {
-    mixpanel.track("Login Page Viewed");
+    import("@/src/lib/mixpanelClient").then((mod) => {
+      mod.default.track("Login Page Viewed");
+    });
   }, []);
 
   return (
@@ -155,12 +156,10 @@ function LoginContent() {
         </div>
       </div>
 
-      {/* RIGHT SIDE: PLACEHOLDER IMAGE SECTION */}
-      {/* Changed bg-neutral-900 to bg-slate-50 (used in Billing table footers) */}
+      {/* RIGHT SIDE */}
       <div className="relative hidden bg-slate-50 lg:block border-l border-slate-100">
         <div className="absolute inset-0 flex items-center justify-center opacity-40">
             <div className="relative">
-                {/* Changed neutral-700 to slate-300 */}
                 <div className="size-48 border border-slate-300 rounded-full flex items-center justify-center">
                    <div className="size-32 border border-slate-300 rounded-full flex items-center justify-center" />
                 </div>
@@ -171,44 +170,36 @@ function LoginContent() {
             </div>
         </div>
         
-        {/* NEW TESTIMONIAL CARD BASED ON THE IMAGE */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-lg space-y-8 p-10 font-sans z-10">
           
-          {/* Header */}
           <h2 className="text-5xl font-extrabold tracking-tighter text-[#1A365D]">
             Trusted by businesses and CAs
           </h2>
           
-          {/* Testimonial Box */}
           <div className="bg-[#1A365D] rounded-3xl p-10 text-white relative shadow-2xl">
-            {/* Quote Icon */}
             <Quote className="size-14 text-[#2B6CB0] absolute -top-7 left-10" />
             
-            {/* Quote Content */}
             <div className="space-y-6 pt-6">
               <p className="text-xl font-medium leading-relaxed">
                 Stackboard has transformed our document sharing. Securing, sharing, and organizing our files is now a breeze. It&apos;s truly a game-changer for our collaborative projects.
               </p>
               
-              {/* Stat Line */}
               <p className="text-xl font-bold">
                 We have reduced processing time by 45% using Stackboard.
               </p>
             </div>
             
-            {/* Divider */}
             <div className="my-8 h-px bg-[#2B6CB0] opacity-30" />
             
-            {/* Profile Section */}
             <div className="flex items-center gap-6">
-              {/* Portrait (Placeholder) */}
               <Image 
                 src={JaneDoePortrait}
                 alt="Jane Doe"
                 className="size-20 rounded-full border-4 border-[#2B6CB0] object-cover shadow-lg"
+                placeholder="blur"
+                priority
               />
               
-              {/* Name and Title */}
               <div className="flex flex-col">
                 <span className="text-2xl font-bold">Jane Doe</span>
                 <span className="text-sm font-semibold uppercase tracking-wider text-[#90CDF4]">
@@ -216,7 +207,6 @@ function LoginContent() {
                 </span>
               </div>
               
-              {/* Pagination Dots (Optional styling) */}
               <div className="ml-auto flex items-center gap-2">
                 <div className="h-2 w-10 rounded-full bg-[#2B6CB0]" />
                 <div className="size-2 rounded-full bg-slate-600" />
@@ -234,7 +224,11 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-svh bg-[#FDFDFD] flex items-center justify-center">
-        <div className="text-slate-500">Loading...</div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
+        </div>
       </div>
     }>
       <LoginContent />
