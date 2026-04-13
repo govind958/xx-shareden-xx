@@ -410,9 +410,7 @@ export async function createRecurringSubscription(
 //         paymentId: razorpay_payment_id,
 //         items: cartItems.map(item => ({
 //           name: item.name,
-//           price: item.price,
 //         })),
-//         totalAmount: totalAmount,
 //       })
 
 //       if (emailResult.success) {
@@ -661,9 +659,7 @@ export async function createRecurringSubscription(
 //         paymentId: razorpay_payment_id,
 //         items: cartItems.map((item) => ({
 //           name: item.name,
-//           price: item.price,
 //         })),
-//         totalAmount: totalAmount,
 //       })
 
 //       if (emailResult.success) {
