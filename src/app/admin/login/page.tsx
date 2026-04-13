@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { adminLogin } from '@/src/modules/admin/actions';
 import { Button } from "@/src/components/ui/button";
 import { Mail, Lock } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-// Glassmorphism style (match main login theme)
 const glassmorphismClass =
   "bg-neutral-900/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-teal-500/20";
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -111,6 +110,22 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse [animation-delay:200ms]" />
+          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse [animation-delay:400ms]" />
+        </div>
+      </div>
+    }>
+      <AdminLoginContent />
+    </Suspense>
   );
 }
 

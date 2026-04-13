@@ -1,36 +1,49 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { Search, Plus, ShieldCheck, Cpu, HelpCircle, Command } from "lucide-react"
 import { useAuth } from "@/src/context/AuthContext"
 import { createClient } from "@/utils/supabase/client"
 import { NotificationBell } from "@/src/components/notifications/notification-bell"
 
+const orgCache = new Map<string, { logo: string | null; name: string | null }>()
+
 export function TopNav() {
   const { user, loading } = useAuth()
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
   const [orgName, setOrgName] = useState<string | null>(null)
+  const fetchedForUser = useRef<string | null>(null)
 
   const userIdentifier = user?.email ? user.email.split('@')[0] : "GUEST_USER"
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : "G"
 
-  // Fetch org logo
-  useEffect(() => {
-    const fetchOrg = async () => {
-      if (!user) return
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('organizations')
-        .select('company_logo, org_name')
-        .eq('user_id', user.id)
-        .single()
-      if (data) {
-        setOrgLogo(data.company_logo)
-        setOrgName(data.org_name)
-      }
+  const fetchOrg = useCallback(async () => {
+    if (!user) return
+    if (fetchedForUser.current === user.id) return
+
+    const cached = orgCache.get(user.id)
+    if (cached) {
+      setOrgLogo(cached.logo)
+      setOrgName(cached.name)
+      fetchedForUser.current = user.id
+      return
     }
-    fetchOrg()
+
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('organizations')
+      .select('company_logo, org_name')
+      .eq('user_id', user.id)
+      .single()
+    if (data) {
+      orgCache.set(user.id, { logo: data.company_logo, name: data.org_name })
+      setOrgLogo(data.company_logo)
+      setOrgName(data.org_name)
+    }
+    fetchedForUser.current = user.id
   }, [user])
+
+  useEffect(() => { fetchOrg() }, [fetchOrg])
 
   return (
     <header className="h-[56px] bg-[#0A0A0A] flex items-center justify-between px-4 shrink-0 z-[60] border-b border-white/5 shadow-2xl">
