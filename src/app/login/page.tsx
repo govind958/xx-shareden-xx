@@ -1,17 +1,139 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
-import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle } from "lucide-react";
+import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 
 import JaneDoePortrait from "@/src/app/Image/alert.png";
 
+/** Must render inside <form> — tracks server actions until redirect (login, signup, Google OAuth start). */
+function LoginFormBody({
+  oauthPending,
+  onGoogleClick,
+}: {
+  oauthPending: boolean;
+  onGoogleClick: () => void;
+}) {
+  const { pending } = useFormStatus();
+  const busy = pending || oauthPending;
+
+  return (
+    <>
+      {busy && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#FDFDFD]/85 backdrop-blur-sm"
+          role="status"
+          aria-label="Signing in"
+        >
+          <Loader2 className="h-10 w-10 animate-spin text-[#2B6CB0]" aria-hidden />
+        </div>
+      )}
+
+      <div className="grid gap-2">
+        <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="email">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          placeholder="m@example.com"
+          required
+          disabled={busy}
+          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm disabled:opacity-60"
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <div className="flex items-center">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="password">
+            Password
+          </label>
+        </div>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          disabled={busy}
+          className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm disabled:opacity-60"
+        />
+        <a
+          href="/forgot-password"
+          className="ml-auto inline-block text-xs font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]"
+        >
+          Forgot your password?
+        </a>
+      </div>
+
+      <div className="flex gap-3 pt-2">
+        <Button
+          type="submit"
+          formAction={login}
+          disabled={busy}
+          className="flex-1 bg-[#2B6CB0] text-white hover:bg-[#1A365D] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95 disabled:opacity-70"
+        >
+          Log in
+        </Button>
+        <Button
+          type="submit"
+          formAction={signup}
+          disabled={busy}
+          className="flex-1 bg-[#1A365D] text-white hover:bg-[#2B6CB0] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95 disabled:opacity-70"
+        >
+          Sign up
+        </Button>
+      </div>
+
+      <div className="relative pt-2">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest">
+          <span className="bg-[#FDFDFD] px-2 text-slate-400">Or continue with</span>
+        </div>
+      </div>
+
+      <div className="grid gap-2">
+        <Button
+          variant="outline"
+          type="button"
+          disabled={busy}
+          onClick={onGoogleClick}
+          className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors disabled:opacity-60"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20" className="shrink-0">
+            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
+            <path fill="#FF3D00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
+            <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
+            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
+          </svg>
+          Continue with Google
+        </Button>
+
+        <Button
+          variant="outline"
+          type="button"
+          disabled={busy}
+          onClick={() => {}}
+          className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors disabled:opacity-60"
+        >
+          <GithubIcon size={16} className="text-slate-800" />
+          Continue with GitHub
+        </Button>
+      </div>
+    </>
+  );
+}
+
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const [oauthPending, startOAuthTransition] = useTransition();
 
   useEffect(() => {
     import("@/src/lib/mixpanelClient").then((mod) => {
@@ -56,94 +178,13 @@ function LoginContent() {
               </div>
             )}
 
-            {/* Main Form */}
+            {/* Main form: credentials, login/signup actions, OAuth (Google uses transition until redirect) */}
             <form className="space-y-4">
-              <div className="grid gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400" htmlFor="password">
-                    Password
-                  </label>
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-[#2B6CB0] outline-none transition-all shadow-sm"
-                />
-                  <a href="/forgot-password" className="ml-auto inline-block text-xs font-medium text-[#2B6CB0] underline underline-offset-4 hover:text-[#1A365D]">
-                    Forgot your password?
-                  </a>
-              </div>
-
-              {/* Login & Sign Up buttons side by side */}
-              <div className="flex gap-3 pt-2">
-                <Button
-                  formAction={login}
-                  className="flex-1 bg-[#2B6CB0] text-white hover:bg-[#1A365D] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
-                >
-                  Log in
-                </Button>
-                <Button
-                  formAction={signup}
-                  className="flex-1 bg-[#1A365D] text-white hover:bg-[#2B6CB0] transition-all py-2 rounded shadow-md font-bold text-sm active:scale-95"
-                >
-                  Sign up
-                </Button>
-              </div>
+              <LoginFormBody
+                oauthPending={oauthPending}
+                onGoogleClick={() => startOAuthTransition(() => void signInWithGoogle())}
+              />
             </form>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest">
-                <span className="bg-[#FDFDFD] px-2 text-slate-400">Or continue with</span>
-              </div>
-            </div>
-
-            {/* Social Logins */}
-            <div className="grid gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={signInWithGoogle}
-                className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20" className="shrink-0">
-                  <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917"/>
-                  <path fill="#FF3D00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691"/>
-                  <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.9 11.9 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44"/>
-                  <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917"/>
-                </svg>
-                Continue with Google
-              </Button>
-              
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => {}}
-                className="w-full border-slate-200 bg-white text-slate-600 hover:bg-slate-50 py-2 rounded flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest shadow-sm transition-colors"
-              >
-                <GithubIcon size={16} className="text-slate-800" />
-                Continue with GitHub
-              </Button>
-            </div>
 
             {/* Terms */}
             <div className="text-center text-xs text-slate-400">
@@ -223,12 +264,8 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-svh bg-[#FDFDFD] flex items-center justify-center">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
-          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
-        </div>
+      <div className="min-h-svh bg-[#FDFDFD] flex items-center justify-center" role="status" aria-label="Loading">
+        <Loader2 className="h-10 w-10 animate-spin text-[#2B6CB0]" aria-hidden />
       </div>
     }>
       <LoginContent />
