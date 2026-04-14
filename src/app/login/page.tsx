@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
 import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle, Loader2 } from "lucide-react";
+import mixpanel from "@/src/lib/mixpanelClient";
 import Image from "next/image";
 
 import JaneDoePortrait from "@/src/app/Image/alert.png";

@@ -7,17 +7,19 @@ import { useAuth } from "@/src/context/AuthContext"
 import { logout } from "@/src/modules/logout/actions"
 import { useNotifications } from "@/src/hooks/use-notifications"
 
+import { Loader2 } from "lucide-react"
 import { ClientSidebar } from "@/src/components/client-sidebar"
 import { TopNav } from "@/src/components/top-nav-clientside"
 
+/** Fills the main pane (flex-1 chain) so the spinner stays vertically centered like full-page loaders. */
 function TabFallback() {
   return (
-    <div className="flex items-center justify-center h-64">
-      <div className="flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
-        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
-      </div>
+    <div
+      className="flex flex-1 flex-col min-h-0 w-full items-center justify-center py-12"
+      role="status"
+      aria-label="Loading"
+    >
+      <Loader2 size={32} className="animate-spin text-[#2B6CB0]" aria-hidden />
     </div>
   )
 }
@@ -43,12 +45,8 @@ const OrganizationSettingsPage = dynamic(() => import("../Setting/page"), {
 
 function PrivateShellFallback() {
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-[#F9FAFB]">
-      <div className="flex items-center gap-1.5" role="status" aria-label="Loading">
-        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
-        <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
-      </div>
+    <div className="h-screen w-full flex items-center justify-center bg-[#F9FAFB]" role="status" aria-label="Loading">
+      <Loader2 size={32} className="animate-spin text-[#2B6CB0]" aria-hidden />
     </div>
   )
 }
@@ -96,7 +94,7 @@ function PrivatePanelContent() {
     <div className="flex flex-col h-screen w-full bg-[#F9FAFB] overflow-hidden transition-colors duration-500">
       <TopNav />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
         <ClientSidebar
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -112,9 +110,9 @@ function PrivatePanelContent() {
           <div className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
         )}
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-[1600px] mx-auto">
-            <div className="animate-in fade-in slide-in-from-bottom-3 duration-700">
+        <main className="flex flex-1 flex-col min-h-0 overflow-y-auto p-4 md:p-8">
+          <div className="max-w-[1600px] mx-auto w-full flex flex-1 flex-col min-h-0 min-w-0">
+            <div className="animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-1 flex-col min-h-0 min-w-0">
               {renderMainContent()}
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
-import { Clock, User } from "lucide-react"
+import { Clock, User, Loader2 } from "lucide-react"
 import { Assignment } from "@/src/types/employee"
 import { useAuth } from "@/src/context/AuthContext"
 
@@ -122,12 +122,8 @@ export default function EmployeePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white p-6 lg:p-10">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center py-20">
-            <div className="animate-pulse text-neutral-400">Loading assignments...</div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-black text-white flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-teal-400" />
       </div>
     )
   }
