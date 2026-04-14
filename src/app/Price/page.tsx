@@ -34,11 +34,17 @@ const PricingPage = () => {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [activePlan, setActivePlan] = useState<string | null>(null);
+  const [isLoadingActivePlan, setIsLoadingActivePlan] = useState(true);
 
   useEffect(() => {
-    getUserActivePlan().then((sub) => {
-      if (sub) setActivePlan(sub.plan);
-    });
+    setIsLoadingActivePlan(true);
+    getUserActivePlan()
+      .then((sub) => {
+        if (sub) setActivePlan(sub.plan);
+      })
+      .finally(() => {
+        setIsLoadingActivePlan(false);
+      });
   }, []);
 
   const plans: {
@@ -249,7 +255,7 @@ const PricingPage = () => {
 
                 <button
                   onClick={() => handleSelectPlan(plan)}
-                  disabled={loadingPlan === plan.key || isCurrentPlan(plan.key)}
+                  disabled={loadingPlan === plan.key || isCurrentPlan(plan.key) || isLoadingActivePlan}
                   className={`w-full py-3 rounded text-xs font-bold uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                     isCurrentPlan(plan.key)
                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -258,7 +264,9 @@ const PricingPage = () => {
                       : "bg-white border border-slate-200 text-[#1A365D] hover:bg-slate-50"
                   }`}
                 >
-                  {loadingPlan === plan.key ? (
+                  {isLoadingActivePlan ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : loadingPlan === plan.key ? (
                     <Loader2 size={14} className="animate-spin" />
                   ) : isCurrentPlan(plan.key) ? (
                     <>

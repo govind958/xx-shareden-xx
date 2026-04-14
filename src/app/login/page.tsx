@@ -4,7 +4,7 @@ import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { login, signInWithGoogle, signup } from "@/src/modules/login/actions";
 import { Button } from "@/src/components/ui/button";
-import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle } from "lucide-react";
+import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle, Loader2 } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
 import Image from "next/image";
 
@@ -234,7 +234,7 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-svh bg-[#FDFDFD] flex items-center justify-center">
-        <div className="text-slate-500">Loading...</div>
+        <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
       </div>
     }>
       <LoginContent />

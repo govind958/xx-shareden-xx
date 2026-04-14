@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { employeeSignup } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
-import { Mail, Lock, User, Briefcase } from "lucide-react";
+import { Mail, Lock, User, Briefcase, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { validateInviteToken } from "@/src/modules/employee/actions";
@@ -200,7 +200,7 @@ export default function EmployeeSignupPage() {
     return (
         <Suspense fallback={
             <main className="flex flex-col min-h-screen bg-neutral-950 text-neutral-50 font-sans items-center justify-center">
-                <div className="text-teal-400">Loading...</div>
+                <Loader2 size={32} className="animate-spin text-teal-400" />
             </main>
         }>
             <EmployeeSignupContent />

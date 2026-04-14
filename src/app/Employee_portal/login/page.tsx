@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { employeeLogin } from "@/src/modules/employee/actions";
 import { Button } from "@/src/components/ui/button";
-import { Mail, Lock, ShieldCheck, Clock, Users } from "lucide-react";
+import { Mail, Lock, ShieldCheck, Clock, Users, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -223,7 +223,7 @@ export default function EmployeeLoginPage() {
   return (
     <Suspense fallback={
       <main className="min-h-screen flex bg-neutral-950 text-white items-center justify-center">
-        <div className="text-teal-400">Loading...</div>
+        <Loader2 size={32} className="animate-spin text-teal-400" />
       </main>
     }>
       <EmployeeLoginContent />

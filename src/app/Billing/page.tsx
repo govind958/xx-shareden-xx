@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  Loader2,
 } from "lucide-react";
 import { OrderWithStacks, PurchasedStack, BillingAddress } from "@/src/types/billing";
 import {
@@ -25,13 +26,7 @@ import { generateInvoice } from "@/src/modules/billing/generateInvoice";
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
   <div className="min-h-screen bg-white flex items-center justify-center">
-    <div className="flex gap-2">
-      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" />
-      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-75" />
-      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-150" />
-      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-300" />
-      <div className="w-2 h-2 rounded-full bg-gray-200 animate-pulse delay-500" />
-    </div>
+    <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
   </div>
 );
 

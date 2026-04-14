@@ -15,6 +15,7 @@ import {
   Calendar,
   Layers,
   Box,
+  Loader2,
 } from "lucide-react";
 
 import { createClient } from '@/utils/supabase/client';
@@ -259,7 +260,7 @@ export default function Stackboard() {
   if (loading || authLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F7FAFC]">
-        <p className="text-slate-500">Loading...</p>
+        <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
       </div>
     );
   }
