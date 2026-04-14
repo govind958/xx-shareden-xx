@@ -4,7 +4,6 @@ import nodemailer from 'nodemailer';
 
 interface InvoiceItem {
   name: string;
-  price: number;
 }
 
 interface InvoiceData {
@@ -13,7 +12,6 @@ interface InvoiceData {
   orderId: string;
   paymentId: string;
   items: InvoiceItem[];
-  totalAmount: number;
 }
 
 // Create transporter - configure with your SMTP settings
@@ -39,7 +37,6 @@ function generateInvoiceHTML(data: InvoiceData): string {
       (item) => `
       <tr>
         <td style="padding: 12px 0; color: #111827; border-bottom: 1px solid #e5e7eb;">${item.name}</td>
-        <td style="padding: 12px 0; color: #111827; text-align: right; border-bottom: 1px solid #e5e7eb;">₹${item.price.toLocaleString('en-IN')}</td>
       </tr>
     `
     )
@@ -125,18 +122,11 @@ function generateInvoiceHTML(data: InvoiceData): string {
                   <thead>
                     <tr>
                       <th style="padding: 12px 0; text-align: left; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">Stack</th>
-                      <th style="padding: 12px 0; text-align: right; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">Price</th>
                     </tr>
                   </thead>
                   <tbody>
                     ${itemsHTML}
                   </tbody>
-                  <tfoot>
-                    <tr>
-                      <td style="padding: 16px 0 0 0; font-weight: 700; color: #111827; font-size: 16px;">Total</td>
-                      <td style="padding: 16px 0 0 0; font-weight: 700; color: #14B8A6; font-size: 20px; text-align: right;">₹${data.totalAmount.toLocaleString('en-IN')}</td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
               
