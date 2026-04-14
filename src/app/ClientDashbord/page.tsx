@@ -29,7 +29,7 @@ const SECTION_CARD =
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
-  <div className="min-h-screen bg-white flex items-center justify-center">
+  <div className="flex w-full flex-1 min-h-[calc(100dvh-6rem)] bg-white items-center justify-center">
     <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
   </div>
 );

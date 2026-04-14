@@ -305,9 +305,9 @@ export default function Stackboard() {
 
   if (loading || authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#F7FAFC]">
+      <div className="flex w-full flex-1 min-h-[calc(100dvh-6rem)] items-center justify-center bg-[#F7FAFC]">
         <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
-      </div>  
+      </div>
     );
   }
 

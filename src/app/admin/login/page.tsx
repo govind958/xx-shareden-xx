@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { adminLogin } from '@/src/modules/admin/actions';
 import { Button } from "@/src/components/ui/button";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 const glassmorphismClass =
@@ -116,12 +116,8 @@ function AdminLoginContent() {
 export default function AdminLoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse [animation-delay:200ms]" />
-          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse [animation-delay:400ms]" />
-        </div>
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center" role="status" aria-label="Loading">
+        <Loader2 size={32} className="animate-spin text-teal-400" aria-hidden />
       </div>
     }>
       <AdminLoginContent />
