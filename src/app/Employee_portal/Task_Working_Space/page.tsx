@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useTransition, Suspense } from 'react';
+import React, { useEffect, useState, useRef, useTransition, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Zap, Send, Paperclip, MoreHorizontal, Search,
-  Smile, CheckCheck, Terminal, Layers, Box
+  Smile, CheckCheck, Terminal, Layers, Box, Loader2
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
@@ -14,17 +14,10 @@ import { toast } from 'sonner';
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
 const supabase = createClient();
 
-// --- SAMPLE DATA ---
-// const MOCK_TASKS = [
-//   { id: '1', stacks: { name: 'NEXT.JS_ENTERPRISE_CORE' }, status: 'in_progress', progress_percent: 75, unread: 3 },
-//   { id: '2', stacks: { name: 'STRIPE_PAYMENT_GATEWAY' }, status: 'completed', progress_percent: 100, unread: 0 },
-//   { id: '3', stacks: { name: 'SUPABASE_AUTH_PROTOCOL' }, status: 'initiated', progress_percent: 15, unread: 12 },
-// ];
-
 interface OrderItem {
   id: string;
-  orderItemId: string; // The actual order_item_id
-  subStackId?: string | null; // The sub_stack_id if this is a substack item
+  orderItemId: string;
+  subStackId?: string | null;
   stack_id?: string;
   status?: string;
   progress_percent?: number;
@@ -45,7 +38,6 @@ function StackboardMessagingUI() {
   const subStackIdParam = searchParams.get('substack');
 
   const [orders, setOrders] = useState<OrderItem[]>([]);
-  // activeStack is used via realtime updates; state kept for re-renders
   const [, setActiveStack] = useState<OrderItem | null>(null);
   const [, setSelectedItem] = useState<OrderItem | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -54,168 +46,177 @@ function StackboardMessagingUI() {
   const [, startStatusTransition] = useTransition();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sidebarLoadedRef = useRef(false);
+  const userRef = useRef<AuthUser | null>(null);
+
+  const fetchMessages = useCallback(async (itemId: string, subStackId: string | null) => {
+    let messageQuery = supabase
+      .from('project_messages')
+      .select('*')
+      .eq('order_item_id', itemId);
+    
+    if (subStackId) {
+      messageQuery = messageQuery.eq('sub_stack_id', subStackId);
+    } else {
+      messageQuery = messageQuery.is('sub_stack_id', null);
+    }
+
+    const { data: history } = await messageQuery.order('created_at', { ascending: true });
+    return history || [];
+  }, []);
 
   useEffect(() => {
-    async function init() {
-        // Get Supabase Auth session (required for realtime to work)
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !authUser) {
-          console.error('No valid auth session found');
-          setLoading(false);
-          router.push('/Employee_portal/login');
-            return;
-        }
-              // Verify user is an employee
-      const { data: employee, error: empError } = await supabase
-      .from('employees')
-      .select('id, email, name, role, is_active')
-      .eq('id', authUser.id)
-      .eq('is_active', true)
-      .single();
-
-    if (empError || !employee) {
-      console.error('User is not an employee');
-      setLoading(false);
-      return;
-    }
-
-    setUser({ id: employee.id, email: employee.email });
-    setEmployeeId(employee.id);
-
-    const allOrders: OrderItem[] = [];
-
-    // Fetch order_items directly assigned to this employee (full stack assignments)
-    const { data: stackItems } = await supabase
-      .from('order_items')
-      .select('*, stacks(name)')
-      .eq('assigned_to', employee.id)
-      .order('created_at', { ascending: false });
-
-    if (stackItems) {
-      for (const item of stackItems) {
-        allOrders.push({
-          ...item,
-          id: item.id, // Use order_item_id as the unique key for stacks
-          orderItemId: item.id,
-          subStackId: null,
-          type: 'stack' as const,
-        });
+    async function initSidebar() {
+      if (sidebarLoadedRef.current && userRef.current) {
+        return userRef.current;
       }
-    }
 
-    // Fetch substack assignments for this employee
-    const { data: substackAssignments } = await supabase
-      .from('substack_assignments')
-      .select(`
-        id,
-        status,
-        created_at,
-        sub_stack_id,
-        order_item_id,
-        sub_stacks:sub_stack_id (id, name),
-        order_items:order_item_id (
-          id,
-          status,
-          progress_percent,
-          is_active,
-          stacks:stack_id (name)
-        )
-      `)
-      .eq('employee_id', employee.id)
-      .order('created_at', { ascending: false });
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-    if (substackAssignments) {
-      for (const assignment of substackAssignments) {
-        const subStackData = assignment.sub_stacks;
-        const orderItemData = assignment.order_items;
+      if (authError || !authUser) {
+        console.error('No valid auth session found');
+        setLoading(false);
+        router.push('/Employee_portal/login');
+        return null;
+      }
 
-        const subStack = Array.isArray(subStackData) ? subStackData[0] : subStackData;
-        const orderItem = Array.isArray(orderItemData) ? orderItemData[0] : orderItemData;
+      const { data: employee, error: empError } = await supabase
+        .from('employees')
+        .select('id, email, name, role, is_active')
+        .eq('id', authUser.id)
+        .eq('is_active', true)
+        .single();
 
-        if (subStack && orderItem) {
-          const stacksData = (orderItem as { stacks?: { name: string } | { name: string }[] | null }).stacks;
-          const parentStack = Array.isArray(stacksData) ? stacksData[0] : stacksData;
+      if (empError || !employee) {
+        console.error('User is not an employee');
+        setLoading(false);
+        return null;
+      }
 
+      const employeeUser = { id: employee.id, email: employee.email };
+      setUser(employeeUser);
+      setEmployeeId(employee.id);
+      userRef.current = employeeUser;
+
+      const [stackItemsResult, substackAssignmentsResult] = await Promise.all([
+        supabase
+          .from('order_items')
+          .select('*, stacks(name)')
+          .eq('assigned_to', employee.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('substack_assignments')
+          .select(`
+            id,
+            status,
+            created_at,
+            sub_stack_id,
+            order_item_id,
+            sub_stacks:sub_stack_id (id, name),
+            order_items:order_item_id (
+              id,
+              status,
+              progress_percent,
+              is_active,
+              stacks:stack_id (name)
+            )
+          `)
+          .eq('employee_id', employee.id)
+          .order('created_at', { ascending: false })
+      ]);
+
+      const allOrders: OrderItem[] = [];
+
+      if (stackItemsResult.data) {
+        for (const item of stackItemsResult.data) {
           allOrders.push({
-            id: `${orderItem.id}-${assignment.sub_stack_id}`, // Unique key for substack items
-            orderItemId: orderItem.id,
-            subStackId: assignment.sub_stack_id,
-            status: assignment.status ?? (orderItem as { status?: string }).status,
-            progress_percent: (orderItem as { progress_percent?: number }).progress_percent,
-            type: 'substack' as const,
-            substackName: (subStack as { name?: string }).name || 'Module',
-            parentStackName: parentStack?.name,
-            stacks: { name: (subStack as { name?: string }).name || 'Module' },
+            ...item,
+            id: item.id,
+            orderItemId: item.id,
+            subStackId: null,
+            type: 'stack' as const,
           });
         }
       }
+
+      if (substackAssignmentsResult.data) {
+        for (const assignment of substackAssignmentsResult.data) {
+          const subStackData = assignment.sub_stacks;
+          const orderItemData = assignment.order_items;
+
+          const subStack = Array.isArray(subStackData) ? subStackData[0] : subStackData;
+          const orderItem = Array.isArray(orderItemData) ? orderItemData[0] : orderItemData;
+
+          if (subStack && orderItem) {
+            const stacksData = (orderItem as { stacks?: { name: string } | { name: string }[] | null }).stacks;
+            const parentStack = Array.isArray(stacksData) ? stacksData[0] : stacksData;
+
+            allOrders.push({
+              id: `${orderItem.id}-${assignment.sub_stack_id}`,
+              orderItemId: orderItem.id,
+              subStackId: assignment.sub_stack_id,
+              status: assignment.status ?? (orderItem as { status?: string }).status,
+              progress_percent: (orderItem as { progress_percent?: number }).progress_percent,
+              type: 'substack' as const,
+              substackName: (subStack as { name?: string }).name || 'Module',
+              parentStackName: parentStack?.name,
+              stacks: { name: (subStack as { name?: string }).name || 'Module' },
+            });
+          }
+        }
+      }
+
+      setOrders(allOrders);
+      sidebarLoadedRef.current = true;
+      return employeeUser;
     }
 
-    setOrders(allOrders);
-    
-    // Set selected item based on URL params
-    if (orderItemId) {
-      const found = allOrders.find(item => {
-        if (subStackIdParam) {
-          return item.orderItemId === orderItemId && item.subStackId === subStackIdParam;
-        }
-        return item.orderItemId === orderItemId && !item.subStackId;
-      });
-      if (found) {
-        setSelectedItem(found);
-      }
-    }
-      
-      // If an ID is in URL, fetch that specific stack's details
+    async function init() {
+      const employeeUser = await initSidebar();
+      if (!employeeUser) return;
+
       if (orderItemId) {
-        const { data: currentTask } = await supabase
-          .from('order_items')
-          .select('*')
-          .eq('id', orderItemId)
-          .single();
-        setActiveStack(currentTask);
-
-        // Fetch messages filtered by sub_stack_id if present
-        let messageQuery = supabase
-          .from('project_messages')
-          .select('*')
-          .eq('order_item_id', orderItemId);
+        setLoadingMessages(true);
         
-        if (subStackIdParam) {
-          messageQuery = messageQuery.eq('sub_stack_id', subStackIdParam);
-        } else {
-          messageQuery = messageQuery.is('sub_stack_id', null);
+        const found = orders.length > 0 ? orders.find(item => {
+          if (subStackIdParam) {
+            return item.orderItemId === orderItemId && item.subStackId === subStackIdParam;
+          }
+          return item.orderItemId === orderItemId && !item.subStackId;
+        }) : null;
+        
+        if (found) {
+          setSelectedItem(found);
         }
 
-        const { data: history } = await messageQuery.order('created_at', { ascending: true });
-        setMessages(history || []);
+        const [currentTaskResult, messagesData] = await Promise.all([
+          supabase
+            .from('order_items')
+            .select('*')
+            .eq('id', orderItemId)
+            .single(),
+          fetchMessages(orderItemId, subStackIdParam)
+        ]);
+
+        setActiveStack(currentTaskResult.data);
+        setMessages(messagesData);
+        setLoadingMessages(false);
       }
+      
       setLoading(false);
     }
+    
     init();
-  }, [orderItemId, subStackIdParam, router]);
+  }, [orderItemId, subStackIdParam, router, fetchMessages, orders]);
 
   // 2. Real-time Listeners (Messages & Progress)
   useEffect(()=>{
     if(!orderItemId) return;
 
-    // Function to fetch messages (used for polling fallback)
-    const fetchMessages = async () => {
-      let query = supabase
-        .from('project_messages')
-        .select('*')
-        .eq('order_item_id', orderItemId);
-      
-      if (subStackIdParam) {
-        query = query.eq('sub_stack_id', subStackIdParam);
-      } else {
-        query = query.is('sub_stack_id', null);
-      }
-
-      const { data } = await query.order('created_at', { ascending: true });
-      
+    const pollMessagesFunc = async () => {
+      const data = await fetchMessages(orderItemId, subStackIdParam);
       if (data) {
         setMessages(data);
       }
@@ -224,8 +225,6 @@ function StackboardMessagingUI() {
     const channelName = subStackIdParam 
       ? `nexus_${orderItemId}_${subStackIdParam}`
       : `nexus_${orderItemId}_stack`;
-    
-    console.log('Setting up realtime for:', channelName);
 
     const channel = supabase.channel(channelName)
       .on('postgres_changes', {
@@ -234,18 +233,15 @@ function StackboardMessagingUI() {
         table: 'project_messages',
         filter: `order_item_id=eq.${orderItemId}`
       }, (payload) => {
-        console.log('Realtime INSERT received:', payload);
         const newMsg = payload.new as Message;
         
-        // Filter: only add if sub_stack_id matches our current view
         const msgSubStackId = newMsg.sub_stack_id || null;
         const currentSubStackId = subStackIdParam || null;
         
         if (msgSubStackId !== currentSubStackId) {
-          return; // Message is for a different thread
+          return;
         }
         
-        // Deduplicate: only add if not already in state
         setMessages(prev => {
           const exists = prev.find(m => m.id === newMsg.id);
           return exists ? prev : [...prev, newMsg];
@@ -260,24 +256,21 @@ function StackboardMessagingUI() {
         setActiveStack(payload.new as unknown as OrderItem);
       })
       .subscribe((status, err) => {
-        console.log('Realtime subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime: Connected to channel (Employee Portal)');
-        } else if (status === 'CHANNEL_ERROR') {
+        if (status === 'CHANNEL_ERROR') {
           console.error('Realtime: Channel error', err);
         } else if (status === 'TIMED_OUT') {
           console.error('Realtime: Connection timed out');
         }
       });
 
-    // Polling fallback - fetch every 3 seconds in case realtime doesn't work
-    const pollInterval = setInterval(fetchMessages, 3000);
+    // Polling fallback with longer interval (10s instead of 3s)
+    const pollInterval = setInterval(pollMessagesFunc, 10000);
 
     return () => { 
       clearInterval(pollInterval);
       supabase.removeChannel(channel); 
     };
-  }, [orderItemId, subStackIdParam]);
+  }, [orderItemId, subStackIdParam, fetchMessages]);
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -512,24 +505,33 @@ function StackboardMessagingUI() {
             </header>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
-              {messages.map((m, i) => {
-                const isMe = m.sender_role === 'employee';
-                return (
-                  <div key={m.id || i} className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
-                    <div className={cn(
-                      "max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm relative border border-black/5 dark:border-white/5",
-                      isMe ? cn("rounded-tr-none", theme.bubbleMe) : cn("rounded-tl-none", theme.bubbleThem)
-                    )}>
-                      <p className="text-[13px] leading-relaxed font-medium">{m.content}</p>
-                      <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                        <span className="text-[8px] opacity-60 font-mono">11:24 PM</span>
-                        {isMe && <CheckCheck size={12} className={isMe ? 'text-teal-200' : 'text-teal-500'} />}
+              {loadingMessages ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <Loader2 size={28} className={cn("animate-spin", theme.accentText)} />
+                  <span className="text-[10px] font-mono uppercase tracking-wider mt-3 opacity-50">Loading_Messages...</span>
+                </div>
+              ) : (
+                <>
+                  {messages.map((m, i) => {
+                    const isMe = m.sender_role === 'employee';
+                    return (
+                      <div key={m.id || i} className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
+                        <div className={cn(
+                          "max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm relative border border-black/5 dark:border-white/5",
+                          isMe ? cn("rounded-tr-none", theme.bubbleMe) : cn("rounded-tl-none", theme.bubbleThem)
+                        )}>
+                          <p className="text-[13px] leading-relaxed font-medium">{m.content}</p>
+                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                            <span className="text-[8px] opacity-60 font-mono">11:24 PM</span>
+                            {isMe && <CheckCheck size={12} className={isMe ? 'text-teal-200' : 'text-teal-500'} />}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={scrollRef} />
+                    );
+                  })}
+                  <div ref={scrollRef} />
+                </>
+              )}
             </div>
 
             <footer className={cn("p-4 flex items-center gap-3 border-t", theme.header)}>
