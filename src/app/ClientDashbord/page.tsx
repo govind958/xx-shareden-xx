@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   ClipboardList,
   AlertCircle,
@@ -14,8 +14,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { getPurchasedStacks } from '@/src/modules/stack_board/action';
 import { PURCHASED_STACKS } from '@/src/modules/stack_board/types';
 import SupportModal from '@/src/components/SupportModal';
-import { getSupportTicketCounts } from '@/src/modules/support/action';
-import { getSupportTickets } from '@/src/modules/support/action';
+import { getSupportTicketsWithCounts } from '@/src/modules/support/action';
 import { SUPPORT_TICKETS } from "@/src/types/support";
 import { useRouter } from 'next/navigation';
 
@@ -57,15 +56,14 @@ export default function DashboardPage() {
     }
     const fetchData = async () => {
       try{
-        const [data, ticketCounts, tickets] = await Promise.all([
+        const [data, supportResult] = await Promise.all([
           getPurchasedStacks(user.id),
-          getSupportTicketCounts(user.id),
-          getSupportTickets(user.id),
+          getSupportTicketsWithCounts(user.id),
         ]);
         setStacks(data);
-        setOpenIssues(ticketCounts.open);
-        setClosedIssues(ticketCounts.closed);
-        setTickets(tickets);
+        setOpenIssues(supportResult.open);
+        setClosedIssues(supportResult.closed);
+        setTickets(supportResult.tickets);
       } catch (err) {
         console.error("Error fetching data", err);
       } finally {
@@ -76,12 +74,12 @@ export default function DashboardPage() {
 
   }, [user, authLoading]);
 
-  const openTasks = stacks.filter(s =>
+  const openTasks = useMemo(() => stacks.filter(s =>
     ['initiated', 'processing', 'in_progress'].includes(s.status.toLowerCase())
-  ).length;
-  const closedTasks = stacks.filter(s =>
+  ).length, [stacks]);
+  const closedTasks = useMemo(() => stacks.filter(s =>
     s.status.toLowerCase() === 'completed'
-  ).length;
+  ).length, [stacks]);
 
   if (initialLoading) {
     return <LoadingPage />;
@@ -233,9 +231,10 @@ export default function DashboardPage() {
           userId={user.id}
           onClose={async () => {
             setShowSupportModal(false);
-            const counts = await getSupportTicketCounts(user.id);
-            setOpenIssues(counts.open);
-            setClosedIssues(counts.closed);
+            const result = await getSupportTicketsWithCounts(user.id);
+            setOpenIssues(result.open);
+            setClosedIssues(result.closed);
+            setTickets(result.tickets);
           }}
         />
       )}

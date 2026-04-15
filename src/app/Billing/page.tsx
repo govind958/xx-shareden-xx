@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, useState, useEffect } from "react";
+import React, { FC, useState, useEffect, useMemo } from "react";
 import {
   FileText,
   Download,
@@ -72,27 +72,35 @@ const BillingPage: FC = () => {
     setSelectedStack(null);
   };
 
+  // Build a lookup map so we avoid O(n) finds per stack
+  const orderMap = useMemo(() => {
+    const map = new Map<string, OrderWithStacks>();
+    for (const order of orders) map.set(order.id, order);
+    return map;
+  }, [orders]);
+
   // Helper: get billing info (next payment date & days remaining) for a stack
   const getBillingInfo = (stack: PurchasedStack) => {
-    const parentOrder = orders.find(o => o.id === stack.order_id);
+    const parentOrder = orderMap.get(stack.order_id);
     const duration = parentOrder?.subscription_duration || "monthly";
     return calculateNextPayment(stack.created_at, duration);
   };
 
   // Sum each active stack's proportional share of its order total (already includes GST)
-  const totalBalance = purchasedStacks.reduce((sum, stack) => {
-    const parentOrder = orders.find(o => o.id === stack.order_id);
+  const totalBalance = useMemo(() => purchasedStacks.reduce((sum, stack) => {
+    const parentOrder = orderMap.get(stack.order_id);
     if (!parentOrder) return sum;
     const orderBaseSum = parentOrder.stacks.reduce((s, st) => s + st.base_price, 0);
     const stackShare = orderBaseSum > 0
       ? (stack.base_price / orderBaseSum) * parentOrder.total_amount
       : 0;
     return sum + stackShare;
-  }, 0);
+  }, 0), [purchasedStacks, orderMap]);
+
   const activeCount = purchasedStacks.length;
-  const nearestRenewalDays = purchasedStacks.length > 0
+  const nearestRenewalDays = useMemo(() => purchasedStacks.length > 0
     ? Math.min(...purchasedStacks.map(s => getBillingInfo(s).days))
-    : 0;
+    : 0, [purchasedStacks, orderMap]);
 
   if (initialLoading) {
     return <LoadingPage />;
@@ -203,7 +211,7 @@ const BillingPage: FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {purchasedStacks.map((stack) => {
                   const { date, days } = getBillingInfo(stack);
-                  const parentOrder = orders.find((o) => o.id === stack.order_id);
+                  const parentOrder = orderMap.get(stack.order_id);
                   const isRecurring = parentOrder?.is_recurring || !!parentOrder?.subscription_status;
                   const statusLabel = stack.status === "active" ? "Active" : stack.status.charAt(0).toUpperCase() + stack.status.slice(1);
                   const isActive = stack.status === "active";
