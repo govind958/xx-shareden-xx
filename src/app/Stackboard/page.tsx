@@ -63,6 +63,9 @@ export default function Stackboard() {
 
   const { user, loading: authLoading } = useAuth();
 
+  // Ref to hold latest sidebar items for use in realtime callbacks without re-subscribing
+  const sidebarItemsRef = useRef<StackboardSidebarItem[]>([]);
+
   // 1. Initial Data Fetch — only depends on auth state, not selectedItem
   const selectedItemRef = useRef(selectedItem);
   selectedItemRef.current = selectedItem;
@@ -73,6 +76,7 @@ export default function Stackboard() {
       try {
         const items = await getStackboardSidebarItems(user.id);
         setSidebarItems(items);
+        sidebarItemsRef.current = items;
 
         if (items && items.length > 0 && !selectedItemRef.current) {
           setSelectedItem(items[0]);
@@ -156,8 +160,9 @@ export default function Stackboard() {
   }, [selectedItem]);
 
   // 2.5 Real-time subscription for order_items updates (progress & status)
+  // Uses ref instead of sidebarItems in deps to avoid reconnection on every state change
   useEffect(() => {
-    if (!user?.id || sidebarItems.length === 0) return;
+    if (!user?.id || sidebarItemsRef.current.length === 0) return;
 
     const supabase = createClient();
 
@@ -169,11 +174,11 @@ export default function Stackboard() {
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         const updatedItem = payload.new as { id: string; is_active?: boolean; status?: string; progress_percent?: number };
-        console.log('[Stackboard] Order item updated:', updatedItem);
 
         if (updatedItem.is_active === false) {
           setSidebarItems(prev => {
             const next = prev.filter(item => item.orderItemId !== updatedItem.id);
+            sidebarItemsRef.current = next;
             if (next.length > 0 && activeItemRef.current?.orderItemId === updatedItem.id) {
               setSelectedItem(next[0]);
             } else if (next.length === 0) {
@@ -185,15 +190,19 @@ export default function Stackboard() {
           return;
         }
 
-        setSidebarItems(prev => prev.map(item =>
-          item.orderItemId === updatedItem.id
-            ? {
-              ...item,
-              status: updatedItem.status?.toUpperCase() || item.status,
-              progress_percent: updatedItem.progress_percent ?? item.progress_percent
-            }
-            : item
-        ));
+        setSidebarItems(prev => {
+          const next = prev.map(item =>
+            item.orderItemId === updatedItem.id
+              ? {
+                ...item,
+                status: updatedItem.status?.toUpperCase() || item.status,
+                progress_percent: updatedItem.progress_percent ?? item.progress_percent
+              }
+              : item
+          );
+          sidebarItemsRef.current = next;
+          return next;
+        });
 
         const statusMessages: Record<string, string> = {
           'in_progress': '🔧 Work has started on your order!',
@@ -205,16 +214,13 @@ export default function Stackboard() {
           toast(statusMessages[updatedItem.status || '']);
         }
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Stackboard] Realtime: Connected for order updates');
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, sidebarItems]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     activeItemRef.current = selectedItem;
@@ -230,11 +236,12 @@ export default function Stackboard() {
   }, [sidebarItems, searchQuery]);
 
   // Unread messages tracking
+  // Uses ref instead of sidebarItems in deps to avoid reconnection on every state change
   useEffect(() => {
-    if (!user?.id || sidebarItems.length === 0) return;
+    if (!user?.id || sidebarItemsRef.current.length === 0) return;
 
     const supabase = createClient();
-    const orderItemIds = [...new Set(sidebarItems.map(s => s.orderItemId))];
+    const orderItemIds = [...new Set(sidebarItemsRef.current.map(s => s.orderItemId))];
 
     const channel = supabase
       .channel(`unread_messages_${user.id}`)
@@ -250,15 +257,15 @@ export default function Stackboard() {
           const msgOrderItemId = newMsg.order_item_id;
           const msgSubStackId = newMsg.sub_stack_id;
 
-          if (!msgOrderItemId || !orderItemIds.includes(msgOrderItemId)) return;
+          // Re-check using ref for latest items
+          const currentOrderItemIds = new Set(sidebarItemsRef.current.map(s => s.orderItemId));
+          if (!msgOrderItemId || !currentOrderItemIds.has(msgOrderItemId)) return;
           if (newMsg.sender_id === user.id) return;
 
-          // Create a unique key for the sidebar item
           const itemKey = msgSubStackId 
             ? `${msgOrderItemId}-${msgSubStackId}` 
             : msgOrderItemId;
 
-          // Check if this message is for the currently active item
           const activeKey = activeItemRef.current?.subStackId 
             ? `${activeItemRef.current.orderItemId}-${activeItemRef.current.subStackId}`
             : activeItemRef.current?.orderItemId;
@@ -271,16 +278,13 @@ export default function Stackboard() {
           }
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Stackboard] Realtime: Connected for unread messages');
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, sidebarItems]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleItemSelect = useCallback((item: StackboardSidebarItem) => {
     setSelectedItem(prev => {

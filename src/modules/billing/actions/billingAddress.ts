@@ -41,6 +41,38 @@ export async function getBillingAddress(
 }
 
 /**
+ * Fetch billing address with office → headquarters fallback in a single DB call.
+ * Returns the preferred address and which type it is.
+ */
+export async function getBillingAddressWithFallback(
+    userId: string
+): Promise<{ address: BillingAddress | null; addressType: 'office' | 'headquarters' | null }> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from("billing_addresses")
+        .select("*")
+        .eq("user_id", userId)
+        .in("address_type", ["office", "headquarters"]);
+
+    if (error) {
+        console.error("Error fetching billing addresses:", error);
+        return { address: null, addressType: null };
+    }
+
+    if (!data || data.length === 0) {
+        return { address: null, addressType: null };
+    }
+
+    // Prefer office over headquarters
+    const office = data.find(a => a.address_type === 'office');
+    if (office) return { address: office as BillingAddress, addressType: 'office' };
+
+    const hq = data.find(a => a.address_type === 'headquarters');
+    return { address: (hq as BillingAddress) ?? null, addressType: hq ? 'headquarters' : null };
+}
+
+/**
  * Upsert (insert or update) the billing address for a user.
  * Uses the unique (user_id, address_type) constraint to decide insert vs update.
  * @param addressType - 'headquarters' (default) or 'office'

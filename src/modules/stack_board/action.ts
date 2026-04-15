@@ -35,8 +35,6 @@ export const getPurchasedStacks = async (userId: string) => {
         return [];
     }
 
-    console.log("Fetched order_items:", data);
-
     if (!data || data.length === 0) {
         console.log("No order items found for user:", userId);
         return [];
@@ -128,7 +126,7 @@ export const getAssignedEmployee = async(orderItemId: string) => {
         .limit(1)
         .maybeSingle();
 
-    console.log("getAssignedEmployee for", orderItemId, "->", JSON.stringify(data), error);
+
 
     if (error || !data?.employee_id) {
         return null;
