@@ -12,20 +12,6 @@ const nextConfig: NextConfig = {
       "date-fns",
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: "/",
-        destination: "/admin",
-        has: [{ type: "host", value: "admin.xx-shareden-xx.vercel.app" }],
-      },
-      {
-        source: "/:path*",
-        destination: "/admin/:path*",
-        has: [{ type: "host", value: "admin.xx-shareden-xx.vercel.app" }],
-      },
-    ]
-  },
 }
 
 export default nextConfig

@@ -45,13 +45,17 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/Employee_portal/signup') ||
     request.nextUrl.pathname.startsWith('/Employee_portal/pending-approval') ||
     request.nextUrl.pathname.startsWith('/Employee_portal/forgot-password') ||
-    request.nextUrl.pathname.startsWith('/Employee_portal/reset-password');
-    
+    request.nextUrl.pathname.startsWith('/Employee_portal/reset-password')
+
+  const isPublicAuthRoute =
+    request.nextUrl.pathname.startsWith('/forgot-password') ||
+    request.nextUrl.pathname.startsWith('/reset-password')
 
   if (
     !user &&
     !isAdminRoute &&
     !isEmployeeAuthRoute &&
+    !isPublicAuthRoute &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/error')
