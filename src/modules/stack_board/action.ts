@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { cache } from "react";
 import type { SubstackAssignment, StackboardSidebarItem } from "@/src/types/stack_board";
 
 interface AssignedEmployee {
@@ -9,7 +10,7 @@ interface AssignedEmployee {
     specialization: string;
     assigned_at: string | null;
 }
-export const getPurchasedStacks = async (userId: string) => {
+export const getPurchasedStacks = cache(async (userId: string) => {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from("order_items")
@@ -53,10 +54,10 @@ export const getPurchasedStacks = async (userId: string) => {
             progress_percent: item.progress_percent || 0,
         };
     }) || [];
-};
+});
 
 // Get substacks for a specific order item by its ID
-export const getPurchasedSubStacks = async (orderItemId: string) => {
+export const getPurchasedSubStacks = cache(async (orderItemId: string) => {
     const supabase = await createClient();
 
     // Get the order item with sub_stack_ids
@@ -112,9 +113,9 @@ export const getPurchasedSubStacks = async (orderItemId: string) => {
             status: status,
         };
     });
-};
+});
 
-export const getAssignedEmployee = async(orderItemId: string) => {
+export const getAssignedEmployee = cache(async(orderItemId: string) => {
 
     const supabase = await createClient();
 
@@ -142,10 +143,10 @@ export const getAssignedEmployee = async(orderItemId: string) => {
     };
 
     return result;
-}
+});
 
 // Get substack assignments for a specific order item (for client view)
-export const getSubstackAssignmentsForClient = async (orderItemId: string, parentStackName: string): Promise<SubstackAssignment[]> => {
+export const getSubstackAssignmentsForClient = cache(async (orderItemId: string, parentStackName: string): Promise<SubstackAssignment[]> => {
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -190,10 +191,10 @@ export const getSubstackAssignmentsForClient = async (orderItemId: string, paren
             employeeRole: (employee as { role?: string })?.role || null,
         };
     });
-};
+});
 
 // Get all sidebar items (stacks + substacks) for a user
-export const getStackboardSidebarItems = async (userId: string): Promise<StackboardSidebarItem[]> => {
+export const getStackboardSidebarItems = cache(async (userId: string): Promise<StackboardSidebarItem[]> => {
     const supabase = await createClient();
 
     // First, get all order_items (stacks) for the user
@@ -324,10 +325,10 @@ export const getStackboardSidebarItems = async (userId: string): Promise<Stackbo
     }
 
     return sidebarItems;
-};
+});
 
 // Get assigned employee for a specific substack
-export const getAssignedEmployeeForSubstack = async (orderItemId: string, subStackId: string) => {
+export const getAssignedEmployeeForSubstack = cache(async (orderItemId: string, subStackId: string) => {
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -353,4 +354,4 @@ export const getAssignedEmployeeForSubstack = async (orderItemId: string, subSta
         specialization: (emp as { specialization?: string })?.specialization || '',
         assigned_at: data.created_at ?? null,
     };
-}
+});

@@ -23,6 +23,7 @@ import { getStackboardSidebarItems, getAssignedEmployee, getAssignedEmployeeForS
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
 import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
+import { useStackboardStore } from '@/src/modules/stack_board/store';
 
 // --- Utility ---
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
@@ -38,8 +39,8 @@ function stackAccentColor(id: string): string {
 type AssignedEmployee = { name: string; role: string; specialization: string; assigned_at: string | null } | null;
 
 export default function Stackboard() {
-  const [loading, setLoading] = useState(true);
-  const [sidebarItems, setSidebarItems] = useState<StackboardSidebarItem[]>([]);
+  const { sidebarItems, isFetched, setSidebarItems } = useStackboardStore();
+  const [loading, setLoading] = useState(!isFetched);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -57,7 +58,11 @@ export default function Stackboard() {
   const { user, loading: authLoading } = useAuth();
 
   // Ref to hold latest sidebar items for use in realtime callbacks without re-subscribing
-  const sidebarItemsRef = useRef<StackboardSidebarItem[]>([]);
+  const sidebarItemsRef = useRef<StackboardSidebarItem[]>(sidebarItems);
+  
+  useEffect(() => {
+    sidebarItemsRef.current = sidebarItems;
+  }, [sidebarItems]);
 
   // 1. Initial Data Fetch — only depends on auth state, not selectedItem
   const selectedItemRef = useRef(selectedItem);
@@ -66,6 +71,15 @@ export default function Stackboard() {
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) return;
+      
+      if (isFetched) {
+        setLoading(false);
+        if (sidebarItems.length > 0 && !selectedItemRef.current) {
+          setSelectedItem(sidebarItems[0]);
+        }
+        return;
+      }
+      
       try {
         const items = await getStackboardSidebarItems(user.id);
         setSidebarItems(items);
