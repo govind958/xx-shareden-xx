@@ -24,6 +24,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
 import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
 import { useStackboardStore } from '@/src/modules/stack_board/store';
+import { useNotificationStore } from '@/src/store/notification-store';
 
 // --- Utility ---
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
@@ -40,6 +41,7 @@ type AssignedEmployee = { name: string; role: string; specialization: string; as
 
 export default function Stackboard() {
   const { sidebarItems, isFetched, setSidebarItems } = useStackboardStore();
+  const { markOrderMessagesAsRead } = useNotificationStore();
   const [loading, setLoading] = useState(!isFetched);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
@@ -198,7 +200,10 @@ export default function Stackboard() {
 
   useEffect(() => {
     activeItemRef.current = selectedItem;
-  }, [selectedItem]);
+    if (selectedItem?.orderItemId) {
+      markOrderMessagesAsRead(selectedItem.orderItemId);
+    }
+  }, [selectedItem, markOrderMessagesAsRead]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return sidebarItems;

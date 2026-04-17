@@ -18,6 +18,7 @@ interface NotificationStore {
   unreadCount: number
   addNotification: (notification: Omit<Notification, 'id' | 'read' | 'created_at'>) => void
   markAsRead: (id: string) => void
+  markOrderMessagesAsRead: (orderItemId: string) => void
   markAllAsRead: () => void
   clearAll: () => void
 }
@@ -40,12 +41,35 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
   },
   
   markAsRead: (id) => {
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
-      unreadCount: Math.max(0, state.unreadCount - 1),
-    }))
+    set((state) => {
+      const target = state.notifications.find((n) => n.id === id);
+      if (!target) return state;
+
+      const remaining = state.notifications.filter((n) => n.id !== id);
+      return {
+        notifications: remaining,
+        unreadCount: Math.max(0, state.unreadCount - (target.read ? 0 : 1)),
+      };
+    });
+  },
+
+  markOrderMessagesAsRead: (orderItemId) => {
+    set((state) => {
+      const remainingNotifications = state.notifications.filter(
+        (n) => !(n.order_item_id === orderItemId && n.type === 'message')
+      );
+      
+      const removedUnreadCount = state.notifications.filter(
+        (n) => !n.read && n.order_item_id === orderItemId && n.type === 'message'
+      ).length;
+
+      if (remainingNotifications.length === state.notifications.length) return state;
+
+      return {
+        notifications: remainingNotifications,
+        unreadCount: Math.max(0, state.unreadCount - removedUnreadCount),
+      };
+    });
   },
   
   markAllAsRead: () => {
