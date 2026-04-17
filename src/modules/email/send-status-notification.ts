@@ -202,7 +202,7 @@ function generateStatusNotificationHTML(data: StatusNotificationData): string {
               
               <!-- CTA Button -->
               <div style="text-align: center; margin: 32px 0;">
-                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://shareden.com'}/private?tab=stackboard" 
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://xx-shareden-xx.vercel.app/'}/private?tab=stackboard" 
                    style="display: inline-block; background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(20, 184, 166, 0.4);">
                   View Order Status →
                 </a>
@@ -229,9 +229,9 @@ function generateStatusNotificationHTML(data: StatusNotificationData): string {
                   </td>
                   <td align="right">
                     <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://shareden.com'}/privacy" style="color: #9ca3af; text-decoration: none;">Privacy</a>
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://xx-shareden-xx.vercel.app/'}/privacy" style="color: #9ca3af; text-decoration: none;">Privacy</a>
                       &nbsp;•&nbsp;
-                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://shareden.com'}/terms" style="color: #9ca3af; text-decoration: none;">Terms</a>
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://xx-shareden-xx.vercel.app/'}/terms" style="color: #9ca3af; text-decoration: none;">Terms</a>
                     </p>
                   </td>
                 </tr>

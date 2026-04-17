@@ -11,6 +11,7 @@ import {
   approveEmployee,
   rejectEmployee,
   revokeInvitation,
+  acceptInvitation,
 } from "@/src/modules/admin/approvals/approval-actions"
 import { PendingEmployee, PendingInvitation } from "@/src/types/approvals"
 import { toast } from "sonner"
@@ -83,6 +84,18 @@ export default function App() {
     setActionId(null)
     if (result.success) {
       toast.success("Invitation revoked")
+      fetchData()
+    } else {
+      toast.error(result.error)
+    }
+  }
+
+  const handleAcceptInvitation = async (id: string) => {
+    setActionId(id)
+    const result = await acceptInvitation(id)
+    setActionId(null)
+    if (result.success) {
+      toast.success("Invitation accepted")
       fetchData()
     } else {
       toast.error(result.error)
@@ -254,7 +267,7 @@ export default function App() {
                     <th className="px-8 py-4 font-black border-r border-neutral-900/50 w-auto">Role & Specs</th>
                     <th className="px-8 py-4 font-black border-r border-neutral-900/50 w-[120px]">Status</th>
                     <th className="px-8 py-4 font-black border-r border-neutral-900/50 w-[140px]">Applied On</th>
-                    <th className="px-8 py-4 font-black w-[100px] text-right">Actions</th>
+                    <th className="px-8 py-4 font-black w-[200px] text-right">Actions</th>
                   </tr>
                 </thead>
               ) : (
@@ -266,7 +279,7 @@ export default function App() {
                     <th className="px-8 py-4 font-black border-r border-neutral-900/50 w-auto">Invited By</th>
                     <th className="px-8 py-4 font-black border-r border-neutral-900/50 w-[120px]">Status</th>
                     <th className="px-8 py-4 font-black border-r border-neutral-900/50 w-[140px]">Expires On</th>
-                    <th className="px-8 py-4 font-black w-[100px] text-right">Actions</th>
+                    <th className="px-8 py-4 font-black w-[200px] text-right">Actions</th>
                   </tr>
                 </thead>
               )}
@@ -312,26 +325,30 @@ export default function App() {
                           {new Date(employee.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-8 py-4 text-right">
-                          <div className="flex items-center justify-end gap-3">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleRejectEmployee(employee.id)}
                               disabled={actionId === employee.id}
-                              className="text-neutral-600 hover:text-rose-500 transition-colors p-1 disabled:opacity-40"
-                              title="Reject"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500/20 hover:text-rose-300 transition-all disabled:opacity-40"
                             >
-                              <X size={16} />
+                              {actionId === employee.id ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <X size={12} />
+                              )}
+                              Reject
                             </button>
                             <button
                               onClick={() => handleApproveEmployee(employee.id)}
                               disabled={actionId === employee.id}
-                              className="text-neutral-600 hover:text-teal-500 transition-colors p-1 disabled:opacity-40"
-                              title="Approve"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400 text-[10px] font-bold uppercase tracking-wider hover:bg-teal-500/20 hover:text-teal-300 transition-all disabled:opacity-40"
                             >
                               {actionId === employee.id ? (
-                                <Loader2 size={16} className="animate-spin text-teal-500" />
+                                <Loader2 size={12} className="animate-spin" />
                               ) : (
-                                <CheckCircle2 size={16} />
+                                <CheckCircle2 size={12} />
                               )}
+                              Approve
                             </button>
                           </div>
                         </td>
@@ -377,18 +394,31 @@ export default function App() {
                           <span className="block text-[9px] text-rose-500/70 mt-0.5">Expiring</span>
                         </td>
                         <td className="px-8 py-4 text-right">
-                          <div className="flex items-center justify-end gap-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleAcceptInvitation(invite.id)}
+                              disabled={actionId === invite.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400 text-[10px] font-bold uppercase tracking-wider hover:bg-teal-500/20 hover:text-teal-300 transition-all disabled:opacity-40"
+                            >
+                              {actionId === invite.id ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <CheckCircle2 size={12} />
+                              )}
+                              Accept
+                            </button>
                             <button
                               onClick={() => handleRevokeInvitation(invite.id)}
                               disabled={actionId === invite.id}
-                              className="text-neutral-600 hover:text-rose-500 transition-colors p-1 disabled:opacity-40"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500/20 hover:text-rose-300 transition-all disabled:opacity-40"
                               title="Revoke Invitation"
                             >
                               {actionId === invite.id ? (
-                                <Loader2 size={16} className="animate-spin text-rose-500" />
+                                <Loader2 size={12} className="animate-spin" />
                               ) : (
-                                <Trash2 size={16} />
+                                <Trash2 size={12} />
                               )}
+                              Delete
                             </button>
                           </div>
                         </td>

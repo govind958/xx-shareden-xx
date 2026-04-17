@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import {
   FolderTree, Search, Filter, 
-  ArrowUpRight, CheckCircle2, Clock
+  ArrowUpRight, CheckCircle2, Clock, Loader2
 } from 'lucide-react';
 
 interface TaskItem { id: string; status?: string; progress_percent?: number; section_type?: string; target?: number; limit?: number; stacks?: { name?: string }; }
@@ -94,7 +94,9 @@ export default function ProjectPage() {
       {/* The Table Layout */}
       <div className="overflow-x-auto border border-neutral-200 dark:border-neutral-800 rounded-sm">
         {loading ? (
-          <div className="p-12 text-center text-neutral-500 text-sm">Loading...</div>
+          <div className="p-12 flex items-center justify-center">
+            <Loader2 size={24} className="animate-spin text-teal-500" />
+          </div>
         ) : filteredTasks.length === 0 ? (
           <div className="p-12 text-center">
             <FolderTree size={32} className="mx-auto mb-4 text-neutral-300 dark:text-neutral-600" />

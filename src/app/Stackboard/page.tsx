@@ -15,6 +15,9 @@ import {
   Calendar,
   Layers,
   Box,
+  Loader2,
+  Sparkles,
+  Lock,
 } from "lucide-react";
 
 import { createClient } from '@/utils/supabase/client';
@@ -46,7 +49,7 @@ export default function Stackboard() {
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
+  const router = useRouter();
   // Selected item can be a stack or substack
   const [selectedItem, setSelectedItem] = useState<StackboardSidebarItem | null>(null);
 
@@ -54,6 +57,8 @@ export default function Stackboard() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
 
   const activeItemRef = useRef<StackboardSidebarItem | null>(null);
 
@@ -103,6 +108,39 @@ export default function Stackboard() {
       setLoading(false);
     }
   }, [user, authLoading]);
+
+  // Check trial expiry based on subscription status and account creation date
+  useEffect(() => {
+    const checkTrialExpiry = async () => {
+      if (!user) return;
+      
+      try {
+        const activePlan = await getUserActivePlan();
+        
+        // If user has an active paid plan (pro or enterprise), they have full access
+        if (activePlan && (activePlan.plan === 'pro' || activePlan.plan === 'enterprise')) {
+          setIsTrialExpired(false);
+          return;
+        }
+        
+        // For starter plan or no plan, check 3-day trial from account creation
+        const accountCreatedDate = new Date(user.created_at || Date.now());
+        const trialEndDate = new Date(accountCreatedDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        
+        if (now > trialEndDate) {
+          setIsTrialExpired(true);
+        } else {
+          setIsTrialExpired(false);
+        }
+      } catch (error) {
+        console.error("Error checking trial expiry:", error);
+        setIsTrialExpired(false);
+      }
+    };
+    
+    checkTrialExpiry();
+  }, [user]);
 
   // Load assigned employee whenever the selected item changes
   useEffect(() => {
@@ -282,14 +320,14 @@ export default function Stackboard() {
     }
   }, []);
 
+  const handleUpgradeClick = () => {
+    router.push('/private?tab=client_price');
+  };
+
   if (loading || authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#F7FAFC]">
-        <div className="flex items-center gap-1.5" role="status" aria-label="Loading">
-          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]" />
-          <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]" />
-        </div>
+      <div className="flex w-full flex-1 min-h-[calc(100dvh-6rem)] items-center justify-center bg-[#F7FAFC]">
+        <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
       </div>
     );
   }
@@ -605,15 +643,60 @@ export default function Stackboard() {
           </div>
         </header>
 
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          <div className="flex-1 min-w-0 flex flex-col min-h-0">
-            <MessageDashboard
-              activeStackId={selectedItem?.orderItemId || null}
-              activeSubStackId={selectedItem?.subStackId || null}
-              activeStackName={selectedItem?.name || 'Select a Stack'}
-              user={user!}
-            />
+        {/* MESSAGES AREA + TRIAL OVERLAY */}
+        <div className="flex-1 flex overflow-hidden min-h-0 relative">
+          
+          <div className={cn(
+            "flex-1 min-w-0 flex flex-col min-h-0 transition-all duration-500",
+            isTrialExpired && "blur-[6px] opacity-50 select-none pointer-events-none"
+          )}>
+            {user && (
+              <MessageDashboard
+                activeStackId={selectedItem?.orderItemId || null}
+                activeSubStackId={selectedItem?.subStackId || null}
+                activeStackName={selectedItem?.name || 'Select a Stack'}
+                user={user}
+              />
+            )}
           </div>
+
+            {/* Trial Expired Overlay & Popup */}
+            {isTrialExpired && (
+            <div className="absolute bottom-0 inset-x-0 z-50 flex flex-col items-center justify-end pb-4 sm:pb-8 pointer-events-none">
+              {/* Backdrop blur just for the bottom area to obscure the text input */}
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white via-white/80 to-transparent backdrop-blur-[3px] pointer-events-none" />
+
+              <div className="relative z-10 w-[95%] sm:w-[90%] max-w-[650px] bg-slate-900 text-white rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.4)] p-5 pointer-events-auto border border-slate-700/50 overflow-hidden group animate-in slide-in-from-bottom-8 duration-500 ease-out">
+                {/* Subtle glow effects */}
+                <div className="absolute -right-16 -top-16 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none" />
+                <div className="absolute -left-16 -bottom-16 w-32 h-32 bg-blue-500 rounded-full blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none" />
+
+                <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5">
+                  <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
+                    <Lock size={22} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Messaging Locked</h3>
+                      <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-400/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-400/20">Trial Ended</span>
+                    </div>
+                    <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-4 sm:mb-0 pr-2">
+                      You can scroll to read past messages. Upgrade to Premium to continue chatting and keep your project moving forward.
+                    </p>
+                  </div>
+                  <div className="w-full sm:w-auto shrink-0 border-t border-slate-700 sm:border-0 pt-4 sm:pt-0">
+                    <button 
+                      onClick={handleUpgradeClick}
+                      className="w-full sm:w-auto bg-white text-slate-900 hover:bg-slate-100 font-bold py-2.5 px-5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm shadow-md hover:scale-[1.02] active:scale-95"
+                    >
+                      <Sparkles size={16} className="text-orange-500" />
+                      Upgrade Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {showInfoPanel && selectedItem && (
             <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)] transition-all animate-in slide-in-from-right-8 duration-300 z-20 shrink-0">

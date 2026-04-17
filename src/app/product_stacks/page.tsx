@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getStacks, Stack, SubStack, DnDProvider } from '@/src/modules/product_stacks';
 import { CanvasContainer, PreMadeStacks } from '@/src/components/product-stacks';
@@ -8,14 +9,8 @@ import { CanvasContainer, PreMadeStacks } from '@/src/components/product-stacks'
 /* --- LOADING --- */
 
 const LoadingPage = () => (
-  <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-    <div className="flex gap-2">
-      <div className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-75" />
-      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-150" />
-      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-300" />
-      <div className="w-2 h-2 rounded-full bg-slate-300 animate-pulse delay-500" />
-    </div>
+  <div className="flex w-full flex-1 min-h-[calc(100dvh-6rem)] bg-slate-50 items-center justify-center">
+    <Loader2 size={32} className="animate-spin text-[#2B6CB0]" />
   </div>
 );
 

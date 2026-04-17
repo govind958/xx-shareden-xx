@@ -53,5 +53,20 @@ export async function revokeInvitation(invitationId: string) {
   return { success: true }
 }
 
+// Accept an invitation – mark it as accepted
+export async function acceptInvitation(invitationId: string) {
+  const { isValid } = await verifyAdminSession()
+  if (!isValid) return { success: false, error: "Unauthorized" }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from("employee_invitations")
+    .update({ status: "accepted" })
+    .eq("id", invitationId)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
 // Re-export for convenience
 export { approveEmployee, rejectEmployee }
