@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import {
   assignEmployeeAndNotify,
   assignEmployeeToSubstack,
+  assignEmployeeToWholeStack,
   unassignEmployeeFromSubstack,
 } from "@/src/modules/admin/actions";
 import {
@@ -65,6 +66,7 @@ export default function OrderCommandCenter() {
     subStackId: string;
   } | null>(null);
   const [assigningLegacyItemId, setAssigningLegacyItemId] = useState<string | null>(null);
+  const [assigningWholeStackItemId, setAssigningWholeStackItemId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -237,6 +239,33 @@ export default function OrderCommandCenter() {
     })));
   };
 
+  const handleAssignWholeStack = async (orderItemId: string, employeeId: string) => {
+    const result = await assignEmployeeToWholeStack(employeeId, orderItemId);
+    if ('error' in result && result.error) {
+      alert(`Error: ${result.error}`);
+      return;
+    }
+    const rows = ('assignments' in result ? result.assignments : []) as SubstackAssignmentRow[];
+    setOrders(prev => prev.map(order => ({
+      ...order,
+      order_items: order.order_items?.map((item: OrderItem) => {
+        if (item.id !== orderItemId) return item;
+        const next = [...(item._substack_assignments || [])];
+        for (const row of rows) {
+          const idx = next.findIndex(a => a.sub_stack_id === row.sub_stack_id);
+          if (idx >= 0) next[idx] = row;
+          else next.push(row);
+        }
+        return {
+          ...item,
+          status: item.status === 'initiated' ? 'processing' : item.status,
+          _substack_assignments: next,
+        };
+      }) ?? []
+    })));
+    setAssigningWholeStackItemId(null);
+  };
+
   const selectedOrder = orders.find(o => o.id === selectedOrderId);
 
   const drawerProgress = useMemo(() => {
@@ -383,7 +412,7 @@ export default function OrderCommandCenter() {
 
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => { setSelectedOrderId(null); setAssigningTarget(null); setAssigningLegacyItemId(null); }} />
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity" onClick={() => { setSelectedOrderId(null); setAssigningTarget(null); setAssigningLegacyItemId(null); setAssigningWholeStackItemId(null); }} />
           <aside className="relative w-full max-w-xl bg-[#080808] border-l border-neutral-900 h-screen flex flex-col shadow-2xl animate-in slide-in-from-right duration-500">
 
             <div className="p-8 border-b border-neutral-900 flex justify-between items-center bg-[#0a0a0a]">
@@ -391,7 +420,7 @@ export default function OrderCommandCenter() {
                 <span className="text-[10px] font-black text-teal-500 uppercase tracking-[0.3em]">Deployment Profile</span>
                 <h3 className="text-2xl font-bold text-white mt-1">{selectedOrder.id.slice(0, 8)}</h3>
               </div>
-              <button onClick={() => { setSelectedOrderId(null); setAssigningTarget(null); setAssigningLegacyItemId(null); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
+              <button onClick={() => { setSelectedOrderId(null); setAssigningTarget(null); setAssigningLegacyItemId(null); setAssigningWholeStackItemId(null); }} className="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl hover:bg-neutral-800 transition">
                 <X size={20} />
               </button>
             </div>
@@ -461,6 +490,37 @@ export default function OrderCommandCenter() {
                         </div>
                       ) : (
                         <div className="space-y-2">
+                          {/* Assign All button for whole stack */}
+                          <div className="mb-3">
+                            {assigningWholeStackItemId === item.id ? (
+                              <div className="grid gap-2 max-h-40 overflow-y-auto p-2 rounded-xl border border-teal-500/30 bg-teal-500/5">
+                                <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest px-1">Select employee for all modules</p>
+                                {employees.map((emp) => (
+                                  <button
+                                    key={emp.id}
+                                    type="button"
+                                    onClick={() => handleAssignWholeStack(item.id, emp.id)}
+                                    className="flex items-center justify-between p-2.5 bg-black border border-neutral-800 rounded-xl hover:border-teal-500 text-left transition-colors"
+                                  >
+                                    <span className="text-sm text-white">{emp.name}</span>
+                                    <Check size={14} className="text-teal-500" />
+                                  </button>
+                                ))}
+                                <button type="button" onClick={() => setAssigningWholeStackItemId(null)} className="text-[10px] text-neutral-500 uppercase mt-1">
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setAssigningWholeStackItemId(item.id)}
+                                className="flex items-center gap-2 w-full px-3 py-2.5 bg-teal-500/10 border border-teal-500/30 rounded-xl text-xs font-bold text-teal-400 hover:bg-teal-500/20 transition-colors"
+                              >
+                                <UserPlus size={14} />
+                                Assign All Modules to One Employee
+                              </button>
+                            )}
+                          </div>
                           {modules.map((mod) => {
                             const assignRow = (item._substack_assignments || []).find(
                               a => a.sub_stack_id === mod.id
