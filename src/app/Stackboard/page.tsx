@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   MoreHorizontal,
@@ -23,6 +24,7 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import { StackboardSidebarItem } from '@/src/modules/stack_board/types';
 import { getStackboardSidebarItems, getAssignedEmployee, getAssignedEmployeeForSubstack } from '@/src/modules/stack_board/action';
+import { getUserActivePlan } from '@/src/modules/razorpay/planSubscription';
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
 import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
