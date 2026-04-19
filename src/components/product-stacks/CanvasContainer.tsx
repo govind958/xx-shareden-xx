@@ -7,11 +7,15 @@ import { DnDProvider, Stack, SubStack } from '@/src/modules/product_stacks';
 interface CanvasContainerProps {
   stacks: Stack[];
   subStacks: SubStack[];
+  isPaid: boolean;
+  maxSubStacks: number;
 }
 
 export const CanvasContainer: React.FC<CanvasContainerProps> = ({
   stacks,
   subStacks: _subStacks,
+  isPaid,
+  maxSubStacks,
 }) => {
 
   void _subStacks;
@@ -35,7 +39,7 @@ export const CanvasContainer: React.FC<CanvasContainerProps> = ({
 
           {/* Canvas: Light gray surface (#F1F5F9) to provide depth */}
           <div className="flex-1 bg-[#F1F5F9]">
-            <Canvas />
+            <Canvas isPaid={isPaid} maxSubStacks={maxSubStacks} />
           </div>
 
         </DnDProvider>
