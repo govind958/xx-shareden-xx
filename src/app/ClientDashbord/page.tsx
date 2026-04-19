@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [stacks, setStacks] = useState<PURCHASED_STACKS[]>([]);
   const [openIssues, setOpenIssues] = useState(0);
-  const [closedIssues, setClosedIssues] = useState(0);  
+  const [closedIssues, setClosedIssues] = useState(0);
   const [tickets, setTickets] = useState<SUPPORT_TICKETS[]>([]);
   // Simulate initial data fetch
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function DashboardPage() {
       return;
     }
     const fetchData = async () => {
-      try{
+      try {
         const [data, supportResult] = await Promise.all([
           getPurchasedStacks(user.id),
           getSupportTicketsWithCounts(user.id),
@@ -93,8 +93,8 @@ export default function DashboardPage() {
               Key Performance Indicators
             </h2>
 
-            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline" 
-            onClick={() => router.push('/private?tab=stackboard')}>
+            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline"
+              onClick={() => router.push('/private?tab=stackboard')}>
               View Detailed Analytics <ChevronRight size={14} />
             </button>
           </div>
@@ -169,15 +169,15 @@ export default function DashboardPage() {
                   <h3 className="font-bold tracking-tight text-[#1A365D]">My Issues</h3>
                 </div>
                 <div className="flex items-center gap-3">
-                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
-                     <span className="w-2 h-2 rounded-full bg-red-500"></span> Open ({openIssues})
-                   </div>
-                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
-                     <span className="w-2 h-2 rounded-full bg-slate-300"></span> Closed ({closedIssues})
-                   </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                    <span className="w-2 h-2 rounded-full bg-red-500"></span> Open ({openIssues})
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                    <span className="w-2 h-2 rounded-full bg-slate-300"></span> Closed ({closedIssues})
+                  </div>
                 </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-200">
                 {tickets.map(ticket => {
                   const isOpen = ticket.status === 'open';
@@ -201,7 +201,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-             <EmptyStateSection title="My Issues" highlight="#E53E3E" />
+            <EmptyStateSection title="My Issues" highlight="#E53E3E" />
           )}
 
           <EmptyStateSection title="Due Today" highlight="#319795" />

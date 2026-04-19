@@ -31,16 +31,20 @@ const StacksPage = dynamic(() => import("../product_stacks/page"), {
   loading: TabFallback,
 })
 const StackboardPage = dynamic(() => import("../Stackboard/page"), {
-  loading: TabFallback,
+  loading: () => <TabFallback />,
+  ssr: true
 })
 const Price = dynamic(() => import("../Price/page"), {
-  loading: TabFallback,
+  loading: () => <TabFallback />,
+  ssr: true
 })
 const BillingPage = dynamic(() => import("../Billing/page"), {
-  loading: TabFallback,
+  loading: () => <TabFallback />,
+  ssr: true
 })
 const OrganizationSettingsPage = dynamic(() => import("../Setting/page"), {
-  loading: TabFallback,
+  loading: () => <TabFallback />,
+  ssr: true
 })
 
 function PrivateShellFallback() {
@@ -68,13 +72,24 @@ function PrivatePanelContent() {
   }, [user, authLoading])
 
   useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      const tab = params.get('tab')
+      if (tab) setActiveTab(tab)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab) setActiveTab(tab)
   }, [searchParams])
 
   const handleTabChange = (id: string) => {
+    if (id === activeTab) return
     setActiveTab(id)
-    router.push(`/private?tab=${id}`, { scroll: false })
+    window.history.pushState(null, '', `/private?tab=${id}`)
     if (window.innerWidth < 768) setIsSidebarOpen(false)
   }
 
@@ -112,9 +127,11 @@ function PrivatePanelContent() {
 
         <main className="flex flex-1 flex-col min-h-0 overflow-y-auto p-4 md:p-8">
           <div className="max-w-[1600px] mx-auto w-full flex flex-1 flex-col min-h-0 min-w-0">
-            <div className="animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-1 flex-col min-h-0 min-w-0">
-              {renderMainContent()}
-            </div>
+            <Suspense fallback={<TabFallback />}>
+              <div className="animate-in fade-in slide-in-from-bottom-3 duration-700 flex flex-1 flex-col min-h-0 min-w-0">
+                {renderMainContent()}
+              </div>
+            </Suspense>
           </div>
         </main>
       </div>
