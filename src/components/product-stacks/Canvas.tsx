@@ -14,7 +14,6 @@ import { useAuth } from '@/src/context/AuthContext';
 import { RefreshCw, Trash2, Rocket, AlertTriangle, X, ArrowRight } from 'lucide-react';
 import {
   createDeployOrderForCustomCluster,
-  getStarterDeployLimits,
 } from '@/src/modules/orders/createDeployOrder';
 
 const STORAGE_KEY_CANVAS_NODES = 'product_stacks_canvas_nodes';
@@ -103,7 +102,7 @@ function isModuleNode(n: CanvasNode): boolean {
   return n.type !== 'group';
 }
 
-export const Canvas: React.FC = () => {
+export const Canvas: React.FC<{ isPaid: boolean; maxSubStacks: number }> = ({ isPaid, maxSubStacks }) => {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -118,8 +117,6 @@ export const Canvas: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({ open: false, title: '', message: '' });
-  const [isPaid, setIsPaid] = useState(false);
-  const [maxSubStacks, setMaxSubStacks] = useState(3);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -134,13 +131,6 @@ export const Canvas: React.FC = () => {
   } = useCanvasInteractions(nodes, setNodes, scale, panOffset, containerRef);
 
   const moduleNodes = useMemo(() => nodes.filter(isModuleNode), [nodes]);
-
-  useEffect(() => {
-    getStarterDeployLimits().then((limits) => {
-      setIsPaid(limits.paid);
-      setMaxSubStacks(limits.maxSubStacks);
-    });
-  }, []);
 
   const closeDialog = useCallback(() => setDialog((d) => ({ ...d, open: false })), []);
   const handleUpgrade = useCallback(() => {
