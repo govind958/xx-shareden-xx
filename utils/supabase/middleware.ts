@@ -48,6 +48,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/Employee_portal/reset-password')
 
   const isPublicAuthRoute =
+    request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/forgot-password') ||
     request.nextUrl.pathname.startsWith('/reset-password')
 
