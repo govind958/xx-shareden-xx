@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   MoreHorizontal,
@@ -23,11 +24,12 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import { StackboardSidebarItem } from '@/src/modules/stack_board/types';
 import { getStackboardSidebarItems, getAssignedEmployee, getAssignedEmployeeForSubstack } from '@/src/modules/stack_board/action';
+import { getUserActivePlan } from '@/src/modules/razorpay/planSubscription';
 import { useAuth } from '@/src/context/AuthContext';
 import { toast } from 'sonner';
 import MessageDashboard from '@/src/components/stackboard/MessageDashboard';
-import { getUserActivePlan } from '@/src/modules/razorpay/planSubscription';
-import { useRouter } from 'next/navigation';
+import { useStackboardStore } from '@/src/modules/stack_board/store';
+import { useNotificationStore } from '@/src/store/notification-store';
 
 // --- Utility ---
 const cn = (...classes: (string | boolean | undefined | null)[]) => classes.filter(Boolean).join(' ');
@@ -43,8 +45,9 @@ function stackAccentColor(id: string): string {
 type AssignedEmployee = { name: string; role: string; specialization: string; assigned_at: string | null } | null;
 
 export default function Stackboard() {
-  const [loading, setLoading] = useState(true);
-  const [sidebarItems, setSidebarItems] = useState<StackboardSidebarItem[]>([]);
+  const { sidebarItems, isFetched, setSidebarItems } = useStackboardStore();
+  const { markOrderMessagesAsRead } = useNotificationStore();
+  const [loading, setLoading] = useState(!isFetched);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [assignedEmployee, setAssignedEmployee] = useState<AssignedEmployee>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -63,6 +66,13 @@ export default function Stackboard() {
 
   const { user, loading: authLoading } = useAuth();
 
+  // Ref to hold latest sidebar items for use in realtime callbacks without re-subscribing
+  const sidebarItemsRef = useRef<StackboardSidebarItem[]>(sidebarItems);
+  
+  useEffect(() => {
+    sidebarItemsRef.current = sidebarItems;
+  }, [sidebarItems]);
+
   // 1. Initial Data Fetch — only depends on auth state, not selectedItem
   const selectedItemRef = useRef(selectedItem);
   selectedItemRef.current = selectedItem;
@@ -70,9 +80,19 @@ export default function Stackboard() {
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id) return;
+      
+      if (isFetched) {
+        setLoading(false);
+        if (sidebarItems.length > 0 && !selectedItemRef.current) {
+          setSelectedItem(sidebarItems[0]);
+        }
+        return;
+      }
+      
       try {
         const items = await getStackboardSidebarItems(user.id);
         setSidebarItems(items);
+        sidebarItemsRef.current = items;
 
         if (items && items.length > 0 && !selectedItemRef.current) {
           setSelectedItem(items[0]);
@@ -156,8 +176,9 @@ export default function Stackboard() {
   }, [selectedItem]);
 
   // 2.5 Real-time subscription for order_items updates (progress & status)
+  // Uses ref instead of sidebarItems in deps to avoid reconnection on every state change
   useEffect(() => {
-    if (!user?.id || sidebarItems.length === 0) return;
+    if (!user?.id || sidebarItemsRef.current.length === 0) return;
 
     const supabase = createClient();
 
@@ -169,11 +190,11 @@ export default function Stackboard() {
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         const updatedItem = payload.new as { id: string; is_active?: boolean; status?: string; progress_percent?: number };
-        console.log('[Stackboard] Order item updated:', updatedItem);
 
         if (updatedItem.is_active === false) {
           setSidebarItems(prev => {
             const next = prev.filter(item => item.orderItemId !== updatedItem.id);
+            sidebarItemsRef.current = next;
             if (next.length > 0 && activeItemRef.current?.orderItemId === updatedItem.id) {
               setSelectedItem(next[0]);
             } else if (next.length === 0) {
@@ -185,15 +206,19 @@ export default function Stackboard() {
           return;
         }
 
-        setSidebarItems(prev => prev.map(item =>
-          item.orderItemId === updatedItem.id
-            ? {
-              ...item,
-              status: updatedItem.status?.toUpperCase() || item.status,
-              progress_percent: updatedItem.progress_percent ?? item.progress_percent
-            }
-            : item
-        ));
+        setSidebarItems(prev => {
+          const next = prev.map(item =>
+            item.orderItemId === updatedItem.id
+              ? {
+                ...item,
+                status: updatedItem.status?.toUpperCase() || item.status,
+                progress_percent: updatedItem.progress_percent ?? item.progress_percent
+              }
+              : item
+          );
+          sidebarItemsRef.current = next;
+          return next;
+        });
 
         const statusMessages: Record<string, string> = {
           'in_progress': '🔧 Work has started on your order!',
@@ -205,20 +230,20 @@ export default function Stackboard() {
           toast(statusMessages[updatedItem.status || '']);
         }
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Stackboard] Realtime: Connected for order updates');
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, sidebarItems]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     activeItemRef.current = selectedItem;
-  }, [selectedItem]);
+    if (selectedItem?.orderItemId) {
+      markOrderMessagesAsRead(selectedItem.orderItemId);
+    }
+  }, [selectedItem, markOrderMessagesAsRead]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return sidebarItems;
@@ -230,11 +255,12 @@ export default function Stackboard() {
   }, [sidebarItems, searchQuery]);
 
   // Unread messages tracking
+  // Uses ref instead of sidebarItems in deps to avoid reconnection on every state change
   useEffect(() => {
-    if (!user?.id || sidebarItems.length === 0) return;
+    if (!user?.id || sidebarItemsRef.current.length === 0) return;
 
     const supabase = createClient();
-    const orderItemIds = [...new Set(sidebarItems.map(s => s.orderItemId))];
+    const orderItemIds = [...new Set(sidebarItemsRef.current.map(s => s.orderItemId))];
 
     const channel = supabase
       .channel(`unread_messages_${user.id}`)
@@ -250,15 +276,15 @@ export default function Stackboard() {
           const msgOrderItemId = newMsg.order_item_id;
           const msgSubStackId = newMsg.sub_stack_id;
 
-          if (!msgOrderItemId || !orderItemIds.includes(msgOrderItemId)) return;
+          // Re-check using ref for latest items
+          const currentOrderItemIds = new Set(sidebarItemsRef.current.map(s => s.orderItemId));
+          if (!msgOrderItemId || !currentOrderItemIds.has(msgOrderItemId)) return;
           if (newMsg.sender_id === user.id) return;
 
-          // Create a unique key for the sidebar item
           const itemKey = msgSubStackId 
             ? `${msgOrderItemId}-${msgSubStackId}` 
             : msgOrderItemId;
 
-          // Check if this message is for the currently active item
           const activeKey = activeItemRef.current?.subStackId 
             ? `${activeItemRef.current.orderItemId}-${activeItemRef.current.subStackId}`
             : activeItemRef.current?.orderItemId;
@@ -271,16 +297,13 @@ export default function Stackboard() {
           }
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Stackboard] Realtime: Connected for unread messages');
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, sidebarItems]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleItemSelect = useCallback((item: StackboardSidebarItem) => {
     setSelectedItem(prev => {

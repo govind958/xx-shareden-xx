@@ -14,7 +14,7 @@ export default function VerifyEmailPage() {
             <div className="flex size-6 items-center justify-center rounded-md bg-[#1A365D] text-white">
               <GalleryVerticalEnd className="size-4" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-[#1A365D]">Stackboard.</span>
+            <span className="text-lg font-bold tracking-tight text-[#1A365D]">Stackboard</span>
           </div>
         </div>
 

@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import {
   createDeployOrderForPreMadeStack,
-  getStarterDeployLimits,
 } from '@/src/modules/orders/createDeployOrder';
 
 type DialogState = {
@@ -85,6 +84,8 @@ const LimitDialog = ({
 interface PreMadeStacksProps {
   stacks: Stack[];
   onDelete: (id: string) => void;
+  isPaid: boolean;
+  maxSubStacks: number;
 }
 
 const getIconForType = (type?: string) => {
@@ -106,7 +107,7 @@ const getIconForType = (type?: string) => {
   return typeMap[type?.toLowerCase() || ''] || Database;
 };
 
-export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
+export function PreMadeStacks({ stacks, onDelete, isPaid, maxSubStacks }: PreMadeStacksProps) {
 
   const router = useRouter();
   const { user } = useAuth();
@@ -115,8 +116,6 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
   const [viewingStack, setViewingStack] = useState<Stack | null>(null);
   const [loadingStackId, setLoadingStackId] = useState<string | null>(null);
   const [userCounts, setUserCounts] = useState<Record<string, number>>({});
-  const [isPaid, setIsPaid] = useState(false);
-  const [maxSubStacks, setMaxSubStacks] = useState(3);
   const [dialog, setDialog] = useState<DialogState>({ open: false, title: '', message: '' });
 
   const closeDialog = useCallback(() => setDialog(prev => ({ ...prev, open: false })), []);
@@ -124,13 +123,6 @@ export function PreMadeStacks({ stacks, onDelete }: PreMadeStacksProps) {
     closeDialog();
     router.push('/private?tab=client_price');
   }, [closeDialog, router]);
-
-  useEffect(() => {
-    getStarterDeployLimits().then((limits) => {
-      setIsPaid(limits.paid);
-      setMaxSubStacks(limits.maxSubStacks);
-    });
-  }, [user]);
 
   useEffect(() => {
     const fetchUserCounts = async () => {

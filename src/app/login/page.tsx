@@ -8,6 +8,7 @@ import { Button } from "@/src/components/ui/button";
 import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle, Loader2 } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
 import Image from "next/image";
+import Link from "next/link";
 
 import JaneDoePortrait from "@/src/app/Image/alert.png";
 
@@ -153,7 +154,8 @@ function LoginContent() {
             <div className="flex size-6 items-center justify-center rounded-md bg-[#1A365D] text-white">
               <GalleryVerticalEnd className="size-4" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-[#1A365D]">Stackboard.</span>
+            <span className="text-lg font-bold tracking-tight text-[#1A365D]" >
+              <Link href='/'>Stackboard</Link></span>
           </a>
         </div>
 

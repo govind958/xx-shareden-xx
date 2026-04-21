@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { getStacks, Stack, SubStack, DnDProvider } from '@/src/modules/product_stacks';
 import { CanvasContainer, PreMadeStacks } from '@/src/components/product-stacks';
+import { getStarterDeployLimits } from '@/src/modules/orders/createDeployOrder';
 
 /* --- LOADING --- */
 
@@ -18,12 +19,21 @@ export default function ProductStacksPage() {
   const [stacks, setStacks] = useState<Stack[]>([]);
   const [subStacks, setSubStacks] = useState<SubStack[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPaid, setIsPaid] = useState(false);
+  const [maxSubStacks, setMaxSubStacks] = useState(3);
 
   const loadStacks = async () => {
     try {
-      const data = await getStacks();
+      const [data, limits] = await Promise.all([
+        getStacks(),
+        getStarterDeployLimits()
+      ]);
       setStacks(data || []);
       setSubStacks(data?.flatMap(s => s.sub_stacks as SubStack[]) || []);
+      if (limits) {
+        setIsPaid(limits.paid);
+        setMaxSubStacks(limits.maxSubStacks);
+      }
     } catch (error) {
       console.error('Failed to load stacks:', error);
     } finally {
@@ -84,6 +94,8 @@ export default function ProductStacksPage() {
             <CanvasContainer
               stacks={stacks}
               subStacks={subStacks}
+              isPaid={isPaid}
+              maxSubStacks={maxSubStacks}
             />
           </div>
         </section>
@@ -97,6 +109,8 @@ export default function ProductStacksPage() {
             <PreMadeStacks
               stacks={stacks}
               onDelete={handleDeleteStack}
+              isPaid={isPaid}
+              maxSubStacks={maxSubStacks}
             />
           </DnDProvider>
         </section>

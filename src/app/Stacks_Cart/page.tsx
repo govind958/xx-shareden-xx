@@ -13,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import BuyNowButton from '@/src/components/buynowbutton';
-import { getBillingAddress, saveBillingAddress } from '@/src/modules/billing';
+import { getBillingAddressWithFallback, saveBillingAddress } from '@/src/modules/billing';
 
 /* --- LOADING COMPONENT --- */
 const LoadingPage = () => (
@@ -97,22 +97,21 @@ export default function ZohoStyleCheckout() {
       }
 
       try {
-        const [prof, org, cart] = await Promise.all([
+        const [prof, org, cart, billingResult] = await Promise.all([
           supabase.from('profiles').select('name').eq('user_id', user.id).single(),
-          supabase.from('organizations').select('org_name').eq('user_id', user.id).single(),
+          supabase.from('organizations').select('org_name, phone, country, state, street_address, city, zip_code').eq('user_id', user.id).single(),
           supabase.from('cart_stacks').select(`id, total_price, cluster_name, cluster_data, stacks (id, name, type, sub_stacks (id, name, price))`).eq('user_id', user.id).eq('status', 'active'),
+          getBillingAddressWithFallback(user.id),
           timer // Wait for the minimum 1.5s delay
         ]);
 
         setProfileData({ email: user.email || '', name: prof.data?.name || '' });
         setOrganizationData({ name: org.data?.org_name || '' });
 
-        // Load existing billing address — try office first, fall back to headquarters
-        const savedOffice = await getBillingAddress(user.id, 'office');
-        const savedHQ = await getBillingAddress(user.id, 'headquarters');
-        const savedAddress = savedOffice || savedHQ;
+        // Load billing address: use saved address or fall back to org data
+        const savedAddress = billingResult.address;
 
-        if (savedOffice) {
+        if (billingResult.addressType === 'office') {
           setUseOfficeAddress(true);
         }
 
@@ -127,16 +126,16 @@ export default function ZohoStyleCheckout() {
             zip_code: savedAddress.zip_code || '',
           });
         } else {
-          // Pre-fill company name from org data
-          const orgData = await supabase.from('organizations').select('org_name, phone, country, state, street_address, city, zip_code').eq('user_id', user.id).single();
+          // Pre-fill from org data already fetched above
+          const orgData = org.data;
           setBillingAddress({
-            company_name: orgData.data?.org_name || org.data?.org_name || '',
-            phone: orgData.data?.phone || '',
-            country: orgData.data?.country || 'India',
-            state: orgData.data?.state || '',
-            street_address: orgData.data?.street_address || '',
-            city: orgData.data?.city || '',
-            zip_code: orgData.data?.zip_code || '',
+            company_name: orgData?.org_name || '',
+            phone: orgData?.phone || '',
+            country: orgData?.country || 'India',
+            state: orgData?.state || '',
+            street_address: orgData?.street_address || '',
+            city: orgData?.city || '',
+            zip_code: orgData?.zip_code || '',
           });
         }
         setBillingAddressLoaded(true);

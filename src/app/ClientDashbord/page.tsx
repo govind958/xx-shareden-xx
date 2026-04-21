@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   ClipboardList,
   AlertCircle,
@@ -15,8 +15,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { getPurchasedStacks } from '@/src/modules/stack_board/action';
 import { PURCHASED_STACKS } from '@/src/modules/stack_board/types';
 import SupportModal from '@/src/components/SupportModal';
-import { getSupportTicketCounts } from '@/src/modules/support/action';
-import { getSupportTickets } from '@/src/modules/support/action';
+import { getSupportTicketsWithCounts } from '@/src/modules/support/action';
 import { SUPPORT_TICKETS } from "@/src/types/support";
 import { useRouter } from 'next/navigation';
 
@@ -41,7 +40,7 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [stacks, setStacks] = useState<PURCHASED_STACKS[]>([]);
   const [openIssues, setOpenIssues] = useState(0);
-  const [closedIssues, setClosedIssues] = useState(0);  
+  const [closedIssues, setClosedIssues] = useState(0);
   const [tickets, setTickets] = useState<SUPPORT_TICKETS[]>([]);
   // Simulate initial data fetch
   useEffect(() => {
@@ -51,16 +50,15 @@ export default function DashboardPage() {
       return;
     }
     const fetchData = async () => {
-      try{
-        const [data, ticketCounts, tickets] = await Promise.all([
+      try {
+        const [data, supportResult] = await Promise.all([
           getPurchasedStacks(user.id),
-          getSupportTicketCounts(user.id),
-          getSupportTickets(user.id),
+          getSupportTicketsWithCounts(user.id),
         ]);
         setStacks(data);
-        setOpenIssues(ticketCounts.open);
-        setClosedIssues(ticketCounts.closed);
-        setTickets(tickets);
+        setOpenIssues(supportResult.open);
+        setClosedIssues(supportResult.closed);
+        setTickets(supportResult.tickets);
       } catch (err) {
         console.error("Error fetching data", err);
       } finally {
@@ -71,12 +69,12 @@ export default function DashboardPage() {
 
   }, [user, authLoading]);
 
-  const openTasks = stacks.filter(s =>
+  const openTasks = useMemo(() => stacks.filter(s =>
     ['initiated', 'processing', 'in_progress'].includes(s.status.toLowerCase())
-  ).length;
-  const closedTasks = stacks.filter(s =>
+  ).length, [stacks]);
+  const closedTasks = useMemo(() => stacks.filter(s =>
     s.status.toLowerCase() === 'completed'
-  ).length;
+  ).length, [stacks]);
 
   if (initialLoading) {
     return <LoadingPage />;
@@ -95,8 +93,8 @@ export default function DashboardPage() {
               Key Performance Indicators
             </h2>
 
-            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline" 
-            onClick={() => router.push('/private?tab=stackboard')}>
+            <button className="text-xs font-bold text-[#2B6CB0] flex items-center gap-1 hover:underline"
+              onClick={() => router.push('/private?tab=stackboard')}>
               View Detailed Analytics <ChevronRight size={14} />
             </button>
           </div>
@@ -171,15 +169,15 @@ export default function DashboardPage() {
                   <h3 className="font-bold tracking-tight text-[#1A365D]">My Issues</h3>
                 </div>
                 <div className="flex items-center gap-3">
-                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
-                     <span className="w-2 h-2 rounded-full bg-red-500"></span> Open ({openIssues})
-                   </div>
-                   <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
-                     <span className="w-2 h-2 rounded-full bg-slate-300"></span> Closed ({closedIssues})
-                   </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                    <span className="w-2 h-2 rounded-full bg-red-500"></span> Open ({openIssues})
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                    <span className="w-2 h-2 rounded-full bg-slate-300"></span> Closed ({closedIssues})
+                  </div>
                 </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-200">
                 {tickets.map(ticket => {
                   const isOpen = ticket.status === 'open';
@@ -203,7 +201,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-             <EmptyStateSection title="My Issues" highlight="#E53E3E" />
+            <EmptyStateSection title="My Issues" highlight="#E53E3E" />
           )}
 
           <EmptyStateSection title="Due Today" highlight="#319795" />
@@ -228,9 +226,10 @@ export default function DashboardPage() {
           userId={user.id}
           onClose={async () => {
             setShowSupportModal(false);
-            const counts = await getSupportTicketCounts(user.id);
-            setOpenIssues(counts.open);
-            setClosedIssues(counts.closed);
+            const result = await getSupportTicketsWithCounts(user.id);
+            setOpenIssues(result.open);
+            setClosedIssues(result.closed);
+            setTickets(result.tickets);
           }}
         />
       )}
