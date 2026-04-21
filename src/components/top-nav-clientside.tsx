@@ -5,12 +5,14 @@ import { Search, Plus, ShieldCheck, Cpu, HelpCircle, Command } from "lucide-reac
 import { useAuth } from "@/src/context/AuthContext"
 import { createClient } from "@/utils/supabase/client"
 import { NotificationBell } from "@/src/components/notifications/notification-bell"
+import SupportModal from "@/src/components/SupportModal"
 
 const orgCache = new Map<string, { logo: string | null; name: string | null }>()
 
 export function TopNav() {
   const { user, loading } = useAuth()
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
+  const [showSupportModal, setShowSupportModal] = useState(false)
   const [orgName, setOrgName] = useState<string | null>(null)
   const fetchedForUser = useRef<string | null>(null)
 
@@ -46,7 +48,8 @@ export function TopNav() {
   useEffect(() => { fetchOrg() }, [fetchOrg])
 
   return (
-    <header className="h-[56px] bg-[#0A0A0A] flex items-center justify-between px-4 shrink-0 z-[60] border-b border-white/5 shadow-2xl">
+    <>
+      <header className="h-[56px] bg-[#0A0A0A] flex items-center justify-between px-4 shrink-0 z-[60] border-b border-white/5 shadow-2xl">
 
       {/* --- LEFT SECTION: SYSTEM BRANDING --- */}
       <div className="flex items-center gap-8">
@@ -83,7 +86,7 @@ export function TopNav() {
 
         {/* Quick Actions Group */}
         <div className="flex items-center gap-1 border-r border-white/10 pr-3 mr-1">
-          <button title="Help" className="p-2 text-neutral-500 hover:text-white transition-colors">
+          <button onClick={() => setShowSupportModal(true)} title="Help" className="p-2 text-neutral-500 hover:text-white transition-colors">
             <HelpCircle size={18} strokeWidth={1.5} />
           </button>
           <NotificationBell />
@@ -135,5 +138,12 @@ export function TopNav() {
 
       </div>
     </header>
+      {showSupportModal && user && (
+        <SupportModal
+          userId={user.id}
+          onClose={() => setShowSupportModal(false)}
+        />
+      )}
+    </>
   )
 }
