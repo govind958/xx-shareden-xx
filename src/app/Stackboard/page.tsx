@@ -603,7 +603,7 @@ export default function Stackboard() {
             >
               <Search size={18} />
             </button>
-            <button type="button" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all" title="Start Call">
+            <button type="button" onClick={() => toast("This feature will come in the next version.")} className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all" title="Start Call">
               <Phone size={18} />
             </button>
             <button
@@ -616,7 +616,7 @@ export default function Stackboard() {
             >
               <Info size={18} />
             </button>
-            <button type="button" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all">
+            <button type="button" onClick={() => toast("This feature will come in the next version.")} className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[#2B6CB0] rounded-full transition-all">
               <MoreHorizontal size={18} />
             </button>
           </div>

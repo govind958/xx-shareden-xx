@@ -136,7 +136,8 @@ export default function TaskPage() {
   useEffect(() => {
     async function fetchTasks() {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
       if (user) {
         const { data: employee } = await supabase
