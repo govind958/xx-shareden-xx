@@ -18,7 +18,8 @@ export default function ProjectPage() {
   useEffect(() => {
     async function fetchAssignedTasks() {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
       if (user) {
         const { data: employee } = await supabase
@@ -26,13 +27,28 @@ export default function ProjectPage() {
           .select('id').eq('email', user.email).single();
 
         if (employee) {
-          const { data, error } = await supabase
-            .from('order_items')
-            .select(`id, status, progress_percent, stacks (name)`)
-            .eq('assigned_to', employee.id);
+          const [orderItemsDirect, empAssignments, subAssignments] = await Promise.all([
+            supabase.from('order_items').select('id').eq('assigned_to', employee.id),
+            supabase.from('employee_assignments').select('order_item_id').eq('employee_id', employee.id),
+            supabase.from('substack_assignments').select('order_item_id').eq('employee_id', employee.id)
+          ]);
 
-          if (!error && data) {
-            setTasks(data as unknown as TaskItem[]);
+          const orderItemIds = new Set<string>();
+          orderItemsDirect.data?.forEach(d => orderItemIds.add(d.id));
+          empAssignments.data?.forEach(d => orderItemIds.add(d.order_item_id));
+          subAssignments.data?.forEach(d => orderItemIds.add(d.order_item_id));
+
+          if (orderItemIds.size > 0) {
+            const { data, error } = await supabase
+              .from('order_items')
+              .select(`id, status, progress_percent, stacks (name)`)
+              .in('id', Array.from(orderItemIds));
+
+            if (!error && data) {
+              setTasks(data as unknown as TaskItem[]);
+            }
+          } else {
+            setTasks([]);
           }
         }
       }

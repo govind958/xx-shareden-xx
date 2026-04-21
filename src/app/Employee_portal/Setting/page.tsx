@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { 
   User, Shield, Mail, Save, Fingerprint, 
@@ -36,7 +37,8 @@ export default function EmployeeSettings() {
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
 
     if (user) {
 
@@ -294,12 +296,12 @@ export default function EmployeeSettings() {
             </span>
           </div>
 
-          <button
-            type="button"
-            className="flex items-center gap-2 text-xs font-black uppercase text-teal-500"
+          <Link
+            href="/Employee_portal/reset-password"
+            className="flex items-center gap-2 text-xs font-black uppercase text-teal-500 hover:text-teal-400 transition-colors"
           >
             <Key size={14} /> Reset_Password
-          </button>
+          </Link>
 
         </div>
 

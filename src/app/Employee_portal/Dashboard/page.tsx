@@ -84,7 +84,10 @@ export default async function Dashboard() {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   assignments.map((a: any) => (
                     <tr key={a.id} className="border-b border-neutral-50 dark:border-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors">
-                      <td className="p-4 text-teal-500 font-bold">{a.order_items?.stacks?.name ?? 'Unknown'}</td>
+                      <td className="p-4 text-teal-500 font-bold">
+                        {a.assignment_kind === 'substack' ? (a.sub_stacks?.name ?? 'Unknown Module') : (a.order_items?.stacks?.name ?? 'Unknown Stack')}
+                        {a.assignment_kind === 'substack' && <span className="ml-2 text-[8px] bg-teal-500/10 text-teal-500 px-1.5 py-0.5 rounded uppercase font-black">Module</span>}
+                      </td>
                       <td className="p-4">
                         <span className={`px-2 py-1 text-[8px] font-black uppercase ${
                           a.order_items?.status === 'completed' ? 'bg-teal-500/10 text-teal-500' :

@@ -4,7 +4,8 @@ import React, { useEffect, useState, useRef, useTransition, Suspense, useCallbac
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Zap, Send, Paperclip, MoreHorizontal, Search,
-  Smile, CheckCheck, Terminal, Layers, Box, Loader2
+  Smile, CheckCheck, Terminal, Layers, Box,
+  FileArchive, ExternalLink, Download
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { updateOrderItemStatus, updateOrderItemProgress, type OrderItemStatus } from '@/src/modules/employee/actions';
@@ -68,10 +69,24 @@ function StackboardMessagingUI() {
   }, []);
 
   useEffect(() => {
-    async function initSidebar() {
-      if (sidebarLoadedRef.current && userRef.current) {
-        return userRef.current;
-      }
+    async function init() {
+        // Get Supabase Auth session (required for realtime to work)
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+        const authUser = session?.user;
+
+        if (authError || !authUser) {
+          console.error('No valid auth session found');
+          setLoading(false);
+          router.push('/Employee_portal/login');
+            return;
+        }
+              // Verify user is an employee
+      const { data: employee, error: empError } = await supabase
+      .from('employees')
+      .select('id, email, name, role, is_active')
+      .eq('id', authUser.id)
+      .eq('is_active', true)
+      .single();
 
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
@@ -505,27 +520,43 @@ function StackboardMessagingUI() {
             </header>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
-              {loadingMessages ? (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <Loader2 size={28} className={cn("animate-spin", theme.accentText)} />
-                  <span className="text-[10px] font-mono uppercase tracking-wider mt-3 opacity-50">Loading_Messages...</span>
-                </div>
-              ) : (
-                <>
-                  {messages.map((m, i) => {
-                    const isMe = m.sender_role === 'employee';
-                    return (
-                      <div key={m.id || i} className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
-                        <div className={cn(
-                          "max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm relative border border-black/5 dark:border-white/5",
-                          isMe ? cn("rounded-tr-none", theme.bubbleMe) : cn("rounded-tl-none", theme.bubbleThem)
-                        )}>
-                          <p className="text-[13px] leading-relaxed font-medium">{m.content}</p>
-                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                            <span className="text-[8px] opacity-60 font-mono">11:24 PM</span>
-                            {isMe && <CheckCheck size={12} className={isMe ? 'text-teal-200' : 'text-teal-500'} />}
+              {messages.map((m, i) => {
+                const isMe = m.sender_role === 'employee';
+                const isFile = m.message_type === 'file' && m.metadata?.file;
+                return (
+                  <div key={m.id || i} className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
+                    <div className={cn(
+                      "max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm relative border border-black/5 dark:border-white/5",
+                      isMe ? cn("rounded-tr-none", theme.bubbleMe) : cn("rounded-tl-none", theme.bubbleThem)
+                    )}>
+                      {isFile && (
+                          <div className="flex items-center gap-3 p-3 rounded-lg max-w-[280px] my-2 bg-black/10 dark:bg-white/10">
+                              <div className={cn("p-2 rounded-md", isMe ? "bg-white/20" : "bg-black/10 dark:bg-white/10")}>
+                                  <FileArchive size={22} strokeWidth={1.5} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] font-bold truncate">{m.metadata?.file?.name}</p>
+                                  <p className="text-[8px] uppercase tracking-wide opacity-60">
+                                      {m.metadata?.file?.type?.split("/")[1] || "file"}
+                                  </p>
+                              </div>
+                              <div className="flex flex-col gap-1 items-end">
+                                  <a href={m.metadata?.file?.url} target="_blank" rel="noopener noreferrer" className="text-[9px] font-semibold flex items-center gap-1 opacity-80 hover:opacity-100 transition-opacity">
+                                      Open <ExternalLink size={10} />
+                                  </a>
+                                  <a href={m.metadata?.file?.url} download={m.metadata?.file?.name} className="text-[9px] font-semibold flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity">
+                                      Save <Download size={10} />
+                                  </a>
+                              </div>
                           </div>
-                        </div>
+                      )}
+                      
+                      {!isFile && (
+                        <p className="text-[13px] leading-relaxed font-medium">{m.content}</p>
+                      )}
+                      <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                        <span className="text-[8px] opacity-60 font-mono">11:24 PM</span>
+                        {isMe && <CheckCheck size={12} className={isMe ? 'text-teal-200' : 'text-teal-500'} />}
                       </div>
                     );
                   })}
