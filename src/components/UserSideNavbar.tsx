@@ -60,7 +60,7 @@ const Navbar: FC = () => {
                 StackBoard<span className="text-indigo-500">AI</span>
               </span>
               <span className={`text-[9px] font-bold tracking-[0.2em] mt-1 uppercase transition-colors ${scrolled ? 'text-slate-500' : 'text-slate-400'}`}>
-                Enterprise v1.0
+                Deploy a full team in one click
               </span>
             </div>
           </Link>
