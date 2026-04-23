@@ -8,7 +8,7 @@ import { Button } from "@/src/components/ui/button";
 import { GithubIcon, GalleryVerticalEnd, Quote, AlertCircle, Loader2 } from "lucide-react";
 import mixpanel from "@/src/lib/mixpanelClient";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "next/link"; // Added Link import
 
 import JaneDoePortrait from "@/src/app/Image/alert.png";
 
@@ -148,15 +148,22 @@ function LoginContent() {
       
       {/* LEFT SIDE: FORM SECTION */}
       <div className="flex flex-col gap-4 p-6 md:p-10">
-        {/* Brand Logo */}
-        <div className="flex justify-center gap-2 md:justify-start">
-          <a href="#" className="flex items-center gap-2 font-medium">
-            <div className="flex size-6 items-center justify-center rounded-md bg-[#1A365D] text-white">
-              <GalleryVerticalEnd className="size-4" />
+        
+        {/* NEW BRAND LOGO INTEGRATED HERE */}
+        <div className="flex justify-center md:justify-start">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg bg-slate-900 shadow-slate-900/10">
+              <div className="h-4 w-4 bg-white rounded-sm rotate-45 transition-transform group-hover:rotate-[135deg]" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-[#1A365D]" >
-              <Link href='/'>Stackboard</Link></span>
-          </a>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold tracking-tight leading-none transition-colors duration-300 text-[#1A365D]">
+                StackBoard<span className="text-indigo-500">AI</span>
+              </span>
+              <span className="text-[9px] font-bold tracking-[0.2em] mt-1 uppercase transition-colors text-slate-400">
+                Enterprise v1.0
+              </span>
+            </div>
+          </Link>
         </div>
 
         {/* Centered Content Container */}
@@ -192,15 +199,15 @@ function LoginContent() {
             {/* Terms */}
             <div className="text-center text-xs text-slate-400">
               By continuing, you agree to our{" "}
-              <a href="#" className="underline underline-offset-4 hover:text-[#2B6CB0]">Terms of Service</a>{" "}
+              <a href="/Terms_of_service" className="underline underline-offset-4 hover:text-[#2B6CB0]">Terms of Service</a>{" "}
               and{" "}
-              <a href="#" className="underline underline-offset-4 hover:text-[#2B6CB0]">Privacy Policy</a>.
+              <a href="/Privacy_Policy" className="underline underline-offset-4 hover:text-[#2B6CB0]">Privacy Policy</a>.
             </div>
           </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT SIDE: TESTIMONIAL SECTION */}
       <div className="relative hidden bg-slate-50 lg:block border-l border-slate-100">
         <div className="absolute inset-0 flex items-center justify-center opacity-40">
             <div className="relative">
@@ -215,7 +222,6 @@ function LoginContent() {
         </div>
         
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-lg space-y-8 p-10 font-sans z-10">
-          
           <h2 className="text-5xl font-extrabold tracking-tighter text-[#1A365D]">
             Trusted by businesses and CAs
           </h2>
@@ -227,7 +233,6 @@ function LoginContent() {
               <p className="text-xl font-medium leading-relaxed">
                 Stackboard has transformed our document sharing. Securing, sharing, and organizing our files is now a breeze. It&apos;s truly a game-changer for our collaborative projects.
               </p>
-              
               <p className="text-xl font-bold">
                 We have reduced processing time by 45% using Stackboard.
               </p>
@@ -243,7 +248,6 @@ function LoginContent() {
                 placeholder="blur"
                 priority
               />
-              
               <div className="flex flex-col">
                 <span className="text-2xl font-bold">Jane Doe</span>
                 <span className="text-sm font-semibold uppercase tracking-wider text-[#90CDF4]">
