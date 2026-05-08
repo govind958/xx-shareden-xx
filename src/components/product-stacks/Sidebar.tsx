@@ -69,23 +69,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
       
       {/* 1. TOP NAV & IDENTITY */}
       <div className="p-6 pb-2">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Terminal size={20} className="text-white" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-white tracking-tight leading-none">Core Registry</h2>
-            <span className="text-[10px] text-blue-500/70 font-mono uppercase tracking-widest">System v4.0</span>
-          </div>
-        </div>
-
+      
         {/* 2. ACTION INSTRUCTIONS */}
         <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-4 mb-5">
           <div className="flex items-start gap-3">
             <MousePointer2 size={16} className="text-blue-400 mt-0.5" />
             <div className="space-y-1">
               <p className="text-[12px] leading-tight text-slate-200">
-                <span className="text-blue-400 font-black">DRAG</span> components to the canvas to initialize your build.
+                <span className="text-blue-400 font-black">DRAG</span> processes to the canvas to initialize your build.
               </p>
             </div>
           </div>
@@ -96,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input 
             type="text"
-            placeholder="Filter components..."
+            placeholder="Filter stacks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-black/40 border border-white/5 rounded-md py-2.5 pl-10 pr-3 text-xs focus:outline-none focus:border-blue-500/50 focus:bg-black/60 transition-all placeholder:text-slate-600"
@@ -192,17 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ stacks }) => {
       </div>
 
       {/* 5. DOCK / FOOTER */}
-      <div className="p-5 bg-black/60 border-t border-white/5 mt-auto">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <LayoutGrid size={14} className="text-blue-500" />
-            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Global Assets</span>
-          </div>
-          <span className="text-xs font-black text-white bg-blue-600 px-2.5 py-1 rounded shadow-lg shadow-blue-500/20">
-            {stacks.length}
-          </span>
-        </div>
-      </div>
+      
     </aside>
   );
 };

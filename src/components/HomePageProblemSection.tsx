@@ -1,205 +1,126 @@
 "use client";
-import React, { useState, useEffect, useRef, FC } from 'react';
+import React, { FC } from 'react';
+import { ClipboardCheck, Hammer, BadgeCheck, ArrowRight } from 'lucide-react';
 
-// --- Suprematist Reconstruction Component ---
-const SuprematistArt: FC<{ progress: number }> = ({ progress }) => {
-  const shiftX = progress * 20;
-  const shiftY = progress * -20;
+const steps = [
+  {
+    id: "01",
+    title: "Discovery",
+    detail: "Thorough assessment of your site to identify structural needs.",
+    icon: <ClipboardCheck size={24} className="text-indigo-600" />,
+  },
+  {
+    id: "02",
+    title: "Execution",
+    detail: "Licensed specialists carry out work with premium materials.",
+    icon: <Hammer size={24} className="text-indigo-600" />,
+  },
+  {
+    id: "03",
+    title: "Assurance",
+    detail: "Multi-point inspection to ensure our rigorous standards.",
+    icon: <BadgeCheck size={24} className="text-indigo-600" />,
+  },
+];
 
+const SimpleProcess: FC = () => {
   return (
-    <svg
-      viewBox="0 0 500 800"
-      className="w-full h-full transition-transform duration-500 ease-out"
-      preserveAspectRatio="xMidYMid meet" // Changed to meet to ensure it stays within bounds
-    >
-      <rect
-        x={100 + shiftX * 0.5}
-        y={200 + shiftY * 0.2}
-        width="300"
-        height="400"
-        rx="150"
-        fill="#f3f4f6"
-        className="opacity-50"
-      />
-      <circle
-        cx={250 + shiftX}
-        cy={400 + shiftY}
-        r={120 + progress * 20}
-        fill="#4F46E5"
-        className="transition-all duration-700"
-      />
-      <rect
-        x={150 - shiftX}
-        y={150 + shiftY}
-        width="240"
-        height="60"
-        rx="30"
-        fill="#0D9488"
-        transform={`rotate(-25 ${150 + 120} ${150 + 30})`}
-        className="opacity-90"
-      />
-      <circle
-        cx={350 + shiftX * 1.5}
-        cy={250 + shiftY * 0.5}
-        r="45"
-        fill="#E11D48"
-      />
-      <rect
-        x={180 + shiftX * 2}
-        y={500 + shiftY}
-        width="160"
-        height="12"
-        rx="6"
-        fill="#111827"
-        transform={`rotate(45 ${180 + 80} ${500 + 6})`}
-      />
-      <rect
-        x={254 + shiftX * 2}
-        y={426 + shiftY}
-        width="12"
-        height="160"
-        rx="6"
-        fill="#111827"
-        transform={`rotate(45 ${254 + 6} ${426 + 80})`}
-      />
-      <circle
-        cx={120 + shiftX}
-        cy={600 + shiftY * 1.2}
-        r="20"
-        fill="#F59E0B"
-      />
-    </svg>
-  );
-};
-
-const ProblemSolutionSection: FC = () => {
-  const scrollTarget = useRef(0);
-  const currentScroll = useRef(0);
-  const [displayProgress, setDisplayProgress] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (totalHeight <= 0) return;
-      scrollTarget.current = window.scrollY / totalHeight;
-    };
-
-    let rafId: number;
-    const update = () => {
-      currentScroll.current += (scrollTarget.current - currentScroll.current) * 0.1;
-      setDisplayProgress(currentScroll.current);
-      rafId = requestAnimationFrame(update);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    rafId = requestAnimationFrame(update);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  const progress = displayProgress * 3.5;
-
-  const steps = [
-    {
-      id: 1,
-      problem: "Traditional SaaS: No accountability.",
-      solution: "Outcome-Based Machines",
-      detail: "Infrastructure built to deliver results, not just tools."
-    },
-    {
-      id: 2,
-      problem: "High overhead & slow scaling.",
-      solution: "Fractional Dept. Rental",
-      detail: "Deploy Sales or Tech units as modular components."
-    },
-    {
-      id: 3,
-      problem: "Fragmented tech stacks.",
-      solution: "Unified Digital Ecosystem",
-      detail: "Integrated operations via a high-perf interface."
-    }
-  ];
-
-  return (
-    <section className="relative w-full min-h-screen bg-white overflow-hidden font-sans flex flex-col md:flex-row">
-      {/* Background Glow */}
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_30%_50%,_rgba(20,184,166,0.03)_0%,_rgba(255,255,255,1)_70%)]" />
-
-      {/* Left Content Area - Added max-width and internal padding for safety */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center px-8 sm:px-12 md:pl-16 lg:pl-24 py-20 md:py-0 z-10">
+    <section className="relative w-full py-24 bg-white border-t border-slate-50">
+      {/* CENTERED WRAPPER */}
+      <div className="max-w-6xl mx-auto px-6 flex flex-col items-center">
         
-        {/* Header */}
-        <div className="mb-12 max-w-lg">
-          <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-600 mb-2">Process Flow</h2>
-          <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 tracking-tight leading-tight">
-            The <span className="text-indigo-600">SaaS 2.0</span><br className="hidden sm:block" /> Evolution.
-          </p>
+        {/* Centered Header Section */}
+        <div className="text-center mb-24 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <h2 className="text-indigo-600 font-bold text-[10px] uppercase tracking-[0.4em] mb-4">
+            The Roadmap
+          </h2>
+          <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter leading-tight">
+            Excellence in every <br />
+            <span className="text-slate-400">square foot.</span>
+          </h1>
         </div>
 
-        {/* Steps */}
-        <div className="relative flex flex-col space-y-10 max-w-lg">
-          {steps.map((item, idx) => {
-            const isActive = progress > idx + 0.4;
-            const isFullyDone = progress > idx + 1.1;
+        {/* Minimalist Step Grid - Centered items */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-12 relative w-full">
+          {/* Connecting Line (Desktop Only) */}
+          <div className="hidden md:block absolute top-12 left-[10%] right-[10%] h-[1px] bg-gradient-to-r from-transparent via-slate-100 to-transparent z-0" />
 
-            return (
-              <div key={item.id} className="relative flex gap-6 md:gap-8 items-start">
-                {/* Timeline Column */}
-                <div className="flex flex-col items-center shrink-0">
-                  <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all duration-500 
-                    ${isActive ? 'bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white border-gray-100'}`}>
-                    <span className={`font-mono text-xs font-bold ${isActive ? 'text-white' : 'text-gray-300'}`}>{item.id}</span>
-                  </div>
-                  {idx !== steps.length - 1 && (
-                    <div className="w-[2px] h-16 bg-gray-50 relative mt-2">
-                      <div 
-                        className="absolute top-0 left-0 w-full bg-indigo-500 transition-all duration-300 ease-out"
-                        style={{ height: `${Math.min(100, Math.max(0, (progress - (idx + 0.7)) * 150))}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Text Content */}
-                <div className={`flex-1 pt-1 transition-all duration-700 ${isActive ? 'opacity-100 translate-x-0' : 'opacity-30 -translate-x-2'}`}>
-                  <div className="flex flex-col xl:flex-row xl:items-center xl:gap-3">
-                    <p className={`text-xs text-gray-400 line-through decoration-gray-300 ${isActive ? 'block' : 'hidden'}`}>
-                      {item.problem}
-                    </p>
-                    <h3 className={`text-xl font-bold ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {item.solution}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                    {item.detail}
-                  </p>
-                  {isActive && !isFullyDone && (
-                    <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-1 bg-teal-50 text-teal-600 rounded-lg text-[9px] font-bold">
-                      <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
-                      LIVE_DEPLOYMENT
-                    </div>
-                  )}
+          {steps.map((step, index) => (
+            <div 
+              key={step.id} 
+              className="relative z-10 flex flex-col items-center text-center group animate-in fade-in slide-in-from-bottom-8 duration-1000"
+              style={{ animationDelay: `${index * 150}ms` }}
+            >
+              {/* Icon Circle Container */}
+              <div className="w-24 h-24 bg-white border border-slate-100 rounded-[32px] flex items-center justify-center mb-8 shadow-sm group-hover:shadow-2xl group-hover:shadow-indigo-100/50 group-hover:border-indigo-100 transition-all duration-500 group-hover:-translate-y-2">
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
+                  {step.icon}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Right Art Area - Added responsive padding to prevent edge-touching */}
-      <div className="relative w-full md:w-1/2 min-h-[400px] md:h-screen bg-gray-50/20 overflow-hidden flex items-center justify-center p-12 sm:p-16 lg:p-24">
-        <div className="w-full h-full max-w-md lg:max-w-xl flex items-center justify-center">
-           <SuprematistArt progress={displayProgress} />
+              {/* Step Number Badge */}
+              <div className="inline-flex items-center gap-2 mb-4">
+                <span className="text-indigo-600 text-[10px] font-black uppercase tracking-[0.3em]">
+                  Step {step.id}
+                </span>
+              </div>
+
+              {/* Text Content */}
+              <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-3 tracking-tight">
+                {step.title}
+              </h3>
+              <p className="text-slate-500 text-sm md:text-base font-medium leading-relaxed max-w-[260px]">
+                {step.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* --- REVISED CTA CARD WITH ABSTRACT ART --- */}
+        <div className="relative mt-32 w-full max-w-4xl p-1 md:p-1.5 overflow-hidden rounded-[40px] shadow-2xl shadow-indigo-200/40 animate-in zoom-in duration-1000">
+          
+          {/* Background Art Layer */}
+          <div className="absolute inset-0 z-0 bg-slate-950">
+            {/* Animated/Blurry Abstract Orbs */}
+            <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[140%] bg-indigo-600/30 rounded-full blur-[100px] animate-pulse" />
+            <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[120%] bg-fuchsia-600/20 rounded-full blur-[100px]" />
+            {/* Subtle Pattern Overlay */}
+            <div className="absolute inset-0 opacity-[0.1] [mask-image:radial-gradient(ellipse_at_center,white,transparent)]" 
+                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.4' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3C/g%3E%3C/svg%3E")` }} 
+            />
+          </div>
+
+          {/* Card Content Container - backdrop-blur-xl allows the art to peek through */}
+          <div className="relative z-10 bg-slate-900/80 backdrop-blur-xl rounded-[32px] p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8 border border-white/10">
+            
+            <div className="flex items-center gap-6">
+              <div className="flex -space-x-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-12 h-12 rounded-full border-4 border-slate-900 bg-slate-800 shadow-xl overflow-hidden">
+                    <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800" />
+                  </div>
+                ))}
+              </div>
+              <div className="text-left">
+                <p className="text-white font-black tracking-tight text-lg">
+                  Ready to start?
+                </p>
+                <p className="text-indigo-300/60 text-[10px] font-bold uppercase tracking-widest">
+                  500+ satisfied homeowners
+                </p>
+              </div>
+            </div>
+            
+            <button className="w-full md:w-auto flex items-center justify-center gap-3 px-10 py-5 bg-white text-slate-950 font-black text-sm rounded-2xl hover:bg-indigo-50 transition-all group active:scale-[0.98] shadow-xl">
+              Get your free estimate 
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
         </div>
         
-        {/* Soft edge masking */}
-        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-white to-transparent hidden md:block" />
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white to-transparent md:hidden" />
       </div>
     </section>
   );
 };
 
-export default ProblemSolutionSection;
+export default SimpleProcess;

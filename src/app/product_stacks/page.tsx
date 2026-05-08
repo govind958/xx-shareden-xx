@@ -80,7 +80,7 @@ export default function ProductStacksPage() {
         {/* HEADER */}
         <header className="px-1">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Product Stacks</h1>
-          <p className="text-sm text-slate-500">Drag and drop components to build your architecture</p>
+          <p className="text-sm text-slate-500">Drag and drop processes/stacks to build your architecture</p>
         </header>
 
         {/* PROJECT CANVAS SECTION - The "Hero" container */}
