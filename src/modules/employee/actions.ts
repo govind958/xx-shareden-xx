@@ -9,6 +9,8 @@ import {
         sendAdminNewEmployeeNotification,
         sendEmployeeApprovalEmail,
     } from "@/src/modules/email/send-employee-invite";
+    // Import for customer order status update (adjust path to where your file is)
+import { sendStatusNotificationEmail } from "@/src/modules/email/send-status-notification";
 import { randomBytes } from "crypto";
 
 // Generate a secure invite token
@@ -249,7 +251,7 @@ export async function verifyEmployeeSession(): Promise<{
 }
 
 // Valid order item statuses - re-export from email module for consistency
-export type OrderItemStatus = OrderStatus
+export type OrderItemStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'; // adjust values to match your schema
 
 // Update order item status (for employees working on tasks)
 export async function updateOrderItemStatus(
@@ -288,6 +290,7 @@ export async function updateOrderItemStatus(
     }
 
     const previousStatus = orderItem.status as OrderItemStatus
+    const validStatuses: Readonly<string[]> = ['in_progress', 'completed', 'cancelled']
 
     // Build update payload
     const updatePayload: { status: OrderItemStatus; progress_percent?: number } = {
@@ -330,7 +333,7 @@ export async function updateOrderItemStatus(
         .eq('employee_id', employee.id)
 
     // Send email notification to customer if status changed
-    if (previousStatus !== newStatus && orderItem.user_id) {
+    if (previousStatus !== newStatus && orderItem.user_id && validStatuses.includes(newStatus)) {
         try {
             // Get user email from auth.users using admin client
             const { data: userData } = await adminClient.auth.admin.getUserById(orderItem.user_id)
@@ -351,8 +354,8 @@ export async function updateOrderItemStatus(
                     customerName: profile?.name || 'Valued Customer',
                     orderItemId: orderItemId,
                     stackName: stackName,
-                    newStatus: newStatus,
-                    previousStatus: previousStatus,
+                    newStatus: newStatus as any,
+                    previousStatus: previousStatus as any,
                     progressPercent: updatePayload.progress_percent,
                     employeeName: employee.name,
                 })
