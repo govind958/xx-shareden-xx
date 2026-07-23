@@ -383,7 +383,7 @@ export async function assignEmployeeToOrderItem(
         .single()
 
       if (userData?.user?.email) {
-        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
+       const stackName = (Array.isArray(orderItem?.stacks) ? orderItem.stacks[0]?.name : (orderItem?.stacks as { name: string } | null)?.name) || 'Your Stack'
 
         const emailResult = await sendStatusNotificationEmail({
           customerEmail: userData.user.email,
@@ -502,7 +502,7 @@ export async function assignEmployeeAndNotify(
         .single()
 
       if (userData?.user?.email) {
-        const stackName = (orderItem.stacks as { name: string } | null)?.name || 'Your Stack'
+        const stackName = ((orderItem.stacks as unknown) as { name: string } | null)?.name || 'Your Stack';
 
         const emailResult = await sendStatusNotificationEmail({
           customerEmail: userData.user.email,
