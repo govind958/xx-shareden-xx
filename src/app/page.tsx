@@ -4,6 +4,7 @@ import UserSideNavbar from "../components/UserSideNavbar";
 import Footer from "../components/UserSideFooterHomePage";
 import Hero from "../components/HomePageHeroSection";
 import TrustedBy from "../components/HomePageTrustSection";
+import RevenueCalculator from '../components/HomePageRevenueLossSection';
 import FAQ from "../components/HomePageFAQ";
 import ProblemSection from "../components/HomePageProblemSection";
 import MoneyBack from "../components/HomePageMoneyBack"; // Added your new process section
@@ -20,6 +21,8 @@ const StackboardClassic: FC = () => {
 
         {/* 2. Trust Section (Gray logos) */}
         <TrustedBy />
+
+        <RevenueCalculator />
         
         {/* 3. Problem Section - Using a clean standard flow instead of nested sticky */}
         <section className="relative bg-white">

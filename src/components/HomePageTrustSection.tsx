@@ -1,70 +1,98 @@
 "use client";
 import React from 'react';
 
-const brands = [
-  { name: "Roofline" },
-  { name: "Plumbly" },
-  { name: "Estately" },
-  { name: "ApexBuild" },
-  { name: "HydroFlow" },
-  { name: "VistaHome" },
+interface Brand {
+  name: string;
+  logo: React.ReactNode;
+}
+
+const brands: Brand[] = [
+  { 
+    name: "Roofline", 
+    logo: (
+      <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3m10-11v11a1 1 0 01-1 1h-3" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  { 
+    name: "Plumbly", 
+    logo: (
+      <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" />
+      </svg>
+    )
+  },
+  { 
+    name: "Estately", 
+    logo: (
+      <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <rect x="4" y="4" width="16" height="16" rx="3" strokeLinecap="round"/>
+        <path d="M9 9h6v6H9z" fill="currentColor" />
+      </svg>
+    )
+  },
+  { 
+    name: "ApexBuild", 
+    logo: (
+      <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M12 3L2 21h20L12 3z" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  { 
+    name: "HydroFlow", 
+    logo: (
+      <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M12 22a7 7 0 007-7c0-4.3-7-13-7-13S5 10.7 5 15a7 7 0 007 7z" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  { 
+    name: "VistaHome", 
+    logo: (
+      <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M4 4h16v16H4z" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M4 12h16" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
 ];
 
 const TrustedBy: React.FC = () => {
   return (
-    <section className="relative w-full py-24 bg-white">
-      {/* Container matches the Hero's max-w-6xl */}
+    <section className="relative w-full py-20 bg-white">
       <div className="max-w-6xl mx-auto px-6 flex flex-col items-center">
         
-        {/* Minimalist Heading - Centered */}
-        <div className="text-center mb-16 animate-in fade-in duration-1000">
-          <p className="text-[10px] font-black tracking-[0.4em] text-slate-300 uppercase">
-            Powering the world's best creators
+        {/* Minimalist Subtitle Header */}
+        <div className="text-center mb-12">
+          <p className="text-[11px] font-bold tracking-[0.25em] text-slate-400 uppercase">
+            Trusted by modern contracting leaders
           </p>
         </div>
 
-        {/* Centered Logo Flex/Grid 
-            - Center alignment for a "Cinematic" feel
-            - Increased gap for better whitespace
-        */}
-        <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-10 md:gap-x-16 lg:gap-x-20">
+        {/* Clean Logo Row */}
+        <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-8 md:gap-x-16 lg:gap-x-20 w-full">
           {brands.map((brand) => (
             <div 
               key={brand.name} 
-              className="group cursor-default animate-in fade-in zoom-in duration-1000"
+              className="flex items-center space-x-2.5 text-slate-400 hover:text-slate-900 opacity-40 hover:opacity-100 transition-all duration-300 ease-out cursor-default"
             >
-              <div className="flex items-center space-x-3 transition-all duration-700 ease-in-out opacity-30 hover:opacity-100 filter grayscale hover:grayscale-0">
-                
-                {/* Minimalist Symbol - Matches the Hero sidebar style */}
-                <div className="w-9 h-9 flex-shrink-0 bg-slate-50 group-hover:bg-indigo-600 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm group-hover:shadow-indigo-100 group-hover:-rotate-6">
-                  <span className="text-slate-400 group-hover:text-white text-[10px] font-black">
-                    {brand.name.charAt(0)}
-                  </span>
-                </div>
-                
-                {/* Brand Name Typography - Refined weight */}
-                <span className="text-base md:text-lg font-black tracking-tighter text-slate-900">
-                  {brand.name}
-                </span>
+              {/* Modern Vector Icon */}
+              <div className="flex-shrink-0">
+                {brand.logo}
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Centered Trust Indicators 
-            - Removed the top border to keep the "Floating" feel
-            - Uses a wider gap for a cleaner horizontal line
-        */}
-        <div className="mt-20 flex flex-wrap justify-center gap-x-10 gap-y-4">
-          {["Licensed Professionals", "Trusted Support", "Quality Guaranteed"].map((item) => (
-            <div key={item} className="flex items-center space-x-3">
-              <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full opacity-50 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                {item}
+              {/* Refined Brand Name */}
+              <span className="text-base font-bold tracking-tight">
+                {brand.name}
               </span>
             </div>
           ))}
         </div>
+
+        {/* Ultra-Minimal Bottom Indicators */}
+       
 
       </div>
     </section>
